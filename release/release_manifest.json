@@ -1,0 +1,17 @@
+{
+  "release_name": "AI Triage Agentic System Demo Release",
+  "created_at_utc": "2026-06-09T21:46:59.449753+00:00",
+  "clinical_use_status": "not_for_clinical_use",
+  "dataset": "MIMIC-IV-ED Demo v2.2",
+  "evidence_package": "data\\processed\\responsible_ai_evidence_package.json",
+  "included_components": [
+    "FastAPI backend",
+    "Streamlit demo UI",
+    "MIMIC-IV-ED Demo processing pipeline",
+    "Responsible AI governance report",
+    "Human review queue",
+    "Evidence export script",
+    "Unit tests"
+  ],
+  "safety_statement": "This release is a research/demo artifact only. It does not assign Manchester triage categories, does not provide diagnosis, and must not be used for patient care."
+}
