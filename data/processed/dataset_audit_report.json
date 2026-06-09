@@ -1,0 +1,214 @@
+{
+  "sample_size": 100,
+  "triage_input_fields": [
+    "subject_id",
+    "stay_id",
+    "intime",
+    "gender",
+    "race",
+    "arrival_transport",
+    "chiefcomplaint",
+    "temperature",
+    "heartrate",
+    "resprate",
+    "o2sat",
+    "sbp",
+    "dbp",
+    "pain"
+  ],
+  "retrospective_label_fields": [
+    "stay_id",
+    "original_acuity",
+    "disposition",
+    "diagnosis_count",
+    "vitals_timeseries_count",
+    "medrecon_count",
+    "pyxis_count"
+  ],
+  "missingness_triage_inputs": {
+    "subject_id": {
+      "missing_count": 0,
+      "missing_percent": 0.0
+    },
+    "stay_id": {
+      "missing_count": 0,
+      "missing_percent": 0.0
+    },
+    "intime": {
+      "missing_count": 0,
+      "missing_percent": 0.0
+    },
+    "gender": {
+      "missing_count": 0,
+      "missing_percent": 0.0
+    },
+    "race": {
+      "missing_count": 0,
+      "missing_percent": 0.0
+    },
+    "arrival_transport": {
+      "missing_count": 0,
+      "missing_percent": 0.0
+    },
+    "chiefcomplaint": {
+      "missing_count": 0,
+      "missing_percent": 0.0
+    },
+    "temperature": {
+      "missing_count": 11,
+      "missing_percent": 11.0
+    },
+    "heartrate": {
+      "missing_count": 11,
+      "missing_percent": 11.0
+    },
+    "resprate": {
+      "missing_count": 11,
+      "missing_percent": 11.0
+    },
+    "o2sat": {
+      "missing_count": 11,
+      "missing_percent": 11.0
+    },
+    "sbp": {
+      "missing_count": 11,
+      "missing_percent": 11.0
+    },
+    "dbp": {
+      "missing_count": 11,
+      "missing_percent": 11.0
+    },
+    "pain": {
+      "missing_count": 10,
+      "missing_percent": 10.0
+    }
+  },
+  "top_chief_complaints": [
+    [
+      "Hypotension",
+      3
+    ],
+    [
+      "Abd pain, Back pain",
+      2
+    ],
+    [
+      "Abd pain, N/V",
+      2
+    ],
+    [
+      "SHORTNESS OF BREATH",
+      2
+    ],
+    [
+      "Dyspnea",
+      2
+    ],
+    [
+      "Chest pain",
+      2
+    ],
+    [
+      "UNKNOWN-CC",
+      2
+    ],
+    [
+      "Abd pain",
+      2
+    ],
+    [
+      "Dyspnea, Transfer",
+      2
+    ],
+    [
+      "Fatigue, s/p Fall",
+      1
+    ],
+    [
+      "MVC/INTUBATED TRAUMA",
+      1
+    ],
+    [
+      "ETOH, Hallucinations",
+      1
+    ],
+    [
+      "Right sided abdominal pain",
+      1
+    ],
+    [
+      "Transfer",
+      1
+    ],
+    [
+      "Weakness",
+      1
+    ],
+    [
+      "Chest pain, Jaw pain, L Arm pain",
+      1
+    ],
+    [
+      "L Arm numbness, L Arm swelling",
+      1
+    ],
+    [
+      "T-SPINE FX DISPLACEMENT",
+      1
+    ],
+    [
+      "N/V, Hyperglycemia",
+      1
+    ],
+    [
+      "Headache, SAH, Transfer",
+      1
+    ]
+  ],
+  "disposition_distribution": [
+    [
+      "ADMITTED",
+      73
+    ],
+    [
+      "HOME",
+      23
+    ],
+    [
+      "LEFT WITHOUT BEING SEEN",
+      1
+    ],
+    [
+      "OTHER",
+      1
+    ],
+    [
+      "TRANSFER",
+      1
+    ],
+    [
+      "LEFT AGAINST MEDICAL ADVICE",
+      1
+    ]
+  ],
+  "original_acuity_distribution": [
+    [
+      "3.0",
+      46
+    ],
+    [
+      "2.0",
+      41
+    ],
+    [
+      "1.0",
+      7
+    ]
+  ],
+  "retrospective_record_counts": {
+    "total_diagnoses": 235,
+    "total_vitals_timeseries_records": 475,
+    "total_medrecon_records": 1224,
+    "total_pyxis_records": 453
+  }
+}

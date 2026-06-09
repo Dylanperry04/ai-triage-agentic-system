@@ -1,0 +1,181 @@
+{
+  "sample_size": 100,
+  "cases_with_missing_triage_inputs": 14,
+  "missing_case_percent": 14.0,
+  "missing_cases": [
+    {
+      "stay_id": 30115213,
+      "subject_id": 10010867,
+      "chiefcomplaint": "MVC/INTUBATED TRAUMA",
+      "missing_fields": [
+        "temperature",
+        "heartrate",
+        "resprate",
+        "o2sat",
+        "sbp",
+        "dbp",
+        "pain"
+      ]
+    },
+    {
+      "stay_id": 30272878,
+      "subject_id": 10038999,
+      "chiefcomplaint": "Transfer",
+      "missing_fields": [
+        "temperature",
+        "heartrate",
+        "resprate",
+        "o2sat",
+        "sbp",
+        "dbp"
+      ]
+    },
+    {
+      "stay_id": 30701739,
+      "subject_id": 10032725,
+      "chiefcomplaint": "FACIAL DROOP",
+      "missing_fields": [
+        "temperature",
+        "heartrate",
+        "resprate",
+        "o2sat",
+        "sbp",
+        "dbp",
+        "pain"
+      ]
+    },
+    {
+      "stay_id": 31200743,
+      "subject_id": 10026354,
+      "chiefcomplaint": "SW",
+      "missing_fields": [
+        "temperature",
+        "heartrate",
+        "resprate",
+        "o2sat",
+        "sbp",
+        "dbp",
+        "pain"
+      ]
+    },
+    {
+      "stay_id": 31660580,
+      "subject_id": 10010471,
+      "chiefcomplaint": "s/p cardiac arrest",
+      "missing_fields": [
+        "temperature",
+        "heartrate",
+        "resprate",
+        "o2sat",
+        "sbp",
+        "dbp"
+      ]
+    },
+    {
+      "stay_id": 31824062,
+      "subject_id": 10016810,
+      "chiefcomplaint": "UNKNOWN-CC",
+      "missing_fields": [
+        "temperature",
+        "heartrate",
+        "resprate",
+        "o2sat",
+        "sbp",
+        "dbp",
+        "pain"
+      ]
+    },
+    {
+      "stay_id": 31945330,
+      "subject_id": 10040025,
+      "chiefcomplaint": "Allergic reaction",
+      "missing_fields": [
+        "pain"
+      ]
+    },
+    {
+      "stay_id": 32443787,
+      "subject_id": 10037928,
+      "chiefcomplaint": "UNKNOWN-CC",
+      "missing_fields": [
+        "pain"
+      ]
+    },
+    {
+      "stay_id": 33211001,
+      "subject_id": 10016742,
+      "chiefcomplaint": "PICC EVAL",
+      "missing_fields": [
+        "temperature",
+        "heartrate",
+        "resprate",
+        "o2sat",
+        "sbp",
+        "dbp",
+        "pain"
+      ]
+    },
+    {
+      "stay_id": 33678912,
+      "subject_id": 10003400,
+      "chiefcomplaint": "Tachycardia, Hypoxia",
+      "missing_fields": [
+        "pain"
+      ]
+    },
+    {
+      "stay_id": 33978784,
+      "subject_id": 10002428,
+      "chiefcomplaint": "RESP ARREST",
+      "missing_fields": [
+        "temperature",
+        "heartrate",
+        "resprate",
+        "o2sat",
+        "sbp",
+        "dbp",
+        "pain"
+      ]
+    },
+    {
+      "stay_id": 34391979,
+      "subject_id": 10004720,
+      "chiefcomplaint": "Cardiac arrest, Transfer",
+      "missing_fields": [
+        "temperature",
+        "heartrate",
+        "resprate",
+        "o2sat",
+        "sbp",
+        "dbp"
+      ]
+    },
+    {
+      "stay_id": 34558830,
+      "subject_id": 10005866,
+      "chiefcomplaint": "Abd pain, LEAKING ASCITES",
+      "missing_fields": [
+        "temperature",
+        "heartrate",
+        "resprate",
+        "o2sat",
+        "sbp",
+        "dbp",
+        "pain"
+      ]
+    },
+    {
+      "stay_id": 34820898,
+      "subject_id": 10014354,
+      "chiefcomplaint": "Dizziness, Diplopia",
+      "missing_fields": [
+        "temperature",
+        "heartrate",
+        "resprate",
+        "o2sat",
+        "sbp",
+        "dbp"
+      ]
+    }
+  ]
+}
