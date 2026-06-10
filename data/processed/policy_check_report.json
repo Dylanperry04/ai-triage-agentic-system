@@ -1,0 +1,172 @@
+{
+  "generated_at_utc": "2026-06-10T13:52:56.030096+00:00",
+  "policy_check_version": "0.1",
+  "clinical_safety_claim": "No clinical safety claim is made by these checks.",
+  "clinical_use_allowed": false,
+  "automated_manchester_triage_allowed": false,
+  "base_url": "https://ai-triage-agentic-system-afcmdbdpcsana4h3.swedencentral-01.azurewebsites.net",
+  "summary": {
+    "pass": 26,
+    "warn": 0,
+    "fail": 0,
+    "total": 26
+  },
+  "results": [
+    {
+      "policy_id": "GOV-DOC-001",
+      "name": "Required governance file exists: docs/CLINICAL_SAFETY_GOVERNANCE_CHARTER.md",
+      "status": "PASS",
+      "details": "File present."
+    },
+    {
+      "policy_id": "GOV-DOC-001",
+      "name": "Required governance file exists: docs/RAI_TOOLKIT_ALIGNMENT.md",
+      "status": "PASS",
+      "details": "File present."
+    },
+    {
+      "policy_id": "GOV-DOC-001",
+      "name": "Required governance file exists: docs/CLINICAL_RULES_STATUS.md",
+      "status": "PASS",
+      "details": "File present."
+    },
+    {
+      "policy_id": "GOV-DOC-001",
+      "name": "Required governance file exists: docs/DATA_LEAKAGE_POLICY.md",
+      "status": "PASS",
+      "details": "File present."
+    },
+    {
+      "policy_id": "GOV-DOC-001",
+      "name": "Required governance file exists: docs/DATA_SCHEMA_VERIFIED.md",
+      "status": "PASS",
+      "details": "File present."
+    },
+    {
+      "policy_id": "GOV-EVIDENCE-001",
+      "name": "Required runtime evidence file exists: data/processed/triage_cases_sample.jsonl",
+      "status": "PASS",
+      "details": "File present."
+    },
+    {
+      "policy_id": "GOV-EVIDENCE-001",
+      "name": "Required runtime evidence file exists: data/processed/dataset_audit_report.json",
+      "status": "PASS",
+      "details": "File present."
+    },
+    {
+      "policy_id": "GOV-EVIDENCE-001",
+      "name": "Required runtime evidence file exists: data/processed/missing_triage_inputs_report.json",
+      "status": "PASS",
+      "details": "File present."
+    },
+    {
+      "policy_id": "GOV-EVIDENCE-001",
+      "name": "Required runtime evidence file exists: data/processed/schema_report.json",
+      "status": "PASS",
+      "details": "File present."
+    },
+    {
+      "policy_id": "GOV-EVIDENCE-001",
+      "name": "Required runtime evidence file exists: data/processed/responsible_ai_evidence_package.json",
+      "status": "PASS",
+      "details": "File present."
+    },
+    {
+      "policy_id": "GOV-EVIDENCE-001",
+      "name": "Required runtime evidence file exists: data/processed/human_reviews.jsonl",
+      "status": "PASS",
+      "details": "File present."
+    },
+    {
+      "policy_id": "SEC-SECRET-001",
+      "name": "Forbidden secret/environment path is not tracked: .env",
+      "status": "PASS",
+      "details": "No tracked secret/environment path found."
+    },
+    {
+      "policy_id": "SEC-SECRET-001",
+      "name": "Forbidden secret/environment path is not tracked: .venv",
+      "status": "PASS",
+      "details": "No tracked secret/environment path found."
+    },
+    {
+      "policy_id": "SEC-SECRET-001",
+      "name": "Forbidden secret/environment path is not tracked: .venv/",
+      "status": "PASS",
+      "details": "No tracked secret/environment path found."
+    },
+    {
+      "policy_id": "SEC-SECRET-002",
+      "name": ".env is listed in .gitignore",
+      "status": "PASS",
+      "details": "Local Azure OpenAI keys should remain untracked."
+    },
+    {
+      "policy_id": "DEP-001",
+      "name": "AutoGen dependencies are not in main requirements.txt",
+      "status": "PASS",
+      "details": "Main Azure deployment dependencies remain isolated from AutoGen prototype dependencies."
+    },
+    {
+      "policy_id": "DEP-002",
+      "name": "AutoGen dependencies exist in requirements-autogen.txt",
+      "status": "PASS",
+      "details": "AutoGen prototype has a separate requirements file."
+    },
+    {
+      "policy_id": "API-ENDPOINT-001",
+      "name": "Endpoint reachable: /health",
+      "status": "PASS",
+      "details": "status_code=200"
+    },
+    {
+      "policy_id": "API-HEALTH-001",
+      "name": "Clinical use guardrail is active",
+      "status": "PASS",
+      "details": "clinical_use=not_for_clinical_use"
+    },
+    {
+      "policy_id": "API-HEALTH-002",
+      "name": "Automated Manchester classification is blocked",
+      "status": "PASS",
+      "details": "rules_status=NO_AUTOMATED_MANCHESTER_CLASSIFICATION_CONFIGURED"
+    },
+    {
+      "policy_id": "API-ENDPOINT-001",
+      "name": "Endpoint reachable: /governance/report",
+      "status": "PASS",
+      "details": "status_code=200"
+    },
+    {
+      "policy_id": "API-GOV-001",
+      "name": "Governance verdict remains not ready for clinical use",
+      "status": "PASS",
+      "details": "governance_verdict=NOT_READY_FOR_CLINICAL_USE"
+    },
+    {
+      "policy_id": "API-GOV-002",
+      "name": "Governance report contains blocking issues",
+      "status": "PASS",
+      "details": "blocking_issues_count=2"
+    },
+    {
+      "policy_id": "API-ENDPOINT-001",
+      "name": "Endpoint reachable: /review/queue",
+      "status": "PASS",
+      "details": "status_code=200"
+    },
+    {
+      "policy_id": "API-REVIEW-001",
+      "name": "Human review queue exposes missing-case count",
+      "status": "PASS",
+      "details": "total_missing_cases=14"
+    },
+    {
+      "policy_id": "API-REVIEW-002",
+      "name": "Human review queue exposes needs-review count",
+      "status": "PASS",
+      "details": "needs_review_count=11"
+    }
+  ]
+}
