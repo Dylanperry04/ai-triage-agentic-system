@@ -1,172 +1,239 @@
 {
-  "generated_at_utc": "2026-06-10T14:17:07.984468+00:00",
-  "policy_check_version": "0.1",
+  "generated_at_utc": "2026-06-10T16:25:41.519909+00:00",
+  "policy_check_version": "0.2",
   "clinical_safety_claim": "No clinical safety claim is made by these checks.",
   "clinical_use_allowed": false,
   "automated_manchester_triage_allowed": false,
-  "base_url": "https://ai-triage-agentic-system-afcmdbdpcsana4h3.swedencentral-01.azurewebsites.net",
-  "summary": {
-    "pass": 26,
-    "warn": 0,
-    "fail": 0,
-    "total": 26
-  },
-  "results": [
+  "manchester_category_assigned": false,
+  "azure_base_url": "https://ai-triage-agentic-system-afcmdbdpcsana4h3.swedencentral-01.azurewebsites.net",
+  "checks": [
     {
-      "policy_id": "GOV-DOC-001",
+      "check_id": "GOV-DOC-001",
       "name": "Required governance file exists: docs/CLINICAL_SAFETY_GOVERNANCE_CHARTER.md",
       "status": "PASS",
       "details": "File present."
     },
     {
-      "policy_id": "GOV-DOC-001",
+      "check_id": "GOV-DOC-001",
       "name": "Required governance file exists: docs/RAI_TOOLKIT_ALIGNMENT.md",
       "status": "PASS",
       "details": "File present."
     },
     {
-      "policy_id": "GOV-DOC-001",
+      "check_id": "GOV-DOC-001",
       "name": "Required governance file exists: docs/CLINICAL_RULES_STATUS.md",
       "status": "PASS",
       "details": "File present."
     },
     {
-      "policy_id": "GOV-DOC-001",
+      "check_id": "GOV-DOC-001",
       "name": "Required governance file exists: docs/DATA_LEAKAGE_POLICY.md",
       "status": "PASS",
       "details": "File present."
     },
     {
-      "policy_id": "GOV-DOC-001",
+      "check_id": "GOV-DOC-001",
       "name": "Required governance file exists: docs/DATA_SCHEMA_VERIFIED.md",
       "status": "PASS",
       "details": "File present."
     },
     {
-      "policy_id": "GOV-EVIDENCE-001",
+      "check_id": "GOV-EVIDENCE-001",
       "name": "Required runtime evidence file exists: data/processed/triage_cases_sample.jsonl",
       "status": "PASS",
       "details": "File present."
     },
     {
-      "policy_id": "GOV-EVIDENCE-001",
+      "check_id": "GOV-EVIDENCE-001",
       "name": "Required runtime evidence file exists: data/processed/dataset_audit_report.json",
       "status": "PASS",
       "details": "File present."
     },
     {
-      "policy_id": "GOV-EVIDENCE-001",
+      "check_id": "GOV-EVIDENCE-001",
       "name": "Required runtime evidence file exists: data/processed/missing_triage_inputs_report.json",
       "status": "PASS",
       "details": "File present."
     },
     {
-      "policy_id": "GOV-EVIDENCE-001",
+      "check_id": "GOV-EVIDENCE-001",
       "name": "Required runtime evidence file exists: data/processed/schema_report.json",
       "status": "PASS",
       "details": "File present."
     },
     {
-      "policy_id": "GOV-EVIDENCE-001",
+      "check_id": "GOV-EVIDENCE-001",
       "name": "Required runtime evidence file exists: data/processed/responsible_ai_evidence_package.json",
       "status": "PASS",
       "details": "File present."
     },
     {
-      "policy_id": "GOV-EVIDENCE-001",
+      "check_id": "GOV-EVIDENCE-001",
       "name": "Required runtime evidence file exists: data/processed/human_reviews.jsonl",
       "status": "PASS",
       "details": "File present."
     },
     {
-      "policy_id": "SEC-SECRET-001",
-      "name": "Forbidden secret/environment path is not tracked: .env",
-      "status": "PASS",
-      "details": "No tracked secret/environment path found."
-    },
-    {
-      "policy_id": "SEC-SECRET-001",
-      "name": "Forbidden secret/environment path is not tracked: .venv",
-      "status": "PASS",
-      "details": "No tracked secret/environment path found."
-    },
-    {
-      "policy_id": "SEC-SECRET-001",
-      "name": "Forbidden secret/environment path is not tracked: .venv/",
-      "status": "PASS",
-      "details": "No tracked secret/environment path found."
-    },
-    {
-      "policy_id": "SEC-SECRET-002",
+      "check_id": "SEC-SECRET-002",
       "name": ".env is listed in .gitignore",
       "status": "PASS",
       "details": "Local Azure OpenAI keys should remain untracked."
     },
     {
-      "policy_id": "DEP-001",
+      "check_id": "SEC-SECRET-001",
+      "name": "Forbidden secret/environment path is not tracked: .env",
+      "status": "PASS",
+      "details": "No tracked secret/environment path found."
+    },
+    {
+      "check_id": "SEC-SECRET-001",
+      "name": "Forbidden secret/environment path is not tracked: .venv",
+      "status": "PASS",
+      "details": "No tracked secret/environment path found."
+    },
+    {
+      "check_id": "SEC-SECRET-001",
+      "name": "Forbidden secret/environment path is not tracked: .venv/",
+      "status": "PASS",
+      "details": "No tracked secret/environment path found."
+    },
+    {
+      "check_id": "DEP-001",
       "name": "AutoGen dependencies are not in main requirements.txt",
       "status": "PASS",
       "details": "Main Azure deployment dependencies remain isolated from AutoGen prototype dependencies."
     },
     {
-      "policy_id": "DEP-002",
+      "check_id": "DEP-002",
       "name": "AutoGen dependencies exist in requirements-autogen.txt",
       "status": "PASS",
       "details": "AutoGen prototype has a separate requirements file."
     },
     {
-      "policy_id": "API-ENDPOINT-001",
+      "check_id": "DEP-003",
+      "name": "OpenAI SDK exists in main requirements.txt",
+      "status": "PASS",
+      "details": "openai dependency is available for deployed LLM explanation endpoint."
+    },
+    {
+      "check_id": "API-ENDPOINT-001",
       "name": "Endpoint reachable: /health",
       "status": "PASS",
       "details": "status_code=200"
     },
     {
-      "policy_id": "API-HEALTH-001",
+      "check_id": "API-HEALTH-001",
       "name": "Clinical use guardrail is active",
       "status": "PASS",
       "details": "clinical_use=not_for_clinical_use"
     },
     {
-      "policy_id": "API-HEALTH-002",
+      "check_id": "API-HEALTH-002",
       "name": "Automated Manchester classification is blocked",
       "status": "PASS",
       "details": "rules_status=NO_AUTOMATED_MANCHESTER_CLASSIFICATION_CONFIGURED"
     },
     {
-      "policy_id": "API-ENDPOINT-001",
+      "check_id": "API-ENDPOINT-001",
       "name": "Endpoint reachable: /governance/report",
       "status": "PASS",
       "details": "status_code=200"
     },
     {
-      "policy_id": "API-GOV-001",
+      "check_id": "API-GOV-001",
       "name": "Governance verdict remains not ready for clinical use",
       "status": "PASS",
       "details": "governance_verdict=NOT_READY_FOR_CLINICAL_USE"
     },
     {
-      "policy_id": "API-GOV-002",
+      "check_id": "API-GOV-002",
       "name": "Governance report contains blocking issues",
       "status": "PASS",
       "details": "blocking_issues_count=2"
     },
     {
-      "policy_id": "API-ENDPOINT-001",
+      "check_id": "API-ENDPOINT-001",
       "name": "Endpoint reachable: /review/queue",
       "status": "PASS",
       "details": "status_code=200"
     },
     {
-      "policy_id": "API-REVIEW-001",
+      "check_id": "API-REVIEW-001",
       "name": "Human review queue exposes missing-case count",
       "status": "PASS",
       "details": "total_missing_cases=14"
     },
     {
-      "policy_id": "API-REVIEW-002",
+      "check_id": "API-REVIEW-002",
       "name": "Human review queue exposes needs-review count",
       "status": "PASS",
       "details": "needs_review_count=11"
+    },
+    {
+      "check_id": "API-LLM-000",
+      "name": "LLM explanation endpoint reachable",
+      "status": "PASS",
+      "details": "status_code=200 path=/explain/llm/30115213"
+    },
+    {
+      "check_id": "API-LLM-001",
+      "name": "LLM explanation endpoint returned JSON payload",
+      "status": "PASS",
+      "details": "Payload was parsed successfully."
+    },
+    {
+      "check_id": "API-LLM-002",
+      "name": "LLM endpoint safety validator returned no failures",
+      "status": "PASS",
+      "details": "safety_failures=[]"
+    },
+    {
+      "check_id": "API-LLM-003",
+      "name": "LLM endpoint blocks clinical use",
+      "status": "PASS",
+      "details": "clinical_use_allowed=false"
+    },
+    {
+      "check_id": "API-LLM-004",
+      "name": "LLM endpoint blocks automated Manchester triage",
+      "status": "PASS",
+      "details": "automated_manchester_triage_allowed=false"
+    },
+    {
+      "check_id": "API-LLM-005",
+      "name": "LLM endpoint does not assign Manchester category",
+      "status": "PASS",
+      "details": "manchester_category_assigned=false"
+    },
+    {
+      "check_id": "API-LLM-006",
+      "name": "LLM endpoint requires human review",
+      "status": "PASS",
+      "details": "human_review_required=true"
+    },
+    {
+      "check_id": "API-LLM-007",
+      "name": "LLM endpoint makes no clinical safety claim",
+      "status": "PASS",
+      "details": "No clinical safety claim is made by this endpoint."
+    },
+    {
+      "check_id": "API-LLM-008",
+      "name": "LLM endpoint preserves Manchester null outputs",
+      "status": "PASS",
+      "details": "manchester_category=null, manchester_priority=null, manchester_max_wait_minutes=null"
+    },
+    {
+      "check_id": "API-LLM-009",
+      "name": "LLM explanation status passed safety wrapper",
+      "status": "PASS",
+      "details": "llm_explanation_result.explanation_status=PASS"
     }
-  ]
+  ],
+  "summary": {
+    "pass": 37,
+    "warn": 0,
+    "fail": 0,
+    "total": 37
+  }
 }
