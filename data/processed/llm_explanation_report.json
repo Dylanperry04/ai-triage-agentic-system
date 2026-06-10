@@ -1,0 +1,50 @@
+{
+  "generated_at_utc": "2026-06-10T15:28:38.483474+00:00",
+  "case_id": 30115213,
+  "input_evidence": {
+    "case_id": 30115213,
+    "source_dataset": "MIMIC-IV-ED Demo v2.2",
+    "chief_complaint": "MVC/INTUBATED TRAUMA",
+    "arrival_transport": "AMBULANCE",
+    "data_validation_status": "NEEDS_HUMAN_DATA_REVIEW",
+    "missing_required_fields": [
+      "temperature",
+      "heartrate",
+      "resprate",
+      "o2sat",
+      "sbp",
+      "dbp",
+      "pain"
+    ],
+    "requires_human_data_review": true,
+    "governance_verdict": "NOT_READY_FOR_CLINICAL_USE",
+    "clinical_use_status": "not_for_clinical_use",
+    "blocking_issues": [
+      "No clinician-approved Manchester triage ruleset configured.",
+      "Some cases with missing triage inputs have no saved human review."
+    ],
+    "manchester_classification_status": null,
+    "manchester_category": null,
+    "human_review_queue": {
+      "total_missing_cases": 14,
+      "reviewed_count": 3,
+      "needs_review_count": 11
+    },
+    "safety_instruction": "No Manchester triage category may be assigned. The system is not for clinical use. Human review is required."
+  },
+  "llm_explanation_result": {
+    "explanation_status": "PASS",
+    "model": "gpt-4o-mini",
+    "deployment": "gpt-4o-mini",
+    "explanation_text": "1. **Evidence used**: The verified evidence includes case ID 30115213 from the MIMIC-IV-ED Demo v2.2 dataset, with a chief complaint of \"MVC/INTUBATED TRAUMA,\" arrival by ambulance, and a data validation status indicating it \"NEEDS_HUMAN_DATA_REVIEW.\" It also notes that the clinical use status is \"not for clinical use,\" and there are blocking issues related to the absence of a clinician-approved Manchester triage ruleset and missing triage inputs.\n\n2. **Missing or limited data**: The case is missing several required fields, including temperature, heart rate, respiratory rate, oxygen saturation, systolic blood pressure, diastolic blood pressure, and pain assessment. This lack of data is critical for proper triage evaluation.\n\n3. **Safety/gateway status**: The governance verdict states that the case is \"NOT_READY_FOR_CLINICAL_USE,\" and the safety instruction emphasizes that no Manchester triage category may be assigned.\n\n4. **Human review requirement**: The evidence indicates that human data review is required due to the missing required fields and the absence of a clinician-approved Manchester triage ruleset. There are currently 11 cases in the human review queue that need attention.\n\n5. **Statement that no Manchester triage category was assigned**: No Manchester triage category was assigned.",
+    "safety_failures": [],
+    "clinical_use_allowed": false,
+    "automated_manchester_triage_allowed": false,
+    "manchester_category_assigned": false,
+    "human_review_required": true
+  },
+  "clinical_use_allowed": false,
+  "automated_manchester_triage_allowed": false,
+  "manchester_category_assigned": false,
+  "clinical_safety_claim": "No clinical safety claim is made by this LLM explanation report."
+}

@@ -5,6 +5,7 @@ from app.api.triage_routes import router as triage_router
 from app.api.audit_routes import router as audit_router
 from app.api.review_routes import router as review_router
 from app.api.governance_routes import router as governance_router
+from app.api.explanation_routes import router as explanation_router
 
 
 app = FastAPI(
@@ -23,6 +24,8 @@ def root():
         "status": "running",
         "message": "AI Triage MIMIC Pipeline API is running",
         "docs": "http://127.0.0.1:8000/docs",
+        "clinical_use": "not_for_clinical_use",
+        "automated_manchester_triage": "blocked",
     }
 
 
@@ -31,3 +34,4 @@ app.include_router(triage_router)
 app.include_router(audit_router)
 app.include_router(review_router)
 app.include_router(governance_router)
+app.include_router(explanation_router)

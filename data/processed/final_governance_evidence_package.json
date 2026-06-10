@@ -1,0 +1,2357 @@
+{
+  "generated_at_utc": "2026-06-10T14:17:20.625485+00:00",
+  "package_name": "AI Triage Agentic System Final Governance Evidence Package",
+  "package_version": "0.1",
+  "project_stage": "research_prototype_public_demo_data",
+  "base_url": "https://ai-triage-agentic-system-afcmdbdpcsana4h3.swedencentral-01.azurewebsites.net",
+  "clinical_use_allowed": false,
+  "automated_manchester_triage_allowed": false,
+  "manchester_category_assigned": false,
+  "clinical_safety_claim": "No clinical safety claim is made by this package.",
+  "evidence_status": {
+    "overall_evidence_package_status": "READY_FOR_RESEARCH_GOVERNANCE_REVIEW",
+    "clinical_use_allowed": false,
+    "automated_manchester_triage_allowed": false,
+    "manchester_category_assigned": false,
+    "clinical_safety_claim": "No clinical safety claim is made by this evidence package.",
+    "required_controls": {
+      "clinical_use_guardrail_active": true,
+      "automated_manchester_triage_blocked": true,
+      "governance_not_ready_for_clinical_use": true,
+      "policy_checks_passed": true,
+      "audit_records_present": true,
+      "audit_preserves_clinical_block": true,
+      "human_review_queue_present": true
+    },
+    "all_required_controls_passed": true,
+    "recommended_decision": "Continue research prototype only. Do not use clinically."
+  },
+  "local_evidence_files": {
+    "policy_check_report": {
+      "file_found": true,
+      "path": "C:\\Users\\colle\\Downloads\\ai_triage_mimic_pipeline\\ai_triage_mimic_pipeline\\data\\processed\\policy_check_report.json",
+      "content": {
+        "generated_at_utc": "2026-06-10T14:17:07.984468+00:00",
+        "policy_check_version": "0.1",
+        "clinical_safety_claim": "No clinical safety claim is made by these checks.",
+        "clinical_use_allowed": false,
+        "automated_manchester_triage_allowed": false,
+        "base_url": "https://ai-triage-agentic-system-afcmdbdpcsana4h3.swedencentral-01.azurewebsites.net",
+        "summary": {
+          "pass": 26,
+          "warn": 0,
+          "fail": 0,
+          "total": 26
+        },
+        "results": [
+          {
+            "policy_id": "GOV-DOC-001",
+            "name": "Required governance file exists: docs/CLINICAL_SAFETY_GOVERNANCE_CHARTER.md",
+            "status": "PASS",
+            "details": "File present."
+          },
+          {
+            "policy_id": "GOV-DOC-001",
+            "name": "Required governance file exists: docs/RAI_TOOLKIT_ALIGNMENT.md",
+            "status": "PASS",
+            "details": "File present."
+          },
+          {
+            "policy_id": "GOV-DOC-001",
+            "name": "Required governance file exists: docs/CLINICAL_RULES_STATUS.md",
+            "status": "PASS",
+            "details": "File present."
+          },
+          {
+            "policy_id": "GOV-DOC-001",
+            "name": "Required governance file exists: docs/DATA_LEAKAGE_POLICY.md",
+            "status": "PASS",
+            "details": "File present."
+          },
+          {
+            "policy_id": "GOV-DOC-001",
+            "name": "Required governance file exists: docs/DATA_SCHEMA_VERIFIED.md",
+            "status": "PASS",
+            "details": "File present."
+          },
+          {
+            "policy_id": "GOV-EVIDENCE-001",
+            "name": "Required runtime evidence file exists: data/processed/triage_cases_sample.jsonl",
+            "status": "PASS",
+            "details": "File present."
+          },
+          {
+            "policy_id": "GOV-EVIDENCE-001",
+            "name": "Required runtime evidence file exists: data/processed/dataset_audit_report.json",
+            "status": "PASS",
+            "details": "File present."
+          },
+          {
+            "policy_id": "GOV-EVIDENCE-001",
+            "name": "Required runtime evidence file exists: data/processed/missing_triage_inputs_report.json",
+            "status": "PASS",
+            "details": "File present."
+          },
+          {
+            "policy_id": "GOV-EVIDENCE-001",
+            "name": "Required runtime evidence file exists: data/processed/schema_report.json",
+            "status": "PASS",
+            "details": "File present."
+          },
+          {
+            "policy_id": "GOV-EVIDENCE-001",
+            "name": "Required runtime evidence file exists: data/processed/responsible_ai_evidence_package.json",
+            "status": "PASS",
+            "details": "File present."
+          },
+          {
+            "policy_id": "GOV-EVIDENCE-001",
+            "name": "Required runtime evidence file exists: data/processed/human_reviews.jsonl",
+            "status": "PASS",
+            "details": "File present."
+          },
+          {
+            "policy_id": "SEC-SECRET-001",
+            "name": "Forbidden secret/environment path is not tracked: .env",
+            "status": "PASS",
+            "details": "No tracked secret/environment path found."
+          },
+          {
+            "policy_id": "SEC-SECRET-001",
+            "name": "Forbidden secret/environment path is not tracked: .venv",
+            "status": "PASS",
+            "details": "No tracked secret/environment path found."
+          },
+          {
+            "policy_id": "SEC-SECRET-001",
+            "name": "Forbidden secret/environment path is not tracked: .venv/",
+            "status": "PASS",
+            "details": "No tracked secret/environment path found."
+          },
+          {
+            "policy_id": "SEC-SECRET-002",
+            "name": ".env is listed in .gitignore",
+            "status": "PASS",
+            "details": "Local Azure OpenAI keys should remain untracked."
+          },
+          {
+            "policy_id": "DEP-001",
+            "name": "AutoGen dependencies are not in main requirements.txt",
+            "status": "PASS",
+            "details": "Main Azure deployment dependencies remain isolated from AutoGen prototype dependencies."
+          },
+          {
+            "policy_id": "DEP-002",
+            "name": "AutoGen dependencies exist in requirements-autogen.txt",
+            "status": "PASS",
+            "details": "AutoGen prototype has a separate requirements file."
+          },
+          {
+            "policy_id": "API-ENDPOINT-001",
+            "name": "Endpoint reachable: /health",
+            "status": "PASS",
+            "details": "status_code=200"
+          },
+          {
+            "policy_id": "API-HEALTH-001",
+            "name": "Clinical use guardrail is active",
+            "status": "PASS",
+            "details": "clinical_use=not_for_clinical_use"
+          },
+          {
+            "policy_id": "API-HEALTH-002",
+            "name": "Automated Manchester classification is blocked",
+            "status": "PASS",
+            "details": "rules_status=NO_AUTOMATED_MANCHESTER_CLASSIFICATION_CONFIGURED"
+          },
+          {
+            "policy_id": "API-ENDPOINT-001",
+            "name": "Endpoint reachable: /governance/report",
+            "status": "PASS",
+            "details": "status_code=200"
+          },
+          {
+            "policy_id": "API-GOV-001",
+            "name": "Governance verdict remains not ready for clinical use",
+            "status": "PASS",
+            "details": "governance_verdict=NOT_READY_FOR_CLINICAL_USE"
+          },
+          {
+            "policy_id": "API-GOV-002",
+            "name": "Governance report contains blocking issues",
+            "status": "PASS",
+            "details": "blocking_issues_count=2"
+          },
+          {
+            "policy_id": "API-ENDPOINT-001",
+            "name": "Endpoint reachable: /review/queue",
+            "status": "PASS",
+            "details": "status_code=200"
+          },
+          {
+            "policy_id": "API-REVIEW-001",
+            "name": "Human review queue exposes missing-case count",
+            "status": "PASS",
+            "details": "total_missing_cases=14"
+          },
+          {
+            "policy_id": "API-REVIEW-002",
+            "name": "Human review queue exposes needs-review count",
+            "status": "PASS",
+            "details": "needs_review_count=11"
+          }
+        ]
+      }
+    },
+    "agent_audit_summary": {
+      "file_found": true,
+      "path": "C:\\Users\\colle\\Downloads\\ai_triage_mimic_pipeline\\ai_triage_mimic_pipeline\\data\\processed\\agent_audit_summary.json",
+      "content": {
+        "generated_at_utc": "2026-06-10T14:08:52.748680+00:00",
+        "input_path": "C:\\Users\\colle\\Downloads\\ai_triage_mimic_pipeline\\ai_triage_mimic_pipeline\\data\\processed\\agent_audit_log.jsonl",
+        "clinical_use_allowed": false,
+        "automated_manchester_triage_allowed": false,
+        "summary": {
+          "audit_records_found": true,
+          "record_count": 4,
+          "unique_run_count": 1,
+          "latest_run_id": "b814e29a-bec4-4920-8df9-bf65c0145702",
+          "latest_timestamp_utc": "2026-06-10T14:00:12.581003+00:00",
+          "latest_case_id": 30115213,
+          "agents": {
+            "Dataset Evidence Agent": 1,
+            "Safety Review Agent": 1,
+            "Governance Agent": 1,
+            "Supervisor Agent": 1
+          },
+          "governance_verdicts": {
+            "NOT_READY_FOR_CLINICAL_USE": 4
+          },
+          "human_review_required_count": 4,
+          "clinical_use_allowed_count": 0,
+          "automated_manchester_triage_allowed_count": 0,
+          "safety_flags": {
+            "No clinician-approved Manchester triage ruleset configured.": 2,
+            "Some cases with missing triage inputs have no saved human review.": 2
+          },
+          "clinical_safety_claim": "No clinical safety claim is made by this audit summary.",
+          "expected_status": {
+            "clinical_use_allowed": false,
+            "automated_manchester_triage_allowed": false,
+            "expected_governance_verdict": "NOT_READY_FOR_CLINICAL_USE"
+          }
+        }
+      }
+    },
+    "responsible_ai_evidence_package": {
+      "file_found": true,
+      "path": "C:\\Users\\colle\\Downloads\\ai_triage_mimic_pipeline\\ai_triage_mimic_pipeline\\data\\processed\\responsible_ai_evidence_package.json",
+      "content": {
+        "package_name": "Responsible AI Evidence Package",
+        "created_at_utc": "2026-06-09T21:57:26.005031+00:00",
+        "system_name": "AI Triage Agentic System",
+        "dataset": "MIMIC-IV-ED Demo v2.2",
+        "clinical_use_status": "not_for_clinical_use",
+        "governance_verdict": "NOT_READY_FOR_CLINICAL_USE",
+        "blocking_issues": [
+          "No clinician-approved Manchester triage ruleset configured.",
+          "Some cases with missing triage inputs have no saved human review."
+        ],
+        "workflow_status": {
+          "schema_first_pipeline": true,
+          "missing_data_audit_available": true,
+          "schema_report_available": true,
+          "human_review_log_available": true,
+          "manchester_rules_configured": false,
+          "automated_clinical_triage_enabled": false
+        },
+        "responsible_ai_controls": {
+          "intake": {
+            "status": "IMPLEMENTED",
+            "evidence": "MIMIC-IV-ED Demo cases are loaded and grouped by stay_id."
+          },
+          "scope": {
+            "status": "IMPLEMENTED",
+            "evidence": "Workflow is limited to verified public demo data and triage-time input fields."
+          },
+          "assess": {
+            "status": "IMPLEMENTED",
+            "evidence": "Dataset audit, missing-data report, leakage guard, and unit tests are available."
+          },
+          "probe": {
+            "status": "PARTIALLY_IMPLEMENTED",
+            "evidence": "Human review records can be saved and retrieved. Not all missing-data cases may be reviewed yet."
+          },
+          "decide": {
+            "status": "BLOCKED",
+            "evidence": "System is blocked from clinical use because no clinician-approved Manchester ruleset is configured."
+          }
+        },
+        "dataset_audit": {
+          "sample_size": 100,
+          "triage_input_fields": [
+            "subject_id",
+            "stay_id",
+            "intime",
+            "gender",
+            "race",
+            "arrival_transport",
+            "chiefcomplaint",
+            "temperature",
+            "heartrate",
+            "resprate",
+            "o2sat",
+            "sbp",
+            "dbp",
+            "pain"
+          ],
+          "retrospective_label_fields": [
+            "stay_id",
+            "original_acuity",
+            "disposition",
+            "diagnosis_count",
+            "vitals_timeseries_count",
+            "medrecon_count",
+            "pyxis_count"
+          ],
+          "missingness_triage_inputs": {
+            "subject_id": {
+              "missing_count": 0,
+              "missing_percent": 0.0
+            },
+            "stay_id": {
+              "missing_count": 0,
+              "missing_percent": 0.0
+            },
+            "intime": {
+              "missing_count": 0,
+              "missing_percent": 0.0
+            },
+            "gender": {
+              "missing_count": 0,
+              "missing_percent": 0.0
+            },
+            "race": {
+              "missing_count": 0,
+              "missing_percent": 0.0
+            },
+            "arrival_transport": {
+              "missing_count": 0,
+              "missing_percent": 0.0
+            },
+            "chiefcomplaint": {
+              "missing_count": 0,
+              "missing_percent": 0.0
+            },
+            "temperature": {
+              "missing_count": 11,
+              "missing_percent": 11.0
+            },
+            "heartrate": {
+              "missing_count": 11,
+              "missing_percent": 11.0
+            },
+            "resprate": {
+              "missing_count": 11,
+              "missing_percent": 11.0
+            },
+            "o2sat": {
+              "missing_count": 11,
+              "missing_percent": 11.0
+            },
+            "sbp": {
+              "missing_count": 11,
+              "missing_percent": 11.0
+            },
+            "dbp": {
+              "missing_count": 11,
+              "missing_percent": 11.0
+            },
+            "pain": {
+              "missing_count": 10,
+              "missing_percent": 10.0
+            }
+          },
+          "top_chief_complaints": [
+            [
+              "Hypotension",
+              3
+            ],
+            [
+              "Abd pain, Back pain",
+              2
+            ],
+            [
+              "Abd pain, N/V",
+              2
+            ],
+            [
+              "SHORTNESS OF BREATH",
+              2
+            ],
+            [
+              "Dyspnea",
+              2
+            ],
+            [
+              "Chest pain",
+              2
+            ],
+            [
+              "UNKNOWN-CC",
+              2
+            ],
+            [
+              "Abd pain",
+              2
+            ],
+            [
+              "Dyspnea, Transfer",
+              2
+            ],
+            [
+              "Fatigue, s/p Fall",
+              1
+            ],
+            [
+              "MVC/INTUBATED TRAUMA",
+              1
+            ],
+            [
+              "ETOH, Hallucinations",
+              1
+            ],
+            [
+              "Right sided abdominal pain",
+              1
+            ],
+            [
+              "Transfer",
+              1
+            ],
+            [
+              "Weakness",
+              1
+            ],
+            [
+              "Chest pain, Jaw pain, L Arm pain",
+              1
+            ],
+            [
+              "L Arm numbness, L Arm swelling",
+              1
+            ],
+            [
+              "T-SPINE FX DISPLACEMENT",
+              1
+            ],
+            [
+              "N/V, Hyperglycemia",
+              1
+            ],
+            [
+              "Headache, SAH, Transfer",
+              1
+            ]
+          ],
+          "disposition_distribution": [
+            [
+              "ADMITTED",
+              73
+            ],
+            [
+              "HOME",
+              23
+            ],
+            [
+              "LEFT WITHOUT BEING SEEN",
+              1
+            ],
+            [
+              "OTHER",
+              1
+            ],
+            [
+              "TRANSFER",
+              1
+            ],
+            [
+              "LEFT AGAINST MEDICAL ADVICE",
+              1
+            ]
+          ],
+          "original_acuity_distribution": [
+            [
+              "3.0",
+              46
+            ],
+            [
+              "2.0",
+              41
+            ],
+            [
+              "1.0",
+              7
+            ]
+          ],
+          "retrospective_record_counts": {
+            "total_diagnoses": 235,
+            "total_vitals_timeseries_records": 475,
+            "total_medrecon_records": 1224,
+            "total_pyxis_records": 453
+          }
+        },
+        "schema_report": {
+          "tables": {
+            "edstays": {
+              "row_count": 222,
+              "column_count": 9,
+              "columns": [
+                "subject_id",
+                "hadm_id",
+                "stay_id",
+                "intime",
+                "outtime",
+                "gender",
+                "race",
+                "arrival_transport",
+                "disposition"
+              ],
+              "missing_by_column": {
+                "subject_id": 0,
+                "hadm_id": 50,
+                "stay_id": 0,
+                "intime": 0,
+                "outtime": 0,
+                "gender": 0,
+                "race": 0,
+                "arrival_transport": 0,
+                "disposition": 0
+              }
+            },
+            "triage": {
+              "row_count": 222,
+              "column_count": 11,
+              "columns": [
+                "subject_id",
+                "stay_id",
+                "temperature",
+                "heartrate",
+                "resprate",
+                "o2sat",
+                "sbp",
+                "dbp",
+                "pain",
+                "acuity",
+                "chiefcomplaint"
+              ],
+              "missing_by_column": {
+                "subject_id": 0,
+                "stay_id": 0,
+                "temperature": 26,
+                "heartrate": 24,
+                "resprate": 23,
+                "o2sat": 24,
+                "sbp": 23,
+                "dbp": 23,
+                "pain": 21,
+                "acuity": 15,
+                "chiefcomplaint": 0
+              }
+            },
+            "vitalsign": {
+              "row_count": 1038,
+              "column_count": 11,
+              "columns": [
+                "subject_id",
+                "stay_id",
+                "charttime",
+                "temperature",
+                "heartrate",
+                "resprate",
+                "o2sat",
+                "sbp",
+                "dbp",
+                "rhythm",
+                "pain"
+              ],
+              "missing_by_column": {
+                "subject_id": 0,
+                "stay_id": 0,
+                "charttime": 0,
+                "temperature": 459,
+                "heartrate": 30,
+                "resprate": 48,
+                "o2sat": 67,
+                "sbp": 40,
+                "dbp": 40,
+                "rhythm": 1005,
+                "pain": 302
+              }
+            },
+            "diagnosis": {
+              "row_count": 545,
+              "column_count": 6,
+              "columns": [
+                "subject_id",
+                "stay_id",
+                "seq_num",
+                "icd_code",
+                "icd_version",
+                "icd_title"
+              ],
+              "missing_by_column": {
+                "subject_id": 0,
+                "stay_id": 0,
+                "seq_num": 0,
+                "icd_code": 0,
+                "icd_version": 0,
+                "icd_title": 0
+              }
+            },
+            "medrecon": {
+              "row_count": 2764,
+              "column_count": 9,
+              "columns": [
+                "subject_id",
+                "stay_id",
+                "charttime",
+                "name",
+                "gsn",
+                "ndc",
+                "etc_rn",
+                "etccode",
+                "etcdescription"
+              ],
+              "missing_by_column": {
+                "subject_id": 0,
+                "stay_id": 0,
+                "charttime": 0,
+                "name": 0,
+                "gsn": 0,
+                "ndc": 0,
+                "etc_rn": 0,
+                "etccode": 4,
+                "etcdescription": 4
+              }
+            },
+            "pyxis": {
+              "row_count": 1082,
+              "column_count": 7,
+              "columns": [
+                "subject_id",
+                "stay_id",
+                "charttime",
+                "med_rn",
+                "name",
+                "gsn_rn",
+                "gsn"
+              ],
+              "missing_by_column": {
+                "subject_id": 0,
+                "stay_id": 0,
+                "charttime": 0,
+                "med_rn": 0,
+                "name": 0,
+                "gsn_rn": 0,
+                "gsn": 32
+              }
+            }
+          }
+        },
+        "missing_triage_inputs_report": {
+          "sample_size": 100,
+          "cases_with_missing_triage_inputs": 14,
+          "missing_case_percent": 14.0,
+          "missing_cases": [
+            {
+              "stay_id": 30115213,
+              "subject_id": 10010867,
+              "chiefcomplaint": "MVC/INTUBATED TRAUMA",
+              "missing_fields": [
+                "temperature",
+                "heartrate",
+                "resprate",
+                "o2sat",
+                "sbp",
+                "dbp",
+                "pain"
+              ]
+            },
+            {
+              "stay_id": 30272878,
+              "subject_id": 10038999,
+              "chiefcomplaint": "Transfer",
+              "missing_fields": [
+                "temperature",
+                "heartrate",
+                "resprate",
+                "o2sat",
+                "sbp",
+                "dbp"
+              ]
+            },
+            {
+              "stay_id": 30701739,
+              "subject_id": 10032725,
+              "chiefcomplaint": "FACIAL DROOP",
+              "missing_fields": [
+                "temperature",
+                "heartrate",
+                "resprate",
+                "o2sat",
+                "sbp",
+                "dbp",
+                "pain"
+              ]
+            },
+            {
+              "stay_id": 31200743,
+              "subject_id": 10026354,
+              "chiefcomplaint": "SW",
+              "missing_fields": [
+                "temperature",
+                "heartrate",
+                "resprate",
+                "o2sat",
+                "sbp",
+                "dbp",
+                "pain"
+              ]
+            },
+            {
+              "stay_id": 31660580,
+              "subject_id": 10010471,
+              "chiefcomplaint": "s/p cardiac arrest",
+              "missing_fields": [
+                "temperature",
+                "heartrate",
+                "resprate",
+                "o2sat",
+                "sbp",
+                "dbp"
+              ]
+            },
+            {
+              "stay_id": 31824062,
+              "subject_id": 10016810,
+              "chiefcomplaint": "UNKNOWN-CC",
+              "missing_fields": [
+                "temperature",
+                "heartrate",
+                "resprate",
+                "o2sat",
+                "sbp",
+                "dbp",
+                "pain"
+              ]
+            },
+            {
+              "stay_id": 31945330,
+              "subject_id": 10040025,
+              "chiefcomplaint": "Allergic reaction",
+              "missing_fields": [
+                "pain"
+              ]
+            },
+            {
+              "stay_id": 32443787,
+              "subject_id": 10037928,
+              "chiefcomplaint": "UNKNOWN-CC",
+              "missing_fields": [
+                "pain"
+              ]
+            },
+            {
+              "stay_id": 33211001,
+              "subject_id": 10016742,
+              "chiefcomplaint": "PICC EVAL",
+              "missing_fields": [
+                "temperature",
+                "heartrate",
+                "resprate",
+                "o2sat",
+                "sbp",
+                "dbp",
+                "pain"
+              ]
+            },
+            {
+              "stay_id": 33678912,
+              "subject_id": 10003400,
+              "chiefcomplaint": "Tachycardia, Hypoxia",
+              "missing_fields": [
+                "pain"
+              ]
+            },
+            {
+              "stay_id": 33978784,
+              "subject_id": 10002428,
+              "chiefcomplaint": "RESP ARREST",
+              "missing_fields": [
+                "temperature",
+                "heartrate",
+                "resprate",
+                "o2sat",
+                "sbp",
+                "dbp",
+                "pain"
+              ]
+            },
+            {
+              "stay_id": 34391979,
+              "subject_id": 10004720,
+              "chiefcomplaint": "Cardiac arrest, Transfer",
+              "missing_fields": [
+                "temperature",
+                "heartrate",
+                "resprate",
+                "o2sat",
+                "sbp",
+                "dbp"
+              ]
+            },
+            {
+              "stay_id": 34558830,
+              "subject_id": 10005866,
+              "chiefcomplaint": "Abd pain, LEAKING ASCITES",
+              "missing_fields": [
+                "temperature",
+                "heartrate",
+                "resprate",
+                "o2sat",
+                "sbp",
+                "dbp",
+                "pain"
+              ]
+            },
+            {
+              "stay_id": 34820898,
+              "subject_id": 10014354,
+              "chiefcomplaint": "Dizziness, Diplopia",
+              "missing_fields": [
+                "temperature",
+                "heartrate",
+                "resprate",
+                "o2sat",
+                "sbp",
+                "dbp"
+              ]
+            }
+          ]
+        },
+        "human_review_summary": {
+          "review_record_count": 6,
+          "reviewed_stay_ids": [
+            30115213,
+            30272878,
+            31660580
+          ],
+          "missing_stay_count": 14,
+          "reviewed_missing_stay_count": 3,
+          "reviewed_missing_stay_ids": [
+            30115213,
+            30272878,
+            31660580
+          ],
+          "unreviewed_missing_stay_ids": [
+            30701739,
+            31200743,
+            31824062,
+            31945330,
+            32443787,
+            33211001,
+            33678912,
+            33978784,
+            34391979,
+            34558830,
+            34820898
+          ]
+        },
+        "human_reviews": [
+          {
+            "review_id": "981ef00e-342e-46df-aa1b-4a122b0de23f",
+            "stay_id": 30115213,
+            "reviewer_role": "researcher",
+            "review_status": "request_missing_data",
+            "review_comment": "Initial triage vitals and pain are missing. Human data review required before any triage logic.",
+            "created_at_utc": "2026-06-09T16:41:41.822960+00:00",
+            "audit_note": "Human review record for audit trail. This does not create an automated clinical diagnosis or Manchester category."
+          },
+          {
+            "review_id": "1d6b19c4-29c8-43bd-8792-7d7d931f05e3",
+            "stay_id": 30115213,
+            "reviewer_role": "researcher",
+            "review_status": "request_missing_data",
+            "review_comment": "Initial triage vitals and pain are missing. Human data review required before any triage logic.",
+            "created_at_utc": "2026-06-09T16:47:43.815146+00:00",
+            "audit_note": "Human review record for audit trail. This does not create an automated clinical diagnosis or Manchester category."
+          },
+          {
+            "review_id": "e9ddbf1e-7531-40f2-aa42-5142013b1d7d",
+            "stay_id": 30115213,
+            "reviewer_role": "researcher",
+            "review_status": "request_missing_data",
+            "review_comment": "Initial triage vitals and pain are missing. Human data review required before any triage logic.",
+            "created_at_utc": "2026-06-09T16:55:33.636351+00:00",
+            "audit_note": "Human review record for audit trail. This does not create an automated clinical diagnosis or Manchester category."
+          },
+          {
+            "review_id": "ff50090b-9e0a-448b-be88-270483c7f39d",
+            "stay_id": 30115213,
+            "reviewer_role": "researcher",
+            "review_status": "request_missing_data",
+            "review_comment": "Initial triage vitals and pain are missing. Human data review required before any triage logic.",
+            "created_at_utc": "2026-06-09T17:20:12.322776+00:00",
+            "audit_note": "Human review record for audit trail. This does not create an automated clinical diagnosis or Manchester category."
+          },
+          {
+            "review_id": "a149f656-0c19-47d7-8351-62692afe1d7e",
+            "stay_id": 30272878,
+            "reviewer_role": "researcher",
+            "review_status": "request_missing_data",
+            "review_comment": "Missing triage fields for stay 30272878: temperature, heartrate, resprate, o2sat, sbp, dbp. Human data review required before any triage logic.",
+            "created_at_utc": "2026-06-09T21:36:55.045024+00:00",
+            "audit_note": "Human review record for audit trail. This does not create an automated clinical diagnosis or Manchester category."
+          },
+          {
+            "review_id": "9bd22333-c909-4f27-a9dc-54473e977d6a",
+            "stay_id": 31660580,
+            "reviewer_role": "researcher",
+            "review_status": "request_missing_data",
+            "review_comment": "Missing triage fields for stay 31660580: temperature, heartrate, resprate, o2sat, sbp, dbp. Human data review required before any triage logic.",
+            "created_at_utc": "2026-06-09T21:37:21.646802+00:00",
+            "audit_note": "Human review record for audit trail. This does not create an automated clinical diagnosis or Manchester category."
+          }
+        ],
+        "safety_statement": "This package is evidence for a research/demo workflow only. It does not certify clinical safety, does not assign Manchester triage categories, and must not be used for patient care."
+      }
+    },
+    "dataset_audit_report": {
+      "file_found": true,
+      "path": "C:\\Users\\colle\\Downloads\\ai_triage_mimic_pipeline\\ai_triage_mimic_pipeline\\data\\processed\\dataset_audit_report.json",
+      "content": {
+        "sample_size": 100,
+        "triage_input_fields": [
+          "subject_id",
+          "stay_id",
+          "intime",
+          "gender",
+          "race",
+          "arrival_transport",
+          "chiefcomplaint",
+          "temperature",
+          "heartrate",
+          "resprate",
+          "o2sat",
+          "sbp",
+          "dbp",
+          "pain"
+        ],
+        "retrospective_label_fields": [
+          "stay_id",
+          "original_acuity",
+          "disposition",
+          "diagnosis_count",
+          "vitals_timeseries_count",
+          "medrecon_count",
+          "pyxis_count"
+        ],
+        "missingness_triage_inputs": {
+          "subject_id": {
+            "missing_count": 0,
+            "missing_percent": 0.0
+          },
+          "stay_id": {
+            "missing_count": 0,
+            "missing_percent": 0.0
+          },
+          "intime": {
+            "missing_count": 0,
+            "missing_percent": 0.0
+          },
+          "gender": {
+            "missing_count": 0,
+            "missing_percent": 0.0
+          },
+          "race": {
+            "missing_count": 0,
+            "missing_percent": 0.0
+          },
+          "arrival_transport": {
+            "missing_count": 0,
+            "missing_percent": 0.0
+          },
+          "chiefcomplaint": {
+            "missing_count": 0,
+            "missing_percent": 0.0
+          },
+          "temperature": {
+            "missing_count": 11,
+            "missing_percent": 11.0
+          },
+          "heartrate": {
+            "missing_count": 11,
+            "missing_percent": 11.0
+          },
+          "resprate": {
+            "missing_count": 11,
+            "missing_percent": 11.0
+          },
+          "o2sat": {
+            "missing_count": 11,
+            "missing_percent": 11.0
+          },
+          "sbp": {
+            "missing_count": 11,
+            "missing_percent": 11.0
+          },
+          "dbp": {
+            "missing_count": 11,
+            "missing_percent": 11.0
+          },
+          "pain": {
+            "missing_count": 10,
+            "missing_percent": 10.0
+          }
+        },
+        "top_chief_complaints": [
+          [
+            "Hypotension",
+            3
+          ],
+          [
+            "Abd pain, Back pain",
+            2
+          ],
+          [
+            "Abd pain, N/V",
+            2
+          ],
+          [
+            "SHORTNESS OF BREATH",
+            2
+          ],
+          [
+            "Dyspnea",
+            2
+          ],
+          [
+            "Chest pain",
+            2
+          ],
+          [
+            "UNKNOWN-CC",
+            2
+          ],
+          [
+            "Abd pain",
+            2
+          ],
+          [
+            "Dyspnea, Transfer",
+            2
+          ],
+          [
+            "Fatigue, s/p Fall",
+            1
+          ],
+          [
+            "MVC/INTUBATED TRAUMA",
+            1
+          ],
+          [
+            "ETOH, Hallucinations",
+            1
+          ],
+          [
+            "Right sided abdominal pain",
+            1
+          ],
+          [
+            "Transfer",
+            1
+          ],
+          [
+            "Weakness",
+            1
+          ],
+          [
+            "Chest pain, Jaw pain, L Arm pain",
+            1
+          ],
+          [
+            "L Arm numbness, L Arm swelling",
+            1
+          ],
+          [
+            "T-SPINE FX DISPLACEMENT",
+            1
+          ],
+          [
+            "N/V, Hyperglycemia",
+            1
+          ],
+          [
+            "Headache, SAH, Transfer",
+            1
+          ]
+        ],
+        "disposition_distribution": [
+          [
+            "ADMITTED",
+            73
+          ],
+          [
+            "HOME",
+            23
+          ],
+          [
+            "LEFT WITHOUT BEING SEEN",
+            1
+          ],
+          [
+            "OTHER",
+            1
+          ],
+          [
+            "TRANSFER",
+            1
+          ],
+          [
+            "LEFT AGAINST MEDICAL ADVICE",
+            1
+          ]
+        ],
+        "original_acuity_distribution": [
+          [
+            "3.0",
+            46
+          ],
+          [
+            "2.0",
+            41
+          ],
+          [
+            "1.0",
+            7
+          ]
+        ],
+        "retrospective_record_counts": {
+          "total_diagnoses": 235,
+          "total_vitals_timeseries_records": 475,
+          "total_medrecon_records": 1224,
+          "total_pyxis_records": 453
+        }
+      }
+    },
+    "missing_triage_inputs_report": {
+      "file_found": true,
+      "path": "C:\\Users\\colle\\Downloads\\ai_triage_mimic_pipeline\\ai_triage_mimic_pipeline\\data\\processed\\missing_triage_inputs_report.json",
+      "content": {
+        "sample_size": 100,
+        "cases_with_missing_triage_inputs": 14,
+        "missing_case_percent": 14.0,
+        "missing_cases": [
+          {
+            "stay_id": 30115213,
+            "subject_id": 10010867,
+            "chiefcomplaint": "MVC/INTUBATED TRAUMA",
+            "missing_fields": [
+              "temperature",
+              "heartrate",
+              "resprate",
+              "o2sat",
+              "sbp",
+              "dbp",
+              "pain"
+            ]
+          },
+          {
+            "stay_id": 30272878,
+            "subject_id": 10038999,
+            "chiefcomplaint": "Transfer",
+            "missing_fields": [
+              "temperature",
+              "heartrate",
+              "resprate",
+              "o2sat",
+              "sbp",
+              "dbp"
+            ]
+          },
+          {
+            "stay_id": 30701739,
+            "subject_id": 10032725,
+            "chiefcomplaint": "FACIAL DROOP",
+            "missing_fields": [
+              "temperature",
+              "heartrate",
+              "resprate",
+              "o2sat",
+              "sbp",
+              "dbp",
+              "pain"
+            ]
+          },
+          {
+            "stay_id": 31200743,
+            "subject_id": 10026354,
+            "chiefcomplaint": "SW",
+            "missing_fields": [
+              "temperature",
+              "heartrate",
+              "resprate",
+              "o2sat",
+              "sbp",
+              "dbp",
+              "pain"
+            ]
+          },
+          {
+            "stay_id": 31660580,
+            "subject_id": 10010471,
+            "chiefcomplaint": "s/p cardiac arrest",
+            "missing_fields": [
+              "temperature",
+              "heartrate",
+              "resprate",
+              "o2sat",
+              "sbp",
+              "dbp"
+            ]
+          },
+          {
+            "stay_id": 31824062,
+            "subject_id": 10016810,
+            "chiefcomplaint": "UNKNOWN-CC",
+            "missing_fields": [
+              "temperature",
+              "heartrate",
+              "resprate",
+              "o2sat",
+              "sbp",
+              "dbp",
+              "pain"
+            ]
+          },
+          {
+            "stay_id": 31945330,
+            "subject_id": 10040025,
+            "chiefcomplaint": "Allergic reaction",
+            "missing_fields": [
+              "pain"
+            ]
+          },
+          {
+            "stay_id": 32443787,
+            "subject_id": 10037928,
+            "chiefcomplaint": "UNKNOWN-CC",
+            "missing_fields": [
+              "pain"
+            ]
+          },
+          {
+            "stay_id": 33211001,
+            "subject_id": 10016742,
+            "chiefcomplaint": "PICC EVAL",
+            "missing_fields": [
+              "temperature",
+              "heartrate",
+              "resprate",
+              "o2sat",
+              "sbp",
+              "dbp",
+              "pain"
+            ]
+          },
+          {
+            "stay_id": 33678912,
+            "subject_id": 10003400,
+            "chiefcomplaint": "Tachycardia, Hypoxia",
+            "missing_fields": [
+              "pain"
+            ]
+          },
+          {
+            "stay_id": 33978784,
+            "subject_id": 10002428,
+            "chiefcomplaint": "RESP ARREST",
+            "missing_fields": [
+              "temperature",
+              "heartrate",
+              "resprate",
+              "o2sat",
+              "sbp",
+              "dbp",
+              "pain"
+            ]
+          },
+          {
+            "stay_id": 34391979,
+            "subject_id": 10004720,
+            "chiefcomplaint": "Cardiac arrest, Transfer",
+            "missing_fields": [
+              "temperature",
+              "heartrate",
+              "resprate",
+              "o2sat",
+              "sbp",
+              "dbp"
+            ]
+          },
+          {
+            "stay_id": 34558830,
+            "subject_id": 10005866,
+            "chiefcomplaint": "Abd pain, LEAKING ASCITES",
+            "missing_fields": [
+              "temperature",
+              "heartrate",
+              "resprate",
+              "o2sat",
+              "sbp",
+              "dbp",
+              "pain"
+            ]
+          },
+          {
+            "stay_id": 34820898,
+            "subject_id": 10014354,
+            "chiefcomplaint": "Dizziness, Diplopia",
+            "missing_fields": [
+              "temperature",
+              "heartrate",
+              "resprate",
+              "o2sat",
+              "sbp",
+              "dbp"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "azure_runtime_evidence": {
+    "health": {
+      "endpoint": "/health",
+      "url": "https://ai-triage-agentic-system-afcmdbdpcsana4h3.swedencentral-01.azurewebsites.net/health",
+      "reachable": true,
+      "status_code": 200,
+      "payload": {
+        "status": "ok",
+        "clinical_use": "not_for_clinical_use",
+        "rules_status": "NO_AUTOMATED_MANCHESTER_CLASSIFICATION_CONFIGURED"
+      }
+    },
+    "governance_report": {
+      "endpoint": "/governance/report",
+      "url": "https://ai-triage-agentic-system-afcmdbdpcsana4h3.swedencentral-01.azurewebsites.net/governance/report",
+      "reachable": true,
+      "status_code": 200,
+      "payload": {
+        "system_name": "AI Triage Agentic System",
+        "dataset": "MIMIC-IV-ED Demo v2.2",
+        "clinical_use_status": "not_for_clinical_use",
+        "governance_verdict": "NOT_READY_FOR_CLINICAL_USE",
+        "blocking_issues": [
+          "No clinician-approved Manchester triage ruleset configured.",
+          "Some cases with missing triage inputs have no saved human review."
+        ],
+        "controls": {
+          "dataset_loaded": {
+            "status": "PASS",
+            "evidence": {
+              "sample_size": 100,
+              "dataset": "MIMIC-IV-ED Demo v2.2"
+            }
+          },
+          "schema_report_available": {
+            "status": "PASS",
+            "evidence": "schema_report.json exists."
+          },
+          "triage_input_separation": {
+            "status": "PASS",
+            "evidence": {
+              "triage_input_fields": [
+                "subject_id",
+                "stay_id",
+                "intime",
+                "gender",
+                "race",
+                "arrival_transport",
+                "chiefcomplaint",
+                "temperature",
+                "heartrate",
+                "resprate",
+                "o2sat",
+                "sbp",
+                "dbp",
+                "pain"
+              ],
+              "retrospective_label_fields": [
+                "stay_id",
+                "original_acuity",
+                "disposition",
+                "diagnosis_count",
+                "vitals_timeseries_count",
+                "medrecon_count",
+                "pyxis_count"
+              ],
+              "policy": "Retrospective fields are not used as triage-time inputs."
+            }
+          },
+          "missing_data_visibility": {
+            "status": "PASS",
+            "evidence": {
+              "cases_with_missing_triage_inputs": 14,
+              "missing_case_percent": 14.0,
+              "missing_cases": [
+                {
+                  "stay_id": 30115213,
+                  "subject_id": 10010867,
+                  "chiefcomplaint": "MVC/INTUBATED TRAUMA",
+                  "missing_fields": [
+                    "temperature",
+                    "heartrate",
+                    "resprate",
+                    "o2sat",
+                    "sbp",
+                    "dbp",
+                    "pain"
+                  ]
+                },
+                {
+                  "stay_id": 30272878,
+                  "subject_id": 10038999,
+                  "chiefcomplaint": "Transfer",
+                  "missing_fields": [
+                    "temperature",
+                    "heartrate",
+                    "resprate",
+                    "o2sat",
+                    "sbp",
+                    "dbp"
+                  ]
+                },
+                {
+                  "stay_id": 30701739,
+                  "subject_id": 10032725,
+                  "chiefcomplaint": "FACIAL DROOP",
+                  "missing_fields": [
+                    "temperature",
+                    "heartrate",
+                    "resprate",
+                    "o2sat",
+                    "sbp",
+                    "dbp",
+                    "pain"
+                  ]
+                },
+                {
+                  "stay_id": 31200743,
+                  "subject_id": 10026354,
+                  "chiefcomplaint": "SW",
+                  "missing_fields": [
+                    "temperature",
+                    "heartrate",
+                    "resprate",
+                    "o2sat",
+                    "sbp",
+                    "dbp",
+                    "pain"
+                  ]
+                },
+                {
+                  "stay_id": 31660580,
+                  "subject_id": 10010471,
+                  "chiefcomplaint": "s/p cardiac arrest",
+                  "missing_fields": [
+                    "temperature",
+                    "heartrate",
+                    "resprate",
+                    "o2sat",
+                    "sbp",
+                    "dbp"
+                  ]
+                },
+                {
+                  "stay_id": 31824062,
+                  "subject_id": 10016810,
+                  "chiefcomplaint": "UNKNOWN-CC",
+                  "missing_fields": [
+                    "temperature",
+                    "heartrate",
+                    "resprate",
+                    "o2sat",
+                    "sbp",
+                    "dbp",
+                    "pain"
+                  ]
+                },
+                {
+                  "stay_id": 31945330,
+                  "subject_id": 10040025,
+                  "chiefcomplaint": "Allergic reaction",
+                  "missing_fields": [
+                    "pain"
+                  ]
+                },
+                {
+                  "stay_id": 32443787,
+                  "subject_id": 10037928,
+                  "chiefcomplaint": "UNKNOWN-CC",
+                  "missing_fields": [
+                    "pain"
+                  ]
+                },
+                {
+                  "stay_id": 33211001,
+                  "subject_id": 10016742,
+                  "chiefcomplaint": "PICC EVAL",
+                  "missing_fields": [
+                    "temperature",
+                    "heartrate",
+                    "resprate",
+                    "o2sat",
+                    "sbp",
+                    "dbp",
+                    "pain"
+                  ]
+                },
+                {
+                  "stay_id": 33678912,
+                  "subject_id": 10003400,
+                  "chiefcomplaint": "Tachycardia, Hypoxia",
+                  "missing_fields": [
+                    "pain"
+                  ]
+                },
+                {
+                  "stay_id": 33978784,
+                  "subject_id": 10002428,
+                  "chiefcomplaint": "RESP ARREST",
+                  "missing_fields": [
+                    "temperature",
+                    "heartrate",
+                    "resprate",
+                    "o2sat",
+                    "sbp",
+                    "dbp",
+                    "pain"
+                  ]
+                },
+                {
+                  "stay_id": 34391979,
+                  "subject_id": 10004720,
+                  "chiefcomplaint": "Cardiac arrest, Transfer",
+                  "missing_fields": [
+                    "temperature",
+                    "heartrate",
+                    "resprate",
+                    "o2sat",
+                    "sbp",
+                    "dbp"
+                  ]
+                },
+                {
+                  "stay_id": 34558830,
+                  "subject_id": 10005866,
+                  "chiefcomplaint": "Abd pain, LEAKING ASCITES",
+                  "missing_fields": [
+                    "temperature",
+                    "heartrate",
+                    "resprate",
+                    "o2sat",
+                    "sbp",
+                    "dbp",
+                    "pain"
+                  ]
+                },
+                {
+                  "stay_id": 34820898,
+                  "subject_id": 10014354,
+                  "chiefcomplaint": "Dizziness, Diplopia",
+                  "missing_fields": [
+                    "temperature",
+                    "heartrate",
+                    "resprate",
+                    "o2sat",
+                    "sbp",
+                    "dbp"
+                  ]
+                }
+              ]
+            }
+          },
+          "human_review_for_missing_data": {
+            "status": "REQUEST_CHANGES",
+            "evidence": {
+              "missing_stay_count": 14,
+              "reviewed_missing_stay_count": 3,
+              "reviewed_missing_stay_ids": [
+                30115213,
+                30272878,
+                31660580
+              ],
+              "unreviewed_missing_stay_ids": [
+                30701739,
+                31200743,
+                31824062,
+                31945330,
+                32443787,
+                33211001,
+                33678912,
+                33978784,
+                34391979,
+                34558830,
+                34820898
+              ]
+            }
+          },
+          "leakage_guard": {
+            "status": "PASS",
+            "evidence": "Leakage guard is implemented in app/rules/leakage_guard.py and checked by unit tests."
+          },
+          "human_review_audit_log": {
+            "status": "PASS",
+            "evidence": {
+              "review_record_count": 6,
+              "reviewed_stay_ids": [
+                30115213,
+                30272878,
+                31660580
+              ]
+            }
+          },
+          "manchester_rules": {
+            "status": "NOT_CONFIGURED",
+            "evidence": "No clinician-approved Manchester ruleset has been supplied. The system must not assign Red/Orange/Yellow/Green/Blue triage categories."
+          },
+          "clinical_use_guardrail": {
+            "status": "PASS",
+            "evidence": "System explicitly declares not_for_clinical_use and does not perform automated triage classification."
+          }
+        },
+        "responsible_ai_review_gate": {
+          "intake": "Processed MIMIC-IV-ED Demo cases are loaded and grouped by stay_id.",
+          "scope": "Workflow is limited to public demo data and verified triage-time input fields.",
+          "assess": "Dataset audit, missing-data report, leakage guard, and unit tests are available.",
+          "probe": "Human review records can be saved and retrieved for individual ED stays.",
+          "decide": "System remains blocked from clinical use because Manchester rules are not configured."
+        }
+      }
+    },
+    "review_queue": {
+      "endpoint": "/review/queue",
+      "url": "https://ai-triage-agentic-system-afcmdbdpcsana4h3.swedencentral-01.azurewebsites.net/review/queue",
+      "reachable": true,
+      "status_code": 200,
+      "payload": {
+        "queue_name": "Missing triage input human review queue",
+        "total_missing_cases": 14,
+        "reviewed_count": 3,
+        "needs_review_count": 11,
+        "items": [
+          {
+            "stay_id": 30115213,
+            "subject_id": 10010867,
+            "chiefcomplaint": "MVC/INTUBATED TRAUMA",
+            "missing_fields": [
+              "temperature",
+              "heartrate",
+              "resprate",
+              "o2sat",
+              "sbp",
+              "dbp",
+              "pain"
+            ],
+            "review_status": "reviewed",
+            "review_count": 4,
+            "reviews": [
+              {
+                "review_id": "981ef00e-342e-46df-aa1b-4a122b0de23f",
+                "stay_id": 30115213,
+                "reviewer_role": "researcher",
+                "review_status": "request_missing_data",
+                "review_comment": "Initial triage vitals and pain are missing. Human data review required before any triage logic.",
+                "created_at_utc": "2026-06-09T16:41:41.822960+00:00",
+                "audit_note": "Human review record for audit trail. This does not create an automated clinical diagnosis or Manchester category."
+              },
+              {
+                "review_id": "1d6b19c4-29c8-43bd-8792-7d7d931f05e3",
+                "stay_id": 30115213,
+                "reviewer_role": "researcher",
+                "review_status": "request_missing_data",
+                "review_comment": "Initial triage vitals and pain are missing. Human data review required before any triage logic.",
+                "created_at_utc": "2026-06-09T16:47:43.815146+00:00",
+                "audit_note": "Human review record for audit trail. This does not create an automated clinical diagnosis or Manchester category."
+              },
+              {
+                "review_id": "e9ddbf1e-7531-40f2-aa42-5142013b1d7d",
+                "stay_id": 30115213,
+                "reviewer_role": "researcher",
+                "review_status": "request_missing_data",
+                "review_comment": "Initial triage vitals and pain are missing. Human data review required before any triage logic.",
+                "created_at_utc": "2026-06-09T16:55:33.636351+00:00",
+                "audit_note": "Human review record for audit trail. This does not create an automated clinical diagnosis or Manchester category."
+              },
+              {
+                "review_id": "ff50090b-9e0a-448b-be88-270483c7f39d",
+                "stay_id": 30115213,
+                "reviewer_role": "researcher",
+                "review_status": "request_missing_data",
+                "review_comment": "Initial triage vitals and pain are missing. Human data review required before any triage logic.",
+                "created_at_utc": "2026-06-09T17:20:12.322776+00:00",
+                "audit_note": "Human review record for audit trail. This does not create an automated clinical diagnosis or Manchester category."
+              }
+            ]
+          },
+          {
+            "stay_id": 30272878,
+            "subject_id": 10038999,
+            "chiefcomplaint": "Transfer",
+            "missing_fields": [
+              "temperature",
+              "heartrate",
+              "resprate",
+              "o2sat",
+              "sbp",
+              "dbp"
+            ],
+            "review_status": "reviewed",
+            "review_count": 1,
+            "reviews": [
+              {
+                "review_id": "a149f656-0c19-47d7-8351-62692afe1d7e",
+                "stay_id": 30272878,
+                "reviewer_role": "researcher",
+                "review_status": "request_missing_data",
+                "review_comment": "Missing triage fields for stay 30272878: temperature, heartrate, resprate, o2sat, sbp, dbp. Human data review required before any triage logic.",
+                "created_at_utc": "2026-06-09T21:36:55.045024+00:00",
+                "audit_note": "Human review record for audit trail. This does not create an automated clinical diagnosis or Manchester category."
+              }
+            ]
+          },
+          {
+            "stay_id": 30701739,
+            "subject_id": 10032725,
+            "chiefcomplaint": "FACIAL DROOP",
+            "missing_fields": [
+              "temperature",
+              "heartrate",
+              "resprate",
+              "o2sat",
+              "sbp",
+              "dbp",
+              "pain"
+            ],
+            "review_status": "needs_review",
+            "review_count": 0,
+            "reviews": []
+          },
+          {
+            "stay_id": 31200743,
+            "subject_id": 10026354,
+            "chiefcomplaint": "SW",
+            "missing_fields": [
+              "temperature",
+              "heartrate",
+              "resprate",
+              "o2sat",
+              "sbp",
+              "dbp",
+              "pain"
+            ],
+            "review_status": "needs_review",
+            "review_count": 0,
+            "reviews": []
+          },
+          {
+            "stay_id": 31660580,
+            "subject_id": 10010471,
+            "chiefcomplaint": "s/p cardiac arrest",
+            "missing_fields": [
+              "temperature",
+              "heartrate",
+              "resprate",
+              "o2sat",
+              "sbp",
+              "dbp"
+            ],
+            "review_status": "reviewed",
+            "review_count": 1,
+            "reviews": [
+              {
+                "review_id": "9bd22333-c909-4f27-a9dc-54473e977d6a",
+                "stay_id": 31660580,
+                "reviewer_role": "researcher",
+                "review_status": "request_missing_data",
+                "review_comment": "Missing triage fields for stay 31660580: temperature, heartrate, resprate, o2sat, sbp, dbp. Human data review required before any triage logic.",
+                "created_at_utc": "2026-06-09T21:37:21.646802+00:00",
+                "audit_note": "Human review record for audit trail. This does not create an automated clinical diagnosis or Manchester category."
+              }
+            ]
+          },
+          {
+            "stay_id": 31824062,
+            "subject_id": 10016810,
+            "chiefcomplaint": "UNKNOWN-CC",
+            "missing_fields": [
+              "temperature",
+              "heartrate",
+              "resprate",
+              "o2sat",
+              "sbp",
+              "dbp",
+              "pain"
+            ],
+            "review_status": "needs_review",
+            "review_count": 0,
+            "reviews": []
+          },
+          {
+            "stay_id": 31945330,
+            "subject_id": 10040025,
+            "chiefcomplaint": "Allergic reaction",
+            "missing_fields": [
+              "pain"
+            ],
+            "review_status": "needs_review",
+            "review_count": 0,
+            "reviews": []
+          },
+          {
+            "stay_id": 32443787,
+            "subject_id": 10037928,
+            "chiefcomplaint": "UNKNOWN-CC",
+            "missing_fields": [
+              "pain"
+            ],
+            "review_status": "needs_review",
+            "review_count": 0,
+            "reviews": []
+          },
+          {
+            "stay_id": 33211001,
+            "subject_id": 10016742,
+            "chiefcomplaint": "PICC EVAL",
+            "missing_fields": [
+              "temperature",
+              "heartrate",
+              "resprate",
+              "o2sat",
+              "sbp",
+              "dbp",
+              "pain"
+            ],
+            "review_status": "needs_review",
+            "review_count": 0,
+            "reviews": []
+          },
+          {
+            "stay_id": 33678912,
+            "subject_id": 10003400,
+            "chiefcomplaint": "Tachycardia, Hypoxia",
+            "missing_fields": [
+              "pain"
+            ],
+            "review_status": "needs_review",
+            "review_count": 0,
+            "reviews": []
+          },
+          {
+            "stay_id": 33978784,
+            "subject_id": 10002428,
+            "chiefcomplaint": "RESP ARREST",
+            "missing_fields": [
+              "temperature",
+              "heartrate",
+              "resprate",
+              "o2sat",
+              "sbp",
+              "dbp",
+              "pain"
+            ],
+            "review_status": "needs_review",
+            "review_count": 0,
+            "reviews": []
+          },
+          {
+            "stay_id": 34391979,
+            "subject_id": 10004720,
+            "chiefcomplaint": "Cardiac arrest, Transfer",
+            "missing_fields": [
+              "temperature",
+              "heartrate",
+              "resprate",
+              "o2sat",
+              "sbp",
+              "dbp"
+            ],
+            "review_status": "needs_review",
+            "review_count": 0,
+            "reviews": []
+          },
+          {
+            "stay_id": 34558830,
+            "subject_id": 10005866,
+            "chiefcomplaint": "Abd pain, LEAKING ASCITES",
+            "missing_fields": [
+              "temperature",
+              "heartrate",
+              "resprate",
+              "o2sat",
+              "sbp",
+              "dbp",
+              "pain"
+            ],
+            "review_status": "needs_review",
+            "review_count": 0,
+            "reviews": []
+          },
+          {
+            "stay_id": 34820898,
+            "subject_id": 10014354,
+            "chiefcomplaint": "Dizziness, Diplopia",
+            "missing_fields": [
+              "temperature",
+              "heartrate",
+              "resprate",
+              "o2sat",
+              "sbp",
+              "dbp"
+            ],
+            "review_status": "needs_review",
+            "review_count": 0,
+            "reviews": []
+          }
+        ]
+      }
+    },
+    "dataset_audit": {
+      "endpoint": "/audit/dataset-report",
+      "url": "https://ai-triage-agentic-system-afcmdbdpcsana4h3.swedencentral-01.azurewebsites.net/audit/dataset-report",
+      "reachable": true,
+      "status_code": 200,
+      "payload": {
+        "sample_size": 100,
+        "triage_input_fields": [
+          "subject_id",
+          "stay_id",
+          "intime",
+          "gender",
+          "race",
+          "arrival_transport",
+          "chiefcomplaint",
+          "temperature",
+          "heartrate",
+          "resprate",
+          "o2sat",
+          "sbp",
+          "dbp",
+          "pain"
+        ],
+        "retrospective_label_fields": [
+          "stay_id",
+          "original_acuity",
+          "disposition",
+          "diagnosis_count",
+          "vitals_timeseries_count",
+          "medrecon_count",
+          "pyxis_count"
+        ],
+        "missingness_triage_inputs": {
+          "subject_id": {
+            "missing_count": 0,
+            "missing_percent": 0.0
+          },
+          "stay_id": {
+            "missing_count": 0,
+            "missing_percent": 0.0
+          },
+          "intime": {
+            "missing_count": 0,
+            "missing_percent": 0.0
+          },
+          "gender": {
+            "missing_count": 0,
+            "missing_percent": 0.0
+          },
+          "race": {
+            "missing_count": 0,
+            "missing_percent": 0.0
+          },
+          "arrival_transport": {
+            "missing_count": 0,
+            "missing_percent": 0.0
+          },
+          "chiefcomplaint": {
+            "missing_count": 0,
+            "missing_percent": 0.0
+          },
+          "temperature": {
+            "missing_count": 11,
+            "missing_percent": 11.0
+          },
+          "heartrate": {
+            "missing_count": 11,
+            "missing_percent": 11.0
+          },
+          "resprate": {
+            "missing_count": 11,
+            "missing_percent": 11.0
+          },
+          "o2sat": {
+            "missing_count": 11,
+            "missing_percent": 11.0
+          },
+          "sbp": {
+            "missing_count": 11,
+            "missing_percent": 11.0
+          },
+          "dbp": {
+            "missing_count": 11,
+            "missing_percent": 11.0
+          },
+          "pain": {
+            "missing_count": 10,
+            "missing_percent": 10.0
+          }
+        },
+        "top_chief_complaints": [
+          [
+            "Hypotension",
+            3
+          ],
+          [
+            "Abd pain, Back pain",
+            2
+          ],
+          [
+            "Abd pain, N/V",
+            2
+          ],
+          [
+            "SHORTNESS OF BREATH",
+            2
+          ],
+          [
+            "Dyspnea",
+            2
+          ],
+          [
+            "Chest pain",
+            2
+          ],
+          [
+            "UNKNOWN-CC",
+            2
+          ],
+          [
+            "Abd pain",
+            2
+          ],
+          [
+            "Dyspnea, Transfer",
+            2
+          ],
+          [
+            "Fatigue, s/p Fall",
+            1
+          ],
+          [
+            "MVC/INTUBATED TRAUMA",
+            1
+          ],
+          [
+            "ETOH, Hallucinations",
+            1
+          ],
+          [
+            "Right sided abdominal pain",
+            1
+          ],
+          [
+            "Transfer",
+            1
+          ],
+          [
+            "Weakness",
+            1
+          ],
+          [
+            "Chest pain, Jaw pain, L Arm pain",
+            1
+          ],
+          [
+            "L Arm numbness, L Arm swelling",
+            1
+          ],
+          [
+            "T-SPINE FX DISPLACEMENT",
+            1
+          ],
+          [
+            "N/V, Hyperglycemia",
+            1
+          ],
+          [
+            "Headache, SAH, Transfer",
+            1
+          ]
+        ],
+        "disposition_distribution": [
+          [
+            "ADMITTED",
+            73
+          ],
+          [
+            "HOME",
+            23
+          ],
+          [
+            "LEFT WITHOUT BEING SEEN",
+            1
+          ],
+          [
+            "OTHER",
+            1
+          ],
+          [
+            "TRANSFER",
+            1
+          ],
+          [
+            "LEFT AGAINST MEDICAL ADVICE",
+            1
+          ]
+        ],
+        "original_acuity_distribution": [
+          [
+            "3.0",
+            46
+          ],
+          [
+            "2.0",
+            41
+          ],
+          [
+            "1.0",
+            7
+          ]
+        ],
+        "retrospective_record_counts": {
+          "total_diagnoses": 235,
+          "total_vitals_timeseries_records": 475,
+          "total_medrecon_records": 1224,
+          "total_pyxis_records": 453
+        }
+      }
+    },
+    "missing_triage_inputs": {
+      "endpoint": "/audit/missing-triage-inputs",
+      "url": "https://ai-triage-agentic-system-afcmdbdpcsana4h3.swedencentral-01.azurewebsites.net/audit/missing-triage-inputs",
+      "reachable": true,
+      "status_code": 200,
+      "payload": {
+        "sample_size": 100,
+        "cases_with_missing_triage_inputs": 14,
+        "missing_case_percent": 14.0,
+        "missing_cases": [
+          {
+            "stay_id": 30115213,
+            "subject_id": 10010867,
+            "chiefcomplaint": "MVC/INTUBATED TRAUMA",
+            "missing_fields": [
+              "temperature",
+              "heartrate",
+              "resprate",
+              "o2sat",
+              "sbp",
+              "dbp",
+              "pain"
+            ]
+          },
+          {
+            "stay_id": 30272878,
+            "subject_id": 10038999,
+            "chiefcomplaint": "Transfer",
+            "missing_fields": [
+              "temperature",
+              "heartrate",
+              "resprate",
+              "o2sat",
+              "sbp",
+              "dbp"
+            ]
+          },
+          {
+            "stay_id": 30701739,
+            "subject_id": 10032725,
+            "chiefcomplaint": "FACIAL DROOP",
+            "missing_fields": [
+              "temperature",
+              "heartrate",
+              "resprate",
+              "o2sat",
+              "sbp",
+              "dbp",
+              "pain"
+            ]
+          },
+          {
+            "stay_id": 31200743,
+            "subject_id": 10026354,
+            "chiefcomplaint": "SW",
+            "missing_fields": [
+              "temperature",
+              "heartrate",
+              "resprate",
+              "o2sat",
+              "sbp",
+              "dbp",
+              "pain"
+            ]
+          },
+          {
+            "stay_id": 31660580,
+            "subject_id": 10010471,
+            "chiefcomplaint": "s/p cardiac arrest",
+            "missing_fields": [
+              "temperature",
+              "heartrate",
+              "resprate",
+              "o2sat",
+              "sbp",
+              "dbp"
+            ]
+          },
+          {
+            "stay_id": 31824062,
+            "subject_id": 10016810,
+            "chiefcomplaint": "UNKNOWN-CC",
+            "missing_fields": [
+              "temperature",
+              "heartrate",
+              "resprate",
+              "o2sat",
+              "sbp",
+              "dbp",
+              "pain"
+            ]
+          },
+          {
+            "stay_id": 31945330,
+            "subject_id": 10040025,
+            "chiefcomplaint": "Allergic reaction",
+            "missing_fields": [
+              "pain"
+            ]
+          },
+          {
+            "stay_id": 32443787,
+            "subject_id": 10037928,
+            "chiefcomplaint": "UNKNOWN-CC",
+            "missing_fields": [
+              "pain"
+            ]
+          },
+          {
+            "stay_id": 33211001,
+            "subject_id": 10016742,
+            "chiefcomplaint": "PICC EVAL",
+            "missing_fields": [
+              "temperature",
+              "heartrate",
+              "resprate",
+              "o2sat",
+              "sbp",
+              "dbp",
+              "pain"
+            ]
+          },
+          {
+            "stay_id": 33678912,
+            "subject_id": 10003400,
+            "chiefcomplaint": "Tachycardia, Hypoxia",
+            "missing_fields": [
+              "pain"
+            ]
+          },
+          {
+            "stay_id": 33978784,
+            "subject_id": 10002428,
+            "chiefcomplaint": "RESP ARREST",
+            "missing_fields": [
+              "temperature",
+              "heartrate",
+              "resprate",
+              "o2sat",
+              "sbp",
+              "dbp",
+              "pain"
+            ]
+          },
+          {
+            "stay_id": 34391979,
+            "subject_id": 10004720,
+            "chiefcomplaint": "Cardiac arrest, Transfer",
+            "missing_fields": [
+              "temperature",
+              "heartrate",
+              "resprate",
+              "o2sat",
+              "sbp",
+              "dbp"
+            ]
+          },
+          {
+            "stay_id": 34558830,
+            "subject_id": 10005866,
+            "chiefcomplaint": "Abd pain, LEAKING ASCITES",
+            "missing_fields": [
+              "temperature",
+              "heartrate",
+              "resprate",
+              "o2sat",
+              "sbp",
+              "dbp",
+              "pain"
+            ]
+          },
+          {
+            "stay_id": 34820898,
+            "subject_id": 10014354,
+            "chiefcomplaint": "Dizziness, Diplopia",
+            "missing_fields": [
+              "temperature",
+              "heartrate",
+              "resprate",
+              "o2sat",
+              "sbp",
+              "dbp"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "limitations": [
+    "This package does not validate clinical safety.",
+    "This package does not approve emergency department deployment.",
+    "This package does not contain clinician-approved Manchester triage rules.",
+    "This package does not use UHL patient data.",
+    "This package uses public demo data only at the current stage.",
+    "A human clinician must remain responsible for final triage decisions."
+  ],
+  "next_required_steps_before_clinical_use": [
+    "Clinician-approved deterministic Manchester-style ruleset.",
+    "Formal clinical safety review.",
+    "Data protection and governance approval for any UHL data.",
+    "Validation protocol for UHL data.",
+    "Clinician-reviewed evaluation set.",
+    "Red-team and unsafe-output testing.",
+    "Human-in-the-loop workflow validation.",
+    "Monitoring and incident-response plan."
+  ]
+}
