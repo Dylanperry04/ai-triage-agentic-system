@@ -1,5 +1,5 @@
 {
-  "generated_at_utc": "2026-06-10T14:14:44.751911+00:00",
+  "generated_at_utc": "2026-06-10T14:17:20.625485+00:00",
   "package_name": "AI Triage Agentic System Final Governance Evidence Package",
   "package_version": "0.1",
   "project_stage": "research_prototype_public_demo_data",
@@ -31,7 +31,7 @@
       "file_found": true,
       "path": "C:\\Users\\colle\\Downloads\\ai_triage_mimic_pipeline\\ai_triage_mimic_pipeline\\data\\processed\\policy_check_report.json",
       "content": {
-        "generated_at_utc": "2026-06-10T13:54:13.030350+00:00",
+        "generated_at_utc": "2026-06-10T14:17:07.984468+00:00",
         "policy_check_version": "0.1",
         "clinical_safety_claim": "No clinical safety claim is made by these checks.",
         "clinical_use_allowed": false,
