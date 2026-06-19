@@ -1,0 +1,10 @@
+# NOTE: AutoGen is no longer a separate optional install. As of the real
+# AutoGen integration (app/agents/autogen_team.py), it is a load-bearing
+# dependency and has been merged into requirements.txt. This file is kept
+# only so anything that still references it does not break, and to record
+# the exact versions that were verified to install and work together.
+autogen-agentchat==0.7.5
+autogen-core==0.7.5
+autogen-ext[openai,azure]==0.7.5
+requests>=2.32.0
+python-dotenv>=1.0.0

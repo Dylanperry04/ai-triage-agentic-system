@@ -1,0 +1,541 @@
+{
+  "dataset": "MIMIC-IV-ED-Demo-v2.2",
+  "is_demo_not_full_dataset": true,
+  "source_directory": "C:\\Users\\colle\\Downloads\\ai_triage_ktas_v9\\ai_triage_ktas\\data\\raw\\mimic-iv-ed-demo\\2.2\\ed",
+  "schema_validation": {
+    "tables": {
+      "diagnosis": {
+        "status": "OK",
+        "row_count": 545,
+        "expected_columns": [
+          "subject_id",
+          "stay_id",
+          "seq_num",
+          "icd_code",
+          "icd_version",
+          "icd_title"
+        ],
+        "actual_columns": [
+          "subject_id",
+          "stay_id",
+          "seq_num",
+          "icd_code",
+          "icd_version",
+          "icd_title"
+        ]
+      },
+      "edstays": {
+        "status": "OK",
+        "row_count": 222,
+        "expected_columns": [
+          "subject_id",
+          "hadm_id",
+          "stay_id",
+          "intime",
+          "outtime",
+          "gender",
+          "race",
+          "arrival_transport",
+          "disposition"
+        ],
+        "actual_columns": [
+          "subject_id",
+          "hadm_id",
+          "stay_id",
+          "intime",
+          "outtime",
+          "gender",
+          "race",
+          "arrival_transport",
+          "disposition"
+        ]
+      },
+      "medrecon": {
+        "status": "OK",
+        "row_count": 2764,
+        "expected_columns": [
+          "subject_id",
+          "stay_id",
+          "charttime",
+          "name",
+          "gsn",
+          "ndc",
+          "etc_rn",
+          "etccode",
+          "etcdescription"
+        ],
+        "actual_columns": [
+          "subject_id",
+          "stay_id",
+          "charttime",
+          "name",
+          "gsn",
+          "ndc",
+          "etc_rn",
+          "etccode",
+          "etcdescription"
+        ]
+      },
+      "pyxis": {
+        "status": "OK",
+        "row_count": 1082,
+        "expected_columns": [
+          "subject_id",
+          "stay_id",
+          "charttime",
+          "med_rn",
+          "name",
+          "gsn_rn",
+          "gsn"
+        ],
+        "actual_columns": [
+          "subject_id",
+          "stay_id",
+          "charttime",
+          "med_rn",
+          "name",
+          "gsn_rn",
+          "gsn"
+        ]
+      },
+      "triage": {
+        "status": "OK",
+        "row_count": 222,
+        "expected_columns": [
+          "subject_id",
+          "stay_id",
+          "temperature",
+          "heartrate",
+          "resprate",
+          "o2sat",
+          "sbp",
+          "dbp",
+          "pain",
+          "acuity",
+          "chiefcomplaint"
+        ],
+        "actual_columns": [
+          "subject_id",
+          "stay_id",
+          "temperature",
+          "heartrate",
+          "resprate",
+          "o2sat",
+          "sbp",
+          "dbp",
+          "pain",
+          "acuity",
+          "chiefcomplaint"
+        ]
+      },
+      "vitalsign": {
+        "status": "OK",
+        "row_count": 1038,
+        "expected_columns": [
+          "subject_id",
+          "stay_id",
+          "charttime",
+          "temperature",
+          "heartrate",
+          "resprate",
+          "o2sat",
+          "sbp",
+          "dbp",
+          "rhythm",
+          "pain"
+        ],
+        "actual_columns": [
+          "subject_id",
+          "stay_id",
+          "charttime",
+          "temperature",
+          "heartrate",
+          "resprate",
+          "o2sat",
+          "sbp",
+          "dbp",
+          "rhythm",
+          "pain"
+        ]
+      }
+    },
+    "all_columns_match": true
+  },
+  "tables": {
+    "diagnosis": {
+      "row_count": 545,
+      "columns": [
+        "subject_id",
+        "stay_id",
+        "seq_num",
+        "icd_code",
+        "icd_version",
+        "icd_title"
+      ],
+      "missingness": {
+        "subject_id": {
+          "missing_count": 0,
+          "missing_pct": 0.0
+        },
+        "stay_id": {
+          "missing_count": 0,
+          "missing_pct": 0.0
+        },
+        "seq_num": {
+          "missing_count": 0,
+          "missing_pct": 0.0
+        },
+        "icd_code": {
+          "missing_count": 0,
+          "missing_pct": 0.0
+        },
+        "icd_version": {
+          "missing_count": 0,
+          "missing_pct": 0.0
+        },
+        "icd_title": {
+          "missing_count": 0,
+          "missing_pct": 0.0
+        }
+      }
+    },
+    "edstays": {
+      "row_count": 222,
+      "columns": [
+        "subject_id",
+        "hadm_id",
+        "stay_id",
+        "intime",
+        "outtime",
+        "gender",
+        "race",
+        "arrival_transport",
+        "disposition"
+      ],
+      "missingness": {
+        "subject_id": {
+          "missing_count": 0,
+          "missing_pct": 0.0
+        },
+        "hadm_id": {
+          "missing_count": 50,
+          "missing_pct": 22.52
+        },
+        "stay_id": {
+          "missing_count": 0,
+          "missing_pct": 0.0
+        },
+        "intime": {
+          "missing_count": 0,
+          "missing_pct": 0.0
+        },
+        "outtime": {
+          "missing_count": 0,
+          "missing_pct": 0.0
+        },
+        "gender": {
+          "missing_count": 0,
+          "missing_pct": 0.0
+        },
+        "race": {
+          "missing_count": 0,
+          "missing_pct": 0.0
+        },
+        "arrival_transport": {
+          "missing_count": 0,
+          "missing_pct": 0.0
+        },
+        "disposition": {
+          "missing_count": 0,
+          "missing_pct": 0.0
+        }
+      }
+    },
+    "medrecon": {
+      "row_count": 2764,
+      "columns": [
+        "subject_id",
+        "stay_id",
+        "charttime",
+        "name",
+        "gsn",
+        "ndc",
+        "etc_rn",
+        "etccode",
+        "etcdescription"
+      ],
+      "missingness": {
+        "subject_id": {
+          "missing_count": 0,
+          "missing_pct": 0.0
+        },
+        "stay_id": {
+          "missing_count": 0,
+          "missing_pct": 0.0
+        },
+        "charttime": {
+          "missing_count": 0,
+          "missing_pct": 0.0
+        },
+        "name": {
+          "missing_count": 0,
+          "missing_pct": 0.0
+        },
+        "gsn": {
+          "missing_count": 0,
+          "missing_pct": 0.0
+        },
+        "ndc": {
+          "missing_count": 0,
+          "missing_pct": 0.0
+        },
+        "etc_rn": {
+          "missing_count": 0,
+          "missing_pct": 0.0
+        },
+        "etccode": {
+          "missing_count": 4,
+          "missing_pct": 0.14
+        },
+        "etcdescription": {
+          "missing_count": 4,
+          "missing_pct": 0.14
+        }
+      }
+    },
+    "pyxis": {
+      "row_count": 1082,
+      "columns": [
+        "subject_id",
+        "stay_id",
+        "charttime",
+        "med_rn",
+        "name",
+        "gsn_rn",
+        "gsn"
+      ],
+      "missingness": {
+        "subject_id": {
+          "missing_count": 0,
+          "missing_pct": 0.0
+        },
+        "stay_id": {
+          "missing_count": 0,
+          "missing_pct": 0.0
+        },
+        "charttime": {
+          "missing_count": 0,
+          "missing_pct": 0.0
+        },
+        "med_rn": {
+          "missing_count": 0,
+          "missing_pct": 0.0
+        },
+        "name": {
+          "missing_count": 0,
+          "missing_pct": 0.0
+        },
+        "gsn_rn": {
+          "missing_count": 0,
+          "missing_pct": 0.0
+        },
+        "gsn": {
+          "missing_count": 32,
+          "missing_pct": 2.96
+        }
+      }
+    },
+    "triage": {
+      "row_count": 222,
+      "columns": [
+        "subject_id",
+        "stay_id",
+        "temperature",
+        "heartrate",
+        "resprate",
+        "o2sat",
+        "sbp",
+        "dbp",
+        "pain",
+        "acuity",
+        "chiefcomplaint"
+      ],
+      "missingness": {
+        "subject_id": {
+          "missing_count": 0,
+          "missing_pct": 0.0
+        },
+        "stay_id": {
+          "missing_count": 0,
+          "missing_pct": 0.0
+        },
+        "temperature": {
+          "missing_count": 26,
+          "missing_pct": 11.71
+        },
+        "heartrate": {
+          "missing_count": 24,
+          "missing_pct": 10.81
+        },
+        "resprate": {
+          "missing_count": 23,
+          "missing_pct": 10.36
+        },
+        "o2sat": {
+          "missing_count": 24,
+          "missing_pct": 10.81
+        },
+        "sbp": {
+          "missing_count": 23,
+          "missing_pct": 10.36
+        },
+        "dbp": {
+          "missing_count": 23,
+          "missing_pct": 10.36
+        },
+        "pain": {
+          "missing_count": 21,
+          "missing_pct": 9.46
+        },
+        "acuity": {
+          "missing_count": 15,
+          "missing_pct": 6.76
+        },
+        "chiefcomplaint": {
+          "missing_count": 0,
+          "missing_pct": 0.0
+        }
+      }
+    },
+    "vitalsign": {
+      "row_count": 1038,
+      "columns": [
+        "subject_id",
+        "stay_id",
+        "charttime",
+        "temperature",
+        "heartrate",
+        "resprate",
+        "o2sat",
+        "sbp",
+        "dbp",
+        "rhythm",
+        "pain"
+      ],
+      "missingness": {
+        "subject_id": {
+          "missing_count": 0,
+          "missing_pct": 0.0
+        },
+        "stay_id": {
+          "missing_count": 0,
+          "missing_pct": 0.0
+        },
+        "charttime": {
+          "missing_count": 0,
+          "missing_pct": 0.0
+        },
+        "temperature": {
+          "missing_count": 459,
+          "missing_pct": 44.22
+        },
+        "heartrate": {
+          "missing_count": 30,
+          "missing_pct": 2.89
+        },
+        "resprate": {
+          "missing_count": 48,
+          "missing_pct": 4.62
+        },
+        "o2sat": {
+          "missing_count": 67,
+          "missing_pct": 6.45
+        },
+        "sbp": {
+          "missing_count": 40,
+          "missing_pct": 3.85
+        },
+        "dbp": {
+          "missing_count": 40,
+          "missing_pct": 3.85
+        },
+        "rhythm": {
+          "missing_count": 1005,
+          "missing_pct": 96.82
+        },
+        "pain": {
+          "missing_count": 302,
+          "missing_pct": 29.09
+        }
+      }
+    }
+  },
+  "field_classification": {
+    "diagnosis.subject_id": "TRIAGE_TIME_SAFE",
+    "diagnosis.stay_id": "TRIAGE_TIME_SAFE",
+    "diagnosis.seq_num": "RETROSPECTIVE -- assigned or recorded during/after clinical assessment, not known at triage",
+    "diagnosis.icd_code": "RETROSPECTIVE -- assigned or recorded during/after clinical assessment, not known at triage",
+    "diagnosis.icd_version": "RETROSPECTIVE -- assigned or recorded during/after clinical assessment, not known at triage",
+    "diagnosis.icd_title": "RETROSPECTIVE -- assigned or recorded during/after clinical assessment, not known at triage",
+    "edstays.subject_id": "TRIAGE_TIME_SAFE",
+    "edstays.hadm_id": "RETROSPECTIVE_OR_LEAKAGE",
+    "edstays.stay_id": "TRIAGE_TIME_SAFE",
+    "edstays.intime": "TRIAGE_TIME_SAFE",
+    "edstays.outtime": "RETROSPECTIVE_OR_LEAKAGE",
+    "edstays.gender": "TRIAGE_TIME_SAFE",
+    "edstays.race": "TRIAGE_TIME_SAFE",
+    "edstays.arrival_transport": "TRIAGE_TIME_SAFE",
+    "edstays.disposition": "RETROSPECTIVE_OR_LEAKAGE",
+    "medrecon.subject_id": "TRIAGE_TIME_SAFE",
+    "medrecon.stay_id": "TRIAGE_TIME_SAFE",
+    "medrecon.charttime": "RETROSPECTIVE -- assigned or recorded during/after clinical assessment, not known at triage",
+    "medrecon.name": "RETROSPECTIVE -- assigned or recorded during/after clinical assessment, not known at triage",
+    "medrecon.gsn": "RETROSPECTIVE -- assigned or recorded during/after clinical assessment, not known at triage",
+    "medrecon.ndc": "RETROSPECTIVE -- assigned or recorded during/after clinical assessment, not known at triage",
+    "medrecon.etc_rn": "RETROSPECTIVE -- assigned or recorded during/after clinical assessment, not known at triage",
+    "medrecon.etccode": "RETROSPECTIVE -- assigned or recorded during/after clinical assessment, not known at triage",
+    "medrecon.etcdescription": "RETROSPECTIVE -- assigned or recorded during/after clinical assessment, not known at triage",
+    "pyxis.subject_id": "TRIAGE_TIME_SAFE",
+    "pyxis.stay_id": "TRIAGE_TIME_SAFE",
+    "pyxis.charttime": "RETROSPECTIVE -- assigned or recorded during/after clinical assessment, not known at triage",
+    "pyxis.med_rn": "RETROSPECTIVE -- assigned or recorded during/after clinical assessment, not known at triage",
+    "pyxis.name": "RETROSPECTIVE -- assigned or recorded during/after clinical assessment, not known at triage",
+    "pyxis.gsn_rn": "RETROSPECTIVE -- assigned or recorded during/after clinical assessment, not known at triage",
+    "pyxis.gsn": "RETROSPECTIVE -- assigned or recorded during/after clinical assessment, not known at triage",
+    "triage.subject_id": "TRIAGE_TIME_SAFE",
+    "triage.stay_id": "TRIAGE_TIME_SAFE",
+    "triage.temperature": "TRIAGE_TIME_SAFE",
+    "triage.heartrate": "TRIAGE_TIME_SAFE",
+    "triage.resprate": "TRIAGE_TIME_SAFE",
+    "triage.o2sat": "TRIAGE_TIME_SAFE",
+    "triage.sbp": "TRIAGE_TIME_SAFE",
+    "triage.dbp": "TRIAGE_TIME_SAFE",
+    "triage.pain": "TRIAGE_TIME_SAFE",
+    "triage.acuity": "RETROSPECTIVE_OR_LEAKAGE",
+    "triage.chiefcomplaint": "TRIAGE_TIME_SAFE",
+    "vitalsign.subject_id": "EXCLUDED_FROM_TRIAGE_INPUT -- vitalsign.csv contains repeated in-ED monitoring readings (up to 22 per stay, taken after intime), not a single triage-time snapshot. triage.csv is used as the triage-time vitals source instead.",
+    "vitalsign.stay_id": "EXCLUDED_FROM_TRIAGE_INPUT -- vitalsign.csv contains repeated in-ED monitoring readings (up to 22 per stay, taken after intime), not a single triage-time snapshot. triage.csv is used as the triage-time vitals source instead.",
+    "vitalsign.charttime": "EXCLUDED_FROM_TRIAGE_INPUT -- vitalsign.csv contains repeated in-ED monitoring readings (up to 22 per stay, taken after intime), not a single triage-time snapshot. triage.csv is used as the triage-time vitals source instead.",
+    "vitalsign.temperature": "EXCLUDED_FROM_TRIAGE_INPUT -- vitalsign.csv contains repeated in-ED monitoring readings (up to 22 per stay, taken after intime), not a single triage-time snapshot. triage.csv is used as the triage-time vitals source instead.",
+    "vitalsign.heartrate": "EXCLUDED_FROM_TRIAGE_INPUT -- vitalsign.csv contains repeated in-ED monitoring readings (up to 22 per stay, taken after intime), not a single triage-time snapshot. triage.csv is used as the triage-time vitals source instead.",
+    "vitalsign.resprate": "EXCLUDED_FROM_TRIAGE_INPUT -- vitalsign.csv contains repeated in-ED monitoring readings (up to 22 per stay, taken after intime), not a single triage-time snapshot. triage.csv is used as the triage-time vitals source instead.",
+    "vitalsign.o2sat": "EXCLUDED_FROM_TRIAGE_INPUT -- vitalsign.csv contains repeated in-ED monitoring readings (up to 22 per stay, taken after intime), not a single triage-time snapshot. triage.csv is used as the triage-time vitals source instead.",
+    "vitalsign.sbp": "EXCLUDED_FROM_TRIAGE_INPUT -- vitalsign.csv contains repeated in-ED monitoring readings (up to 22 per stay, taken after intime), not a single triage-time snapshot. triage.csv is used as the triage-time vitals source instead.",
+    "vitalsign.dbp": "EXCLUDED_FROM_TRIAGE_INPUT -- vitalsign.csv contains repeated in-ED monitoring readings (up to 22 per stay, taken after intime), not a single triage-time snapshot. triage.csv is used as the triage-time vitals source instead.",
+    "vitalsign.rhythm": "EXCLUDED_FROM_TRIAGE_INPUT -- vitalsign.csv contains repeated in-ED monitoring readings (up to 22 per stay, taken after intime), not a single triage-time snapshot. triage.csv is used as the triage-time vitals source instead.",
+    "vitalsign.pain": "EXCLUDED_FROM_TRIAGE_INPUT -- vitalsign.csv contains repeated in-ED monitoring readings (up to 22 per stay, taken after intime), not a single triage-time snapshot. triage.csv is used as the triage-time vitals source instead."
+  },
+  "known_data_quality_issues": [
+    {
+      "field": "triage.temperature",
+      "issue": "Minimum value 36.5 is implausible as Fahrenheit (would indicate severe hypothermia) but plausible as Celsius -- likely a single data-entry error in the source CSV. Value is kept as-recorded, not corrected, since the true intended value cannot be known."
+    },
+    {
+      "field": "triage.pain",
+      "issue": "Contains 7 distinct out-of-range or non-numeric values: ['13', 'Critical', 'UA', 'ett', 'o', 'unable', 'uta']. These are treated as unparseable/missing by _parse_pain(), not coerced into a number."
+    }
+  ],
+  "leakage_policy_summary": "triage.acuity, edstays.disposition, edstays.outtime, edstays.hadm_id, and all diagnosis/medrecon/pyxis records are retrospective and never enter TriageTimeInput. vitalsign.csv (repeated in-ED monitoring) is also excluded from triage-time input for the same reason -- only triage.csv's single per-stay snapshot is used.",
+  "manchester_mapping": "NOT_IMPLEMENTED -- MIMIC acuity is not Manchester Triage Scale",
+  "clinical_use": "NOT_FOR_CLINICAL_USE"
+}

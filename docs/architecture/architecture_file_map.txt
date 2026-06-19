@@ -1,0 +1,48 @@
+﻿ARCHITECTURE-RELEVANT FILES
+
+Frontend:
+frontend/app.py
+
+Main orchestration:
+app/agents/orchestrator.py
+
+AutoGen:
+app/agents/autogen_team.py
+app/agents/autogen_multi_agent_team.py
+scripts/autogen_agentchat_team.py
+
+Safety and rules:
+app/agents/data_validation_agent.py
+app/agents/case_summary_agent.py
+app/agents/safety_review_agent.py
+app/agents/followup_comparison_agent.py
+app/rules/manchester_engine.py
+app/rules/provisional_mts_ruleset.py
+app/rules/acuity_mts_mapping.py
+app/rules/acuity_override.py
+app/rules/llm_safety_filter.py
+app/rules/leakage_guard.py
+
+Dataset adapters:
+app/data_pipeline/mimic_adapter.py
+app/data_pipeline/ktas_adapter.py
+app/data_pipeline/mapping.py
+
+ML:
+app/agents/ml_prediction_agent.py
+ml_training/train_all_models.py
+ml_training/train_mimic_acuity_model.py
+data/models/registry.json
+
+Storage/audit:
+app/storage/jsonl_repository.py
+app/storage/human_review_repository.py
+app/storage/followup_repository.py
+app/storage/workflow_run_repository.py
+
+Deployment:
+Dockerfile
+startup.sh
+runtime.txt
+.env.example
+infrastructure/azure_deploy.md

@@ -1,0 +1,496 @@
+{
+  "label": "TRIAGE_INDICATOR_MATRIX (GATED MODE) -- constructed indicator-level test cases, not real patient data. This log reflects the engine with NO ruleset registered (no category assigned). The default-on app runs with the provisional ruleset; see triage_indicator_matrix_provisional_log.json for that.",
+  "mode": "GATED_NO_RULESET",
+  "methodology": "Every expected value was derived by directly calling run_manchester_engine() with no ruleset registered and reading its real output, not assumed or copied from docs.",
+  "all_match_gated_expectation": true,
+  "results": [
+    {
+      "indicator": "Critical SpO2 low",
+      "expected_status_gated": "CRITICAL_PHYSIOLOGY_FLAGGED",
+      "actual_status": "CRITICAL_PHYSIOLOGY_FLAGGED",
+      "expected_reason_codes_subset": [
+        "CRITICAL_PHYSIOLOGY_DETECTED",
+        "CRITICAL_HYPOXIA_SPO2_BELOW_90"
+      ],
+      "actual_reason_codes": [
+        "CRITICAL_PHYSIOLOGY_DETECTED",
+        "CRITICAL_HYPOXIA_SPO2_BELOW_90"
+      ],
+      "category_assigned": null,
+      "matches_gated_expectation": true,
+      "note": "SpO2 below 90 is always critical regardless of ruleset status."
+    },
+    {
+      "indicator": "Concern SpO2 low",
+      "expected_status_gated": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "actual_status": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "expected_reason_codes_subset": [
+        "UNRECOGNISED_COMPLAINT",
+        "CONCERN_SPO2_90_TO_94",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "actual_reason_codes": [
+        "UNRECOGNISED_COMPLAINT",
+        "CONCERN_SPO2_90_TO_94",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "category_assigned": null,
+      "matches_gated_expectation": true,
+      "note": "Concern-band SpO2 (90-94) with an unrecognised complaint."
+    },
+    {
+      "indicator": "Critical respiratory rate high",
+      "expected_status_gated": "CRITICAL_PHYSIOLOGY_FLAGGED",
+      "actual_status": "CRITICAL_PHYSIOLOGY_FLAGGED",
+      "expected_reason_codes_subset": [
+        "CRITICAL_PHYSIOLOGY_DETECTED",
+        "CRITICAL_RESPIRATORY_RATE_ABOVE_29"
+      ],
+      "actual_reason_codes": [
+        "CRITICAL_PHYSIOLOGY_DETECTED",
+        "CRITICAL_RESPIRATORY_RATE_ABOVE_29"
+      ],
+      "category_assigned": null,
+      "matches_gated_expectation": true,
+      "note": "Resprate above 29 is critical."
+    },
+    {
+      "indicator": "Critical respiratory rate low",
+      "expected_status_gated": "CRITICAL_PHYSIOLOGY_FLAGGED",
+      "actual_status": "CRITICAL_PHYSIOLOGY_FLAGGED",
+      "expected_reason_codes_subset": [
+        "CRITICAL_PHYSIOLOGY_DETECTED",
+        "CRITICAL_RESPIRATORY_RATE_BELOW_8"
+      ],
+      "actual_reason_codes": [
+        "CRITICAL_PHYSIOLOGY_DETECTED",
+        "CRITICAL_RESPIRATORY_RATE_BELOW_8"
+      ],
+      "category_assigned": null,
+      "matches_gated_expectation": true,
+      "note": "Resprate below 8 is critical."
+    },
+    {
+      "indicator": "Concern respiratory rate high",
+      "expected_status_gated": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "actual_status": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "expected_reason_codes_subset": [
+        "UNRECOGNISED_COMPLAINT",
+        "CONCERN_RESPIRATORY_RATE_25_TO_29",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "actual_reason_codes": [
+        "UNRECOGNISED_COMPLAINT",
+        "CONCERN_RESPIRATORY_RATE_25_TO_29",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "category_assigned": null,
+      "matches_gated_expectation": true,
+      "note": "Concern-band resprate (25-29). NOTE: engine has no low-side concern band for resprate, only the critical-low cutoff at 8."
+    },
+    {
+      "indicator": "Critical heart rate high",
+      "expected_status_gated": "CRITICAL_PHYSIOLOGY_FLAGGED",
+      "actual_status": "CRITICAL_PHYSIOLOGY_FLAGGED",
+      "expected_reason_codes_subset": [
+        "CRITICAL_PHYSIOLOGY_DETECTED",
+        "CRITICAL_HEART_RATE_ABOVE_130"
+      ],
+      "actual_reason_codes": [
+        "CRITICAL_PHYSIOLOGY_DETECTED",
+        "CRITICAL_HEART_RATE_ABOVE_130"
+      ],
+      "category_assigned": null,
+      "matches_gated_expectation": true,
+      "note": "Heart rate above 130 is critical."
+    },
+    {
+      "indicator": "Critical heart rate low",
+      "expected_status_gated": "CRITICAL_PHYSIOLOGY_FLAGGED",
+      "actual_status": "CRITICAL_PHYSIOLOGY_FLAGGED",
+      "expected_reason_codes_subset": [
+        "CRITICAL_PHYSIOLOGY_DETECTED",
+        "CRITICAL_HEART_RATE_BELOW_40"
+      ],
+      "actual_reason_codes": [
+        "CRITICAL_PHYSIOLOGY_DETECTED",
+        "CRITICAL_HEART_RATE_BELOW_40"
+      ],
+      "category_assigned": null,
+      "matches_gated_expectation": true,
+      "note": "Heart rate below 40 is critical."
+    },
+    {
+      "indicator": "Concern heart rate high",
+      "expected_status_gated": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "actual_status": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "expected_reason_codes_subset": [
+        "UNRECOGNISED_COMPLAINT",
+        "CONCERN_HEART_RATE_101_TO_130",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "actual_reason_codes": [
+        "UNRECOGNISED_COMPLAINT",
+        "CONCERN_HEART_RATE_101_TO_130",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "category_assigned": null,
+      "matches_gated_expectation": true,
+      "note": "Concern-band heart rate (101-130). NOTE: engine has no low-side concern band for heart rate, only the critical-low cutoff at 40."
+    },
+    {
+      "indicator": "Critical systolic BP low",
+      "expected_status_gated": "CRITICAL_PHYSIOLOGY_FLAGGED",
+      "actual_status": "CRITICAL_PHYSIOLOGY_FLAGGED",
+      "expected_reason_codes_subset": [
+        "CRITICAL_PHYSIOLOGY_DETECTED",
+        "CRITICAL_HYPOTENSION_SBP_BELOW_90"
+      ],
+      "actual_reason_codes": [
+        "CRITICAL_PHYSIOLOGY_DETECTED",
+        "CRITICAL_HYPOTENSION_SBP_BELOW_90"
+      ],
+      "category_assigned": null,
+      "matches_gated_expectation": true,
+      "note": "SBP below 90 is critical."
+    },
+    {
+      "indicator": "Critical systolic BP high",
+      "expected_status_gated": "CRITICAL_PHYSIOLOGY_FLAGGED",
+      "actual_status": "CRITICAL_PHYSIOLOGY_FLAGGED",
+      "expected_reason_codes_subset": [
+        "CRITICAL_PHYSIOLOGY_DETECTED",
+        "CRITICAL_HYPERTENSION_SBP_ABOVE_220"
+      ],
+      "actual_reason_codes": [
+        "CRITICAL_PHYSIOLOGY_DETECTED",
+        "CRITICAL_HYPERTENSION_SBP_ABOVE_220"
+      ],
+      "category_assigned": null,
+      "matches_gated_expectation": true,
+      "note": "SBP above 220 is critical."
+    },
+    {
+      "indicator": "Concern systolic BP low",
+      "expected_status_gated": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "actual_status": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "expected_reason_codes_subset": [
+        "UNRECOGNISED_COMPLAINT",
+        "CONCERN_SBP_90_TO_99",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "actual_reason_codes": [
+        "UNRECOGNISED_COMPLAINT",
+        "CONCERN_SBP_90_TO_99",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "category_assigned": null,
+      "matches_gated_expectation": true,
+      "note": "Concern-band SBP (90-99). NOTE: engine has no high-side concern band for SBP, only the critical-high cutoff at 220."
+    },
+    {
+      "indicator": "Critical temperature high",
+      "expected_status_gated": "CRITICAL_PHYSIOLOGY_FLAGGED",
+      "actual_status": "CRITICAL_PHYSIOLOGY_FLAGGED",
+      "expected_reason_codes_subset": [
+        "CRITICAL_PHYSIOLOGY_DETECTED",
+        "CRITICAL_HYPERPYREXIA_TEMP_ABOVE_41C"
+      ],
+      "actual_reason_codes": [
+        "CRITICAL_PHYSIOLOGY_DETECTED",
+        "CRITICAL_HYPERPYREXIA_TEMP_ABOVE_41C"
+      ],
+      "category_assigned": null,
+      "matches_gated_expectation": true,
+      "note": "Temperature >= 41C is critical."
+    },
+    {
+      "indicator": "Critical temperature low",
+      "expected_status_gated": "CRITICAL_PHYSIOLOGY_FLAGGED",
+      "actual_status": "CRITICAL_PHYSIOLOGY_FLAGGED",
+      "expected_reason_codes_subset": [
+        "CRITICAL_PHYSIOLOGY_DETECTED",
+        "CRITICAL_HYPOTHERMIA_TEMP_BELOW_35C"
+      ],
+      "actual_reason_codes": [
+        "CRITICAL_PHYSIOLOGY_DETECTED",
+        "CRITICAL_HYPOTHERMIA_TEMP_BELOW_35C"
+      ],
+      "category_assigned": null,
+      "matches_gated_expectation": true,
+      "note": "Temperature < 35C is critical."
+    },
+    {
+      "indicator": "Concern high fever",
+      "expected_status_gated": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "actual_status": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "expected_reason_codes_subset": [
+        "UNRECOGNISED_COMPLAINT",
+        "CONCERN_HIGH_FEVER_39_5_TO_41C",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "actual_reason_codes": [
+        "UNRECOGNISED_COMPLAINT",
+        "CONCERN_HIGH_FEVER_39_5_TO_41C",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "category_assigned": null,
+      "matches_gated_expectation": true,
+      "note": "Concern-band fever (39.5-41C). NOTE: engine has no low-temperature concern band, only the critical-low cutoff at 35C."
+    },
+    {
+      "indicator": "Missing chief complaint",
+      "expected_status_gated": "REQUIRES_CLINICIAN_REVIEW",
+      "actual_status": "REQUIRES_CLINICIAN_REVIEW",
+      "expected_reason_codes_subset": [
+        "MISSING_CHIEF_COMPLAINT"
+      ],
+      "actual_reason_codes": [
+        "MISSING_CHIEF_COMPLAINT"
+      ],
+      "category_assigned": null,
+      "matches_gated_expectation": true,
+      "note": "No pathway can be matched without a chief complaint."
+    },
+    {
+      "indicator": "Missing oxygen saturation",
+      "expected_status_gated": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "actual_status": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "expected_reason_codes_subset": [
+        "UNRECOGNISED_COMPLAINT",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "actual_reason_codes": [
+        "UNRECOGNISED_COMPLAINT",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "category_assigned": null,
+      "matches_gated_expectation": true,
+      "note": "A missing (not low) o2sat does not itself trigger a critical/concern vital flag in the rules engine -- missingness is the Data Validation Agent's concern (MISSING_CRITICAL_VITAL:o2sat in safety_review), not the Manchester engine's. This row's chief complaint is also unrecognised, so AWAITING_APPROVED_CLINICAL_RULESET is the engine's output; the missing-vital flag itself is asserted separately below against the Data Validation Agent / Safety Review Agent output."
+    },
+    {
+      "indicator": "Missing multiple vitals",
+      "expected_status_gated": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "actual_status": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "expected_reason_codes_subset": [
+        "UNRECOGNISED_COMPLAINT",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "actual_reason_codes": [
+        "UNRECOGNISED_COMPLAINT",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "category_assigned": null,
+      "matches_gated_expectation": true,
+      "note": "Same reasoning as above -- the rules engine itself does not flag missingness; see TestMissingVitalsSurfacedBySafetyReview below for where multiple missing vitals are genuinely surfaced."
+    },
+    {
+      "indicator": "Cardiac arrest pathway match",
+      "expected_status_gated": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "actual_status": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "expected_reason_codes_subset": [
+        "PATHWAY_MATCHED_CARDIAC_ARREST",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "actual_reason_codes": [
+        "PATHWAY_MATCHED_CARDIAC_ARREST",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "category_assigned": null,
+      "matches_gated_expectation": true,
+      "note": "Pathway detected; no Manchester category assigned because no approved ruleset is configured."
+    },
+    {
+      "indicator": "Anaphylaxis pathway match",
+      "expected_status_gated": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "actual_status": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "expected_reason_codes_subset": [
+        "PATHWAY_MATCHED_ANAPHYLAXIS",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "actual_reason_codes": [
+        "PATHWAY_MATCHED_ANAPHYLAXIS",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "category_assigned": null,
+      "matches_gated_expectation": true,
+      "note": "Pathway detected; no Manchester category assigned because no approved ruleset is configured."
+    },
+    {
+      "indicator": "Chest pain pathway match",
+      "expected_status_gated": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "actual_status": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "expected_reason_codes_subset": [
+        "PATHWAY_MATCHED_CHEST_PAIN",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "actual_reason_codes": [
+        "PATHWAY_MATCHED_CHEST_PAIN",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "category_assigned": null,
+      "matches_gated_expectation": true,
+      "note": "Pathway detected; no Manchester category assigned because no approved ruleset is configured."
+    },
+    {
+      "indicator": "Shortness of breath (dyspnoea) pathway match",
+      "expected_status_gated": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "actual_status": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "expected_reason_codes_subset": [
+        "PATHWAY_MATCHED_DYSPNOEA",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "actual_reason_codes": [
+        "PATHWAY_MATCHED_DYSPNOEA",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "category_assigned": null,
+      "matches_gated_expectation": true,
+      "note": "Pathway detected; no Manchester category assigned because no approved ruleset is configured."
+    },
+    {
+      "indicator": "Stroke/neuro pathway match",
+      "expected_status_gated": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "actual_status": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "expected_reason_codes_subset": [
+        "PATHWAY_MATCHED_STROKE",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "actual_reason_codes": [
+        "PATHWAY_MATCHED_STROKE",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "category_assigned": null,
+      "matches_gated_expectation": true,
+      "note": "Pathway detected; no Manchester category assigned because no approved ruleset is configured."
+    },
+    {
+      "indicator": "Trauma pathway match",
+      "expected_status_gated": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "actual_status": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "expected_reason_codes_subset": [
+        "PATHWAY_MATCHED_TRAUMA",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "actual_reason_codes": [
+        "PATHWAY_MATCHED_TRAUMA",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "category_assigned": null,
+      "matches_gated_expectation": true,
+      "note": "Pathway detected; no Manchester category assigned because no approved ruleset is configured."
+    },
+    {
+      "indicator": "Fever pathway match",
+      "expected_status_gated": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "actual_status": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "expected_reason_codes_subset": [
+        "PATHWAY_MATCHED_FEVER",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "actual_reason_codes": [
+        "PATHWAY_MATCHED_FEVER",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "category_assigned": null,
+      "matches_gated_expectation": true,
+      "note": "Pathway detected; no Manchester category assigned because no approved ruleset is configured."
+    },
+    {
+      "indicator": "Abdominal pain pathway match",
+      "expected_status_gated": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "actual_status": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "expected_reason_codes_subset": [
+        "PATHWAY_MATCHED_ABDOMINAL",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "actual_reason_codes": [
+        "PATHWAY_MATCHED_ABDOMINAL",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "category_assigned": null,
+      "matches_gated_expectation": true,
+      "note": "Pathway detected; no Manchester category assigned because no approved ruleset is configured."
+    },
+    {
+      "indicator": "Altered mental status pathway match",
+      "expected_status_gated": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "actual_status": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "expected_reason_codes_subset": [
+        "PATHWAY_MATCHED_ALTERED_CONSCIOUSNESS",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "actual_reason_codes": [
+        "PATHWAY_MATCHED_ALTERED_CONSCIOUSNESS",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "category_assigned": null,
+      "matches_gated_expectation": true,
+      "note": "Pathway detected; no Manchester category assigned because no approved ruleset is configured."
+    },
+    {
+      "indicator": "Overdose/poisoning pathway match",
+      "expected_status_gated": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "actual_status": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "expected_reason_codes_subset": [
+        "PATHWAY_MATCHED_OVERDOSE",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "actual_reason_codes": [
+        "PATHWAY_MATCHED_OVERDOSE",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "category_assigned": null,
+      "matches_gated_expectation": true,
+      "note": "Pathway detected; no Manchester category assigned because no approved ruleset is configured. NOTE: the engine's keyword list matches overdose/poisoning terms specifically ('overdose', 'od', 'poisoning', 'ingestion', 'swallowed', 'toxic', 'intoxication') -- it does not have a separate self-harm-specific pathway."
+    },
+    {
+      "indicator": "Generic pain pathway match",
+      "expected_status_gated": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "actual_status": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "expected_reason_codes_subset": [
+        "PATHWAY_MATCHED_PAIN_GENERIC",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "actual_reason_codes": [
+        "PATHWAY_MATCHED_PAIN_GENERIC",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "category_assigned": null,
+      "matches_gated_expectation": true,
+      "note": "Pathway detected; no Manchester category assigned because no approved ruleset is configured."
+    },
+    {
+      "indicator": "Unrecognised complaint",
+      "expected_status_gated": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "actual_status": "AWAITING_APPROVED_CLINICAL_RULESET",
+      "expected_reason_codes_subset": [
+        "UNRECOGNISED_COMPLAINT",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "actual_reason_codes": [
+        "UNRECOGNISED_COMPLAINT",
+        "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+      ],
+      "category_assigned": null,
+      "matches_gated_expectation": true,
+      "note": "No pathway keyword matched. Different reason code shape from a matched-but-gated pathway (UNRECOGNISED_COMPLAINT, not PATHWAY_MATCHED_X), but the same AWAITING_APPROVED_CLINICAL_RULESET status and the same 'no category without a ruleset' guarantee."
+    },
+    {
+      "indicator": "Matched pathway + concern vital interaction",
+      "expected_status_gated": "PHYSIOLOGY_CONCERN_FLAGGED",
+      "actual_status": "PHYSIOLOGY_CONCERN_FLAGGED",
+      "expected_reason_codes_subset": [
+        "PATHWAY_MATCHED_CHEST_PAIN",
+        "CONCERN_SPO2_90_TO_94"
+      ],
+      "actual_reason_codes": [
+        "PATHWAY_MATCHED_CHEST_PAIN",
+        "CONCERN_SPO2_90_TO_94"
+      ],
+      "category_assigned": null,
+      "matches_gated_expectation": true,
+      "note": "Genuinely distinct dispatch branch from every other pathway-match row above: when a pathway IS matched and a concern-level vital IS also present, the engine takes the _safety_alert(severity='CONCERN') branch instead of _awaiting_ruleset(), producing PHYSIOLOGY_CONCERN_FLAGGED with NO MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET suffix at all -- contrast this with the 'Concern SpO2 low' row above, where the SAME concern vital with an UNRECOGNISED complaint instead produces AWAITING_APPROVED_CLINICAL_RULESET WITH that suffix. Same vital value, two different statuses, depending purely on whether the complaint matched a pathway keyword. This row makes that documented-but-previously-unchecked interaction an automatically verified part of the matrix."
+    }
+  ]
+}

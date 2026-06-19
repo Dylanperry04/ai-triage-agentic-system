@@ -1,0 +1,47 @@
+# Core web framework
+fastapi==0.111.0
+uvicorn==0.30.1
+gunicorn==23.0.0
+
+# Data
+pandas==2.2.2
+numpy==1.26.4
+
+# Validation
+pydantic==2.10.6
+
+# Azure OpenAI
+openai==2.41.0
+
+# AutoGen multi-agent orchestration (clinician chat agent)
+autogen-agentchat==0.7.5
+autogen-core==0.7.5
+autogen-ext[openai,azure]==0.7.5
+
+# Environment
+python-dotenv==1.0.1
+
+# Serialisation
+orjson==3.10.6
+
+# HTTP
+requests==2.32.3
+httpx==0.27.2
+
+# UI
+streamlit==1.51.0
+
+# ML — core
+scikit-learn==1.5.1
+joblib==1.4.2
+
+# ML — gradient boosting (install both; training script handles ImportError gracefully)
+xgboost==2.1.0
+lightgbm==4.4.0
+
+# Testing
+pytest==8.3.2
+pytest-cov==5.0.0
+
+# Utilities
+tqdm==4.66.4

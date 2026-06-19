@@ -1,0 +1,1120 @@
+{
+  "label": "SYNTHETIC_WALKTHROUGH -- constructed demonstration cases, not real patient data",
+  "scenarios": [
+    {
+      "scenario": "critical_physiology",
+      "stay_id": 1,
+      "result": {
+        "stay_id": 1,
+        "triage_input": {
+          "source_dataset": "SYNTHETIC_WALKTHROUGH_CASE",
+          "subject_id": 9000000,
+          "stay_id": 1,
+          "intime": null,
+          "gender": "F",
+          "race": null,
+          "age": null,
+          "arrival_transport": "Walk-in",
+          "arrival_mode_code": null,
+          "group_code": null,
+          "group_label": null,
+          "patients_per_hour": null,
+          "injury_code": null,
+          "injury_label": null,
+          "mental_code": null,
+          "mental_label": null,
+          "chiefcomplaint": "shortness of breath",
+          "temperature": 36.8,
+          "temperature_unit": "C",
+          "heartrate": 80.0,
+          "resprate": 16.0,
+          "o2sat": 84.0,
+          "sbp": 120.0,
+          "dbp": 78.0,
+          "pain": "2",
+          "pain_present": null,
+          "nrs_pain": null
+        },
+        "data_validation": {
+          "validation_status": "TRIAGE_INPUT_DATA_COMPLETE",
+          "missing_required_fields": [],
+          "non_informative_fields": [],
+          "requires_human_data_review": false,
+          "notes": [
+            "Validation is limited to data completeness and usability.",
+            "No triage category is assigned by this agent.",
+            "KTAS labels, mistriage, diagnosis, disposition, and length of stay are not triage-time inputs.",
+            "A human data review is required when data is missing or non-informative."
+          ]
+        },
+        "case_summary": {
+          "summary_status": "SUMMARY_READY_FOR_HUMAN_REVIEW",
+          "chief_complaint": "shortness of breath",
+          "arrival_context": "Arrival transport: Walk-in",
+          "initial_vitals_summary": [
+            "Temperature (\u00b0C): 36.8",
+            "Heart rate (bpm): 80.0",
+            "Respiratory rate (breaths/min): 16.0",
+            "Oxygen saturation (%): 84.0",
+            "Systolic BP (mmHg): 120.0",
+            "Diastolic BP (mmHg): 78.0",
+            "Pain score (0-10): 2"
+          ],
+          "missing_or_limited_data": [],
+          "human_review_required": true,
+          "summary_text": "ED stay 1 \u2014 Chief complaint: 'shortness of breath'. Arrival transport: Walk-in. Age: not recorded. Gender: F. Mental state: not recorded. Triage-time vitals \u2014 Temp: 36.8\u00b0C, HR: 80.0 bpm, RR: 16.0 breaths/min, SpO2: 84.0%, BP: 120.0/78.0 mmHg, Pain: 2/10. Data validation: TRIAGE_INPUT_DATA_COMPLETE. This is source-dataset evidence from SYNTHETIC_WALKTHROUGH_CASE, not Manchester triage evidence.",
+          "safety_note": "This is a non-diagnostic summary based only on triage-time fields. It does not assign a Manchester category or clinical diagnosis."
+        },
+        "retrospective_labels": {
+          "original_acuity": null,
+          "disposition": null,
+          "outtime": null,
+          "diagnoses": [],
+          "ktas_rn": null,
+          "ktas_expert": null,
+          "ktas_emergency": null,
+          "mistriage": null,
+          "mistriage_label": null,
+          "error_group": null,
+          "diagnosis_in_ed": null,
+          "length_of_stay_min": null,
+          "ktas_duration_min": null,
+          "disposition_code": null,
+          "disposition_label": null
+        },
+        "decision": {
+          "classification_status": "CRITICAL_PHYSIOLOGY_FLAGGED",
+          "category": null,
+          "priority": null,
+          "max_wait_minutes": null,
+          "reason_codes": [
+            "CRITICAL_PHYSIOLOGY_DETECTED",
+            "CRITICAL_HYPOXIA_SPO2_BELOW_90"
+          ],
+          "requires_clinician_review": true,
+          "ruleset_id": null
+        },
+        "safety_review": {
+          "data_quality_flags": [
+            "CRITICAL_HYPOXIA_SPO2_BELOW_85",
+            "HIGH_RISK_COMPLAINT_PATTERN:DYSPNOEA_HIGH_RISK",
+            "CRITICAL_PHYSIOLOGY:SPO2_BELOW_90"
+          ],
+          "leakage_guard_passed": true,
+          "is_safe_to_present": false,
+          "critical_missing_vitals": [],
+          "high_risk_complaint_detected": true,
+          "notes": [
+            "This safety review covers data quality, leakage, and critical physiology detection. Temperature is interpreted using temperature_unit. It does not assign or validate clinical triage categories.",
+            "CRITICAL PHYSIOLOGY DETECTED: one or more vital signs are in a dangerous range. The clinical safety rules engine has flagged this case. Immediate clinician assessment is required.",
+            "HIGH-RISK COMPLAINT PATTERN DETECTED: the chief complaint matches a keyword associated with a time-critical condition (e.g. cardiac arrest, stroke, anaphylaxis, overdose, self-harm, altered consciousness, sepsis, or intubated arrival). This case is flagged regardless of recorded vital signs, since a high-risk complaint is independent evidence of risk that vitals alone do not rule out. Immediate clinician assessment is required."
+          ]
+        },
+        "ml_prediction": {
+          "model_version": "not_loaded",
+          "model_name": "no_model_for_dataset",
+          "prediction_available": false,
+          "predicted_ktas_class": null,
+          "ktas_class_probabilities": {},
+          "emergency_research_estimate": null,
+          "non_emergency_research_estimate": null,
+          "high_acuity_research_estimate": null,
+          "admission_risk_estimate": null,
+          "top_class_confidence": null,
+          "prediction_scale": null,
+          "predicted_mimic_acuity": null,
+          "mimic_acuity_probabilities": {},
+          "mapped_mts_category": null,
+          "mapped_mts_priority": null,
+          "mapped_mts_max_wait_minutes": null,
+          "mapped_mts_colour": null,
+          "mapping_rule_version": null,
+          "research_label_only": true,
+          "requires_clinical_validation": true,
+          "model_note": "No ML model has been trained for dataset SYNTHETIC_WALKTHROUGH_CASE. No estimate is shown. The deterministic safety review and audit logging still run."
+        },
+        "final_acuity_assessment": {
+          "applicable": false,
+          "ml_predicted_acuity": null,
+          "final_acuity": null,
+          "category": null,
+          "priority": null,
+          "max_wait_minutes": null,
+          "colour": null,
+          "override_applied": false,
+          "override_tier": null,
+          "override_flags": [],
+          "override_note": "",
+          "mapping_rule_version": null,
+          "override_rule_version": null,
+          "requires_clinician_review": true
+        },
+        "explanation": {
+          "explanation_status": "NOT_REQUESTED",
+          "explanation_text": "",
+          "safety_failures": [],
+          "clinical_use_allowed": false,
+          "automated_manchester_triage_allowed": false,
+          "manchester_category_assigned": false,
+          "human_review_required": true,
+          "model": "not_configured",
+          "deployment": "not_configured"
+        },
+        "audit": {
+          "workflow_version": "1.0.0",
+          "run_start_utc": "2026-06-18T13:59:03.095756+00:00",
+          "run_end_utc": "2026-06-18T13:59:03.096060+00:00",
+          "source_dataset": "SYNTHETIC_WALKTHROUGH_CASE",
+          "clinical_decision_policy": "Any Manchester category present is PROVISIONAL (produced by an unvalidated research ruleset, not the official MTS) and requires clinician confirmation. ML outputs, where present, are research estimates only. A clinician must accept, override, escalate, or reject every output.",
+          "leakage_policy": "Outcome and retrospective fields are excluded from triage_input. Leakage guard is checked on every case.",
+          "llm_policy": "LLM is called ONLY to explain verified evidence. LLM does not assign triage categories or make clinical decisions.",
+          "ml_policy": "ML predictions, where shown, are research-grade KTAS estimates trained on public Kaggle data and are only produced for KTAS cases; they are withheld for other datasets. They do not replace deterministic safety review or clinician judgement. KTAS is not the Manchester Triage Scale; no KTAS-to-Manchester mapping is implemented.",
+          "safety_guardrail": "requires_clinician_review=True on all rules-engine outputs. All outputs require clinician confirmation before any action.",
+          "governance_status": "RESEARCH_PROTOTYPE_NOT_FOR_CLINICAL_USE"
+        },
+        "workflow_action": "ESCALATION_REQUIRED"
+      }
+    },
+    {
+      "scenario": "physiology_concern",
+      "stay_id": 2,
+      "result": {
+        "stay_id": 2,
+        "triage_input": {
+          "source_dataset": "SYNTHETIC_WALKTHROUGH_CASE",
+          "subject_id": 9000000,
+          "stay_id": 2,
+          "intime": null,
+          "gender": "F",
+          "race": null,
+          "age": null,
+          "arrival_transport": "Walk-in",
+          "arrival_mode_code": null,
+          "group_code": null,
+          "group_label": null,
+          "patients_per_hour": null,
+          "injury_code": null,
+          "injury_label": null,
+          "mental_code": null,
+          "mental_label": null,
+          "chiefcomplaint": "mild cough",
+          "temperature": 36.8,
+          "temperature_unit": "C",
+          "heartrate": 80.0,
+          "resprate": 16.0,
+          "o2sat": 92.0,
+          "sbp": 120.0,
+          "dbp": 78.0,
+          "pain": "2",
+          "pain_present": null,
+          "nrs_pain": null
+        },
+        "data_validation": {
+          "validation_status": "TRIAGE_INPUT_DATA_COMPLETE",
+          "missing_required_fields": [],
+          "non_informative_fields": [],
+          "requires_human_data_review": false,
+          "notes": [
+            "Validation is limited to data completeness and usability.",
+            "No triage category is assigned by this agent.",
+            "KTAS labels, mistriage, diagnosis, disposition, and length of stay are not triage-time inputs.",
+            "A human data review is required when data is missing or non-informative."
+          ]
+        },
+        "case_summary": {
+          "summary_status": "SUMMARY_READY_FOR_HUMAN_REVIEW",
+          "chief_complaint": "mild cough",
+          "arrival_context": "Arrival transport: Walk-in",
+          "initial_vitals_summary": [
+            "Temperature (\u00b0C): 36.8",
+            "Heart rate (bpm): 80.0",
+            "Respiratory rate (breaths/min): 16.0",
+            "Oxygen saturation (%): 92.0",
+            "Systolic BP (mmHg): 120.0",
+            "Diastolic BP (mmHg): 78.0",
+            "Pain score (0-10): 2"
+          ],
+          "missing_or_limited_data": [],
+          "human_review_required": true,
+          "summary_text": "ED stay 2 \u2014 Chief complaint: 'mild cough'. Arrival transport: Walk-in. Age: not recorded. Gender: F. Mental state: not recorded. Triage-time vitals \u2014 Temp: 36.8\u00b0C, HR: 80.0 bpm, RR: 16.0 breaths/min, SpO2: 92.0%, BP: 120.0/78.0 mmHg, Pain: 2/10. Data validation: TRIAGE_INPUT_DATA_COMPLETE. This is source-dataset evidence from SYNTHETIC_WALKTHROUGH_CASE, not Manchester triage evidence.",
+          "safety_note": "This is a non-diagnostic summary based only on triage-time fields. It does not assign a Manchester category or clinical diagnosis."
+        },
+        "retrospective_labels": {
+          "original_acuity": null,
+          "disposition": null,
+          "outtime": null,
+          "diagnoses": [],
+          "ktas_rn": null,
+          "ktas_expert": null,
+          "ktas_emergency": null,
+          "mistriage": null,
+          "mistriage_label": null,
+          "error_group": null,
+          "diagnosis_in_ed": null,
+          "length_of_stay_min": null,
+          "ktas_duration_min": null,
+          "disposition_code": null,
+          "disposition_label": null
+        },
+        "decision": {
+          "classification_status": "AWAITING_APPROVED_CLINICAL_RULESET",
+          "category": null,
+          "priority": null,
+          "max_wait_minutes": null,
+          "reason_codes": [
+            "UNRECOGNISED_COMPLAINT",
+            "CONCERN_SPO2_90_TO_94",
+            "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+          ],
+          "requires_clinician_review": true,
+          "ruleset_id": null
+        },
+        "safety_review": {
+          "data_quality_flags": [],
+          "leakage_guard_passed": true,
+          "is_safe_to_present": true,
+          "critical_missing_vitals": [],
+          "high_risk_complaint_detected": false,
+          "notes": [
+            "This safety review covers data quality, leakage, and critical physiology detection. Temperature is interpreted using temperature_unit. It does not assign or validate clinical triage categories."
+          ]
+        },
+        "ml_prediction": {
+          "model_version": "not_loaded",
+          "model_name": "no_model_for_dataset",
+          "prediction_available": false,
+          "predicted_ktas_class": null,
+          "ktas_class_probabilities": {},
+          "emergency_research_estimate": null,
+          "non_emergency_research_estimate": null,
+          "high_acuity_research_estimate": null,
+          "admission_risk_estimate": null,
+          "top_class_confidence": null,
+          "prediction_scale": null,
+          "predicted_mimic_acuity": null,
+          "mimic_acuity_probabilities": {},
+          "mapped_mts_category": null,
+          "mapped_mts_priority": null,
+          "mapped_mts_max_wait_minutes": null,
+          "mapped_mts_colour": null,
+          "mapping_rule_version": null,
+          "research_label_only": true,
+          "requires_clinical_validation": true,
+          "model_note": "No ML model has been trained for dataset SYNTHETIC_WALKTHROUGH_CASE. No estimate is shown. The deterministic safety review and audit logging still run."
+        },
+        "final_acuity_assessment": {
+          "applicable": false,
+          "ml_predicted_acuity": null,
+          "final_acuity": null,
+          "category": null,
+          "priority": null,
+          "max_wait_minutes": null,
+          "colour": null,
+          "override_applied": false,
+          "override_tier": null,
+          "override_flags": [],
+          "override_note": "",
+          "mapping_rule_version": null,
+          "override_rule_version": null,
+          "requires_clinician_review": true
+        },
+        "explanation": {
+          "explanation_status": "NOT_REQUESTED",
+          "explanation_text": "",
+          "safety_failures": [],
+          "clinical_use_allowed": false,
+          "automated_manchester_triage_allowed": false,
+          "manchester_category_assigned": false,
+          "human_review_required": true,
+          "model": "not_configured",
+          "deployment": "not_configured"
+        },
+        "audit": {
+          "workflow_version": "1.0.0",
+          "run_start_utc": "2026-06-18T13:59:03.096270+00:00",
+          "run_end_utc": "2026-06-18T13:59:03.096433+00:00",
+          "source_dataset": "SYNTHETIC_WALKTHROUGH_CASE",
+          "clinical_decision_policy": "Any Manchester category present is PROVISIONAL (produced by an unvalidated research ruleset, not the official MTS) and requires clinician confirmation. ML outputs, where present, are research estimates only. A clinician must accept, override, escalate, or reject every output.",
+          "leakage_policy": "Outcome and retrospective fields are excluded from triage_input. Leakage guard is checked on every case.",
+          "llm_policy": "LLM is called ONLY to explain verified evidence. LLM does not assign triage categories or make clinical decisions.",
+          "ml_policy": "ML predictions, where shown, are research-grade KTAS estimates trained on public Kaggle data and are only produced for KTAS cases; they are withheld for other datasets. They do not replace deterministic safety review or clinician judgement. KTAS is not the Manchester Triage Scale; no KTAS-to-Manchester mapping is implemented.",
+          "safety_guardrail": "requires_clinician_review=True on all rules-engine outputs. All outputs require clinician confirmation before any action.",
+          "governance_status": "RESEARCH_PROTOTYPE_NOT_FOR_CLINICAL_USE"
+        },
+        "workflow_action": "NO_CRITICAL_PHYSIOLOGY_FLAGGED"
+      }
+    },
+    {
+      "scenario": "awaiting_approved_ruleset",
+      "stay_id": 3,
+      "result": {
+        "stay_id": 3,
+        "triage_input": {
+          "source_dataset": "SYNTHETIC_WALKTHROUGH_CASE",
+          "subject_id": 9000000,
+          "stay_id": 3,
+          "intime": null,
+          "gender": "F",
+          "race": null,
+          "age": null,
+          "arrival_transport": "Walk-in",
+          "arrival_mode_code": null,
+          "group_code": null,
+          "group_label": null,
+          "patients_per_hour": null,
+          "injury_code": null,
+          "injury_label": null,
+          "mental_code": null,
+          "mental_label": null,
+          "chiefcomplaint": "chest pain",
+          "temperature": 36.8,
+          "temperature_unit": "C",
+          "heartrate": 80.0,
+          "resprate": 16.0,
+          "o2sat": 98.0,
+          "sbp": 120.0,
+          "dbp": 78.0,
+          "pain": "6",
+          "pain_present": null,
+          "nrs_pain": null
+        },
+        "data_validation": {
+          "validation_status": "TRIAGE_INPUT_DATA_COMPLETE",
+          "missing_required_fields": [],
+          "non_informative_fields": [],
+          "requires_human_data_review": false,
+          "notes": [
+            "Validation is limited to data completeness and usability.",
+            "No triage category is assigned by this agent.",
+            "KTAS labels, mistriage, diagnosis, disposition, and length of stay are not triage-time inputs.",
+            "A human data review is required when data is missing or non-informative."
+          ]
+        },
+        "case_summary": {
+          "summary_status": "SUMMARY_READY_FOR_HUMAN_REVIEW",
+          "chief_complaint": "chest pain",
+          "arrival_context": "Arrival transport: Walk-in",
+          "initial_vitals_summary": [
+            "Temperature (\u00b0C): 36.8",
+            "Heart rate (bpm): 80.0",
+            "Respiratory rate (breaths/min): 16.0",
+            "Oxygen saturation (%): 98.0",
+            "Systolic BP (mmHg): 120.0",
+            "Diastolic BP (mmHg): 78.0",
+            "Pain score (0-10): 6"
+          ],
+          "missing_or_limited_data": [],
+          "human_review_required": true,
+          "summary_text": "ED stay 3 \u2014 Chief complaint: 'chest pain'. Arrival transport: Walk-in. Age: not recorded. Gender: F. Mental state: not recorded. Triage-time vitals \u2014 Temp: 36.8\u00b0C, HR: 80.0 bpm, RR: 16.0 breaths/min, SpO2: 98.0%, BP: 120.0/78.0 mmHg, Pain: 6/10. Data validation: TRIAGE_INPUT_DATA_COMPLETE. This is source-dataset evidence from SYNTHETIC_WALKTHROUGH_CASE, not Manchester triage evidence.",
+          "safety_note": "This is a non-diagnostic summary based only on triage-time fields. It does not assign a Manchester category or clinical diagnosis."
+        },
+        "retrospective_labels": {
+          "original_acuity": null,
+          "disposition": null,
+          "outtime": null,
+          "diagnoses": [],
+          "ktas_rn": null,
+          "ktas_expert": null,
+          "ktas_emergency": null,
+          "mistriage": null,
+          "mistriage_label": null,
+          "error_group": null,
+          "diagnosis_in_ed": null,
+          "length_of_stay_min": null,
+          "ktas_duration_min": null,
+          "disposition_code": null,
+          "disposition_label": null
+        },
+        "decision": {
+          "classification_status": "AWAITING_APPROVED_CLINICAL_RULESET",
+          "category": null,
+          "priority": null,
+          "max_wait_minutes": null,
+          "reason_codes": [
+            "PATHWAY_MATCHED_CHEST_PAIN",
+            "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+          ],
+          "requires_clinician_review": true,
+          "ruleset_id": null
+        },
+        "safety_review": {
+          "data_quality_flags": [
+            "HIGH_RISK_COMPLAINT_PATTERN:CHEST_PAIN_HIGH_RISK"
+          ],
+          "leakage_guard_passed": true,
+          "is_safe_to_present": false,
+          "critical_missing_vitals": [],
+          "high_risk_complaint_detected": true,
+          "notes": [
+            "This safety review covers data quality, leakage, and critical physiology detection. Temperature is interpreted using temperature_unit. It does not assign or validate clinical triage categories.",
+            "HIGH-RISK COMPLAINT PATTERN DETECTED: the chief complaint matches a keyword associated with a time-critical condition (e.g. cardiac arrest, stroke, anaphylaxis, overdose, self-harm, altered consciousness, sepsis, or intubated arrival). This case is flagged regardless of recorded vital signs, since a high-risk complaint is independent evidence of risk that vitals alone do not rule out. Immediate clinician assessment is required."
+          ]
+        },
+        "ml_prediction": {
+          "model_version": "not_loaded",
+          "model_name": "no_model_for_dataset",
+          "prediction_available": false,
+          "predicted_ktas_class": null,
+          "ktas_class_probabilities": {},
+          "emergency_research_estimate": null,
+          "non_emergency_research_estimate": null,
+          "high_acuity_research_estimate": null,
+          "admission_risk_estimate": null,
+          "top_class_confidence": null,
+          "prediction_scale": null,
+          "predicted_mimic_acuity": null,
+          "mimic_acuity_probabilities": {},
+          "mapped_mts_category": null,
+          "mapped_mts_priority": null,
+          "mapped_mts_max_wait_minutes": null,
+          "mapped_mts_colour": null,
+          "mapping_rule_version": null,
+          "research_label_only": true,
+          "requires_clinical_validation": true,
+          "model_note": "No ML model has been trained for dataset SYNTHETIC_WALKTHROUGH_CASE. No estimate is shown. The deterministic safety review and audit logging still run."
+        },
+        "final_acuity_assessment": {
+          "applicable": false,
+          "ml_predicted_acuity": null,
+          "final_acuity": null,
+          "category": null,
+          "priority": null,
+          "max_wait_minutes": null,
+          "colour": null,
+          "override_applied": false,
+          "override_tier": null,
+          "override_flags": [],
+          "override_note": "",
+          "mapping_rule_version": null,
+          "override_rule_version": null,
+          "requires_clinician_review": true
+        },
+        "explanation": {
+          "explanation_status": "NOT_REQUESTED",
+          "explanation_text": "",
+          "safety_failures": [],
+          "clinical_use_allowed": false,
+          "automated_manchester_triage_allowed": false,
+          "manchester_category_assigned": false,
+          "human_review_required": true,
+          "model": "not_configured",
+          "deployment": "not_configured"
+        },
+        "audit": {
+          "workflow_version": "1.0.0",
+          "run_start_utc": "2026-06-18T13:59:03.096537+00:00",
+          "run_end_utc": "2026-06-18T13:59:03.096646+00:00",
+          "source_dataset": "SYNTHETIC_WALKTHROUGH_CASE",
+          "clinical_decision_policy": "Any Manchester category present is PROVISIONAL (produced by an unvalidated research ruleset, not the official MTS) and requires clinician confirmation. ML outputs, where present, are research estimates only. A clinician must accept, override, escalate, or reject every output.",
+          "leakage_policy": "Outcome and retrospective fields are excluded from triage_input. Leakage guard is checked on every case.",
+          "llm_policy": "LLM is called ONLY to explain verified evidence. LLM does not assign triage categories or make clinical decisions.",
+          "ml_policy": "ML predictions, where shown, are research-grade KTAS estimates trained on public Kaggle data and are only produced for KTAS cases; they are withheld for other datasets. They do not replace deterministic safety review or clinician judgement. KTAS is not the Manchester Triage Scale; no KTAS-to-Manchester mapping is implemented.",
+          "safety_guardrail": "requires_clinician_review=True on all rules-engine outputs. All outputs require clinician confirmation before any action.",
+          "governance_status": "RESEARCH_PROTOTYPE_NOT_FOR_CLINICAL_USE"
+        },
+        "workflow_action": "ESCALATION_REQUIRED"
+      }
+    },
+    {
+      "scenario": "requires_clinician_review_missing_complaint",
+      "stay_id": 4,
+      "result": {
+        "stay_id": 4,
+        "triage_input": {
+          "source_dataset": "SYNTHETIC_WALKTHROUGH_CASE",
+          "subject_id": 9000000,
+          "stay_id": 4,
+          "intime": null,
+          "gender": "F",
+          "race": null,
+          "age": null,
+          "arrival_transport": "Walk-in",
+          "arrival_mode_code": null,
+          "group_code": null,
+          "group_label": null,
+          "patients_per_hour": null,
+          "injury_code": null,
+          "injury_label": null,
+          "mental_code": null,
+          "mental_label": null,
+          "chiefcomplaint": null,
+          "temperature": 36.8,
+          "temperature_unit": "C",
+          "heartrate": 80.0,
+          "resprate": 16.0,
+          "o2sat": 98.0,
+          "sbp": 120.0,
+          "dbp": 78.0,
+          "pain": "2",
+          "pain_present": null,
+          "nrs_pain": null
+        },
+        "data_validation": {
+          "validation_status": "NEEDS_HUMAN_DATA_REVIEW",
+          "missing_required_fields": [
+            "chiefcomplaint"
+          ],
+          "non_informative_fields": [],
+          "requires_human_data_review": true,
+          "notes": [
+            "Validation is limited to data completeness and usability.",
+            "No triage category is assigned by this agent.",
+            "KTAS labels, mistriage, diagnosis, disposition, and length of stay are not triage-time inputs.",
+            "A human data review is required when data is missing or non-informative."
+          ]
+        },
+        "case_summary": {
+          "summary_status": "SUMMARY_WITH_DATA_LIMITATIONS",
+          "chief_complaint": null,
+          "arrival_context": "Arrival transport: Walk-in",
+          "initial_vitals_summary": [
+            "Temperature (\u00b0C): 36.8",
+            "Heart rate (bpm): 80.0",
+            "Respiratory rate (breaths/min): 16.0",
+            "Oxygen saturation (%): 98.0",
+            "Systolic BP (mmHg): 120.0",
+            "Diastolic BP (mmHg): 78.0",
+            "Pain score (0-10): 2"
+          ],
+          "missing_or_limited_data": [
+            "chiefcomplaint"
+          ],
+          "human_review_required": true,
+          "summary_text": "ED stay 4 \u2014 Chief complaint: 'NOT PROVIDED'. Arrival transport: Walk-in. Age: not recorded. Gender: F. Mental state: not recorded. Triage-time vitals \u2014 Temp: 36.8\u00b0C, HR: 80.0 bpm, RR: 16.0 breaths/min, SpO2: 98.0%, BP: 120.0/78.0 mmHg, Pain: 2/10. MISSING FIELDS: chiefcomplaint. Data validation: NEEDS_HUMAN_DATA_REVIEW. This is source-dataset evidence from SYNTHETIC_WALKTHROUGH_CASE, not Manchester triage evidence.",
+          "safety_note": "This is a non-diagnostic summary based only on triage-time fields. It does not assign a Manchester category or clinical diagnosis."
+        },
+        "retrospective_labels": {
+          "original_acuity": null,
+          "disposition": null,
+          "outtime": null,
+          "diagnoses": [],
+          "ktas_rn": null,
+          "ktas_expert": null,
+          "ktas_emergency": null,
+          "mistriage": null,
+          "mistriage_label": null,
+          "error_group": null,
+          "diagnosis_in_ed": null,
+          "length_of_stay_min": null,
+          "ktas_duration_min": null,
+          "disposition_code": null,
+          "disposition_label": null
+        },
+        "decision": {
+          "classification_status": "REQUIRES_CLINICIAN_REVIEW",
+          "category": null,
+          "priority": null,
+          "max_wait_minutes": null,
+          "reason_codes": [
+            "MISSING_CHIEF_COMPLAINT"
+          ],
+          "requires_clinician_review": true,
+          "ruleset_id": null
+        },
+        "safety_review": {
+          "data_quality_flags": [
+            "MISSING_CHIEF_COMPLAINT"
+          ],
+          "leakage_guard_passed": true,
+          "is_safe_to_present": false,
+          "critical_missing_vitals": [],
+          "high_risk_complaint_detected": false,
+          "notes": [
+            "This safety review covers data quality, leakage, and critical physiology detection. Temperature is interpreted using temperature_unit. It does not assign or validate clinical triage categories."
+          ]
+        },
+        "ml_prediction": {
+          "model_version": "not_loaded",
+          "model_name": "no_model_for_dataset",
+          "prediction_available": false,
+          "predicted_ktas_class": null,
+          "ktas_class_probabilities": {},
+          "emergency_research_estimate": null,
+          "non_emergency_research_estimate": null,
+          "high_acuity_research_estimate": null,
+          "admission_risk_estimate": null,
+          "top_class_confidence": null,
+          "prediction_scale": null,
+          "predicted_mimic_acuity": null,
+          "mimic_acuity_probabilities": {},
+          "mapped_mts_category": null,
+          "mapped_mts_priority": null,
+          "mapped_mts_max_wait_minutes": null,
+          "mapped_mts_colour": null,
+          "mapping_rule_version": null,
+          "research_label_only": true,
+          "requires_clinical_validation": true,
+          "model_note": "No ML model has been trained for dataset SYNTHETIC_WALKTHROUGH_CASE. No estimate is shown. The deterministic safety review and audit logging still run."
+        },
+        "final_acuity_assessment": {
+          "applicable": false,
+          "ml_predicted_acuity": null,
+          "final_acuity": null,
+          "category": null,
+          "priority": null,
+          "max_wait_minutes": null,
+          "colour": null,
+          "override_applied": false,
+          "override_tier": null,
+          "override_flags": [],
+          "override_note": "",
+          "mapping_rule_version": null,
+          "override_rule_version": null,
+          "requires_clinician_review": true
+        },
+        "explanation": {
+          "explanation_status": "NOT_REQUESTED",
+          "explanation_text": "",
+          "safety_failures": [],
+          "clinical_use_allowed": false,
+          "automated_manchester_triage_allowed": false,
+          "manchester_category_assigned": false,
+          "human_review_required": true,
+          "model": "not_configured",
+          "deployment": "not_configured"
+        },
+        "audit": {
+          "workflow_version": "1.0.0",
+          "run_start_utc": "2026-06-18T13:59:03.096810+00:00",
+          "run_end_utc": "2026-06-18T13:59:03.096959+00:00",
+          "source_dataset": "SYNTHETIC_WALKTHROUGH_CASE",
+          "clinical_decision_policy": "Any Manchester category present is PROVISIONAL (produced by an unvalidated research ruleset, not the official MTS) and requires clinician confirmation. ML outputs, where present, are research estimates only. A clinician must accept, override, escalate, or reject every output.",
+          "leakage_policy": "Outcome and retrospective fields are excluded from triage_input. Leakage guard is checked on every case.",
+          "llm_policy": "LLM is called ONLY to explain verified evidence. LLM does not assign triage categories or make clinical decisions.",
+          "ml_policy": "ML predictions, where shown, are research-grade KTAS estimates trained on public Kaggle data and are only produced for KTAS cases; they are withheld for other datasets. They do not replace deterministic safety review or clinician judgement. KTAS is not the Manchester Triage Scale; no KTAS-to-Manchester mapping is implemented.",
+          "safety_guardrail": "requires_clinician_review=True on all rules-engine outputs. All outputs require clinician confirmation before any action.",
+          "governance_status": "RESEARCH_PROTOTYPE_NOT_FOR_CLINICAL_USE"
+        },
+        "workflow_action": "CLINICIAN_INTERVENTION_REQUIRED"
+      }
+    },
+    {
+      "scenario": "needs_human_data_review_agent_unsure",
+      "stay_id": 5,
+      "result": {
+        "stay_id": 5,
+        "triage_input": {
+          "source_dataset": "SYNTHETIC_WALKTHROUGH_CASE",
+          "subject_id": 9000000,
+          "stay_id": 5,
+          "intime": null,
+          "gender": "F",
+          "race": null,
+          "age": null,
+          "arrival_transport": "Walk-in",
+          "arrival_mode_code": null,
+          "group_code": null,
+          "group_label": null,
+          "patients_per_hour": null,
+          "injury_code": null,
+          "injury_label": null,
+          "mental_code": null,
+          "mental_label": null,
+          "chiefcomplaint": "generalised weakness",
+          "temperature": null,
+          "temperature_unit": "C",
+          "heartrate": null,
+          "resprate": null,
+          "o2sat": null,
+          "sbp": null,
+          "dbp": 78.0,
+          "pain": null,
+          "pain_present": null,
+          "nrs_pain": null
+        },
+        "data_validation": {
+          "validation_status": "NEEDS_HUMAN_DATA_REVIEW",
+          "missing_required_fields": [
+            "temperature",
+            "heartrate",
+            "resprate",
+            "o2sat",
+            "sbp",
+            "pain"
+          ],
+          "non_informative_fields": [],
+          "requires_human_data_review": true,
+          "notes": [
+            "Validation is limited to data completeness and usability.",
+            "No triage category is assigned by this agent.",
+            "KTAS labels, mistriage, diagnosis, disposition, and length of stay are not triage-time inputs.",
+            "A human data review is required when data is missing or non-informative."
+          ]
+        },
+        "case_summary": {
+          "summary_status": "SUMMARY_WITH_DATA_LIMITATIONS",
+          "chief_complaint": "generalised weakness",
+          "arrival_context": "Arrival transport: Walk-in",
+          "initial_vitals_summary": [
+            "Temperature (\u00b0C): MISSING",
+            "Heart rate (bpm): MISSING",
+            "Respiratory rate (breaths/min): MISSING",
+            "Oxygen saturation (%): MISSING",
+            "Systolic BP (mmHg): MISSING",
+            "Diastolic BP (mmHg): 78.0",
+            "Pain score (0-10): MISSING"
+          ],
+          "missing_or_limited_data": [
+            "temperature",
+            "heartrate",
+            "resprate",
+            "o2sat",
+            "sbp",
+            "pain"
+          ],
+          "human_review_required": true,
+          "summary_text": "ED stay 5 \u2014 Chief complaint: 'generalised weakness'. Arrival transport: Walk-in. Age: not recorded. Gender: F. Mental state: not recorded. Triage-time vitals \u2014 Temp: None\u00b0C, HR: None bpm, RR: None breaths/min, SpO2: None%, BP: None/78.0 mmHg, Pain: None/10. MISSING FIELDS: temperature, heartrate, resprate, o2sat, sbp, pain. Data validation: NEEDS_HUMAN_DATA_REVIEW. This is source-dataset evidence from SYNTHETIC_WALKTHROUGH_CASE, not Manchester triage evidence.",
+          "safety_note": "This is a non-diagnostic summary based only on triage-time fields. It does not assign a Manchester category or clinical diagnosis."
+        },
+        "retrospective_labels": {
+          "original_acuity": null,
+          "disposition": null,
+          "outtime": null,
+          "diagnoses": [],
+          "ktas_rn": null,
+          "ktas_expert": null,
+          "ktas_emergency": null,
+          "mistriage": null,
+          "mistriage_label": null,
+          "error_group": null,
+          "diagnosis_in_ed": null,
+          "length_of_stay_min": null,
+          "ktas_duration_min": null,
+          "disposition_code": null,
+          "disposition_label": null
+        },
+        "decision": {
+          "classification_status": "AWAITING_APPROVED_CLINICAL_RULESET",
+          "category": null,
+          "priority": null,
+          "max_wait_minutes": null,
+          "reason_codes": [
+            "UNRECOGNISED_COMPLAINT",
+            "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+          ],
+          "requires_clinician_review": true,
+          "ruleset_id": null
+        },
+        "safety_review": {
+          "data_quality_flags": [
+            "MISSING_CRITICAL_VITAL:temperature",
+            "MISSING_CRITICAL_VITAL:heartrate",
+            "MISSING_CRITICAL_VITAL:resprate",
+            "MISSING_CRITICAL_VITAL:o2sat",
+            "MISSING_CRITICAL_VITAL:sbp"
+          ],
+          "leakage_guard_passed": true,
+          "is_safe_to_present": false,
+          "critical_missing_vitals": [
+            "temperature",
+            "heartrate",
+            "resprate",
+            "o2sat",
+            "sbp"
+          ],
+          "high_risk_complaint_detected": false,
+          "notes": [
+            "This safety review covers data quality, leakage, and critical physiology detection. Temperature is interpreted using temperature_unit. It does not assign or validate clinical triage categories.",
+            "Critical vital signs missing: temperature, heartrate, resprate, o2sat, sbp. The rules engine may be unable to classify this case safely."
+          ]
+        },
+        "ml_prediction": {
+          "model_version": "not_loaded",
+          "model_name": "no_model_for_dataset",
+          "prediction_available": false,
+          "predicted_ktas_class": null,
+          "ktas_class_probabilities": {},
+          "emergency_research_estimate": null,
+          "non_emergency_research_estimate": null,
+          "high_acuity_research_estimate": null,
+          "admission_risk_estimate": null,
+          "top_class_confidence": null,
+          "prediction_scale": null,
+          "predicted_mimic_acuity": null,
+          "mimic_acuity_probabilities": {},
+          "mapped_mts_category": null,
+          "mapped_mts_priority": null,
+          "mapped_mts_max_wait_minutes": null,
+          "mapped_mts_colour": null,
+          "mapping_rule_version": null,
+          "research_label_only": true,
+          "requires_clinical_validation": true,
+          "model_note": "No ML model has been trained for dataset SYNTHETIC_WALKTHROUGH_CASE. No estimate is shown. The deterministic safety review and audit logging still run."
+        },
+        "final_acuity_assessment": {
+          "applicable": false,
+          "ml_predicted_acuity": null,
+          "final_acuity": null,
+          "category": null,
+          "priority": null,
+          "max_wait_minutes": null,
+          "colour": null,
+          "override_applied": false,
+          "override_tier": null,
+          "override_flags": [],
+          "override_note": "",
+          "mapping_rule_version": null,
+          "override_rule_version": null,
+          "requires_clinician_review": true
+        },
+        "explanation": {
+          "explanation_status": "NOT_REQUESTED",
+          "explanation_text": "",
+          "safety_failures": [],
+          "clinical_use_allowed": false,
+          "automated_manchester_triage_allowed": false,
+          "manchester_category_assigned": false,
+          "human_review_required": true,
+          "model": "not_configured",
+          "deployment": "not_configured"
+        },
+        "audit": {
+          "workflow_version": "1.0.0",
+          "run_start_utc": "2026-06-18T13:59:03.097059+00:00",
+          "run_end_utc": "2026-06-18T13:59:03.097188+00:00",
+          "source_dataset": "SYNTHETIC_WALKTHROUGH_CASE",
+          "clinical_decision_policy": "Any Manchester category present is PROVISIONAL (produced by an unvalidated research ruleset, not the official MTS) and requires clinician confirmation. ML outputs, where present, are research estimates only. A clinician must accept, override, escalate, or reject every output.",
+          "leakage_policy": "Outcome and retrospective fields are excluded from triage_input. Leakage guard is checked on every case.",
+          "llm_policy": "LLM is called ONLY to explain verified evidence. LLM does not assign triage categories or make clinical decisions.",
+          "ml_policy": "ML predictions, where shown, are research-grade KTAS estimates trained on public Kaggle data and are only produced for KTAS cases; they are withheld for other datasets. They do not replace deterministic safety review or clinician judgement. KTAS is not the Manchester Triage Scale; no KTAS-to-Manchester mapping is implemented.",
+          "safety_guardrail": "requires_clinician_review=True on all rules-engine outputs. All outputs require clinician confirmation before any action.",
+          "governance_status": "RESEARCH_PROTOTYPE_NOT_FOR_CLINICAL_USE"
+        },
+        "workflow_action": "ESCALATION_REQUIRED"
+      }
+    },
+    {
+      "scenario": "followup_no_escalation",
+      "previous_stay_id": 6,
+      "new_stay_id": 7,
+      "comparison": {
+        "previous_stay_id": 6,
+        "new_stay_id": 7,
+        "linked_by": "walkthrough_script",
+        "link_reason": "Scenario 6: demonstrate stable follow-up, no escalation expected",
+        "is_demonstration_scenario": true,
+        "dataset_consistency_warning": null,
+        "vital_deltas": [
+          {
+            "field_name": "temperature",
+            "previous_value": 36.8,
+            "new_value": 36.8,
+            "delta": 0.0,
+            "unit": "C",
+            "direction": "UNCHANGED",
+            "clinically_notable": false
+          },
+          {
+            "field_name": "o2sat",
+            "previous_value": 98.0,
+            "new_value": 97.0,
+            "delta": -1.0,
+            "unit": "%",
+            "direction": "UNCHANGED",
+            "clinically_notable": false
+          },
+          {
+            "field_name": "resprate",
+            "previous_value": 16.0,
+            "new_value": 16.0,
+            "delta": 0.0,
+            "unit": "/min",
+            "direction": "UNCHANGED",
+            "clinically_notable": false
+          },
+          {
+            "field_name": "heartrate",
+            "previous_value": 78.0,
+            "new_value": 80.0,
+            "delta": 2.0,
+            "unit": "bpm",
+            "direction": "UNCHANGED",
+            "clinically_notable": false
+          },
+          {
+            "field_name": "sbp",
+            "previous_value": 120.0,
+            "new_value": 120.0,
+            "delta": 0.0,
+            "unit": "mmHg",
+            "direction": "UNCHANGED",
+            "clinically_notable": false
+          }
+        ],
+        "previous_classification_status": "AWAITING_APPROVED_CLINICAL_RULESET",
+        "new_classification_status": "AWAITING_APPROVED_CLINICAL_RULESET",
+        "previous_reason_codes": [
+          "UNRECOGNISED_COMPLAINT",
+          "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+        ],
+        "new_reason_codes": [
+          "UNRECOGNISED_COMPLAINT",
+          "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+        ],
+        "previous_ml_estimate_available": false,
+        "new_ml_estimate_available": false,
+        "escalation_detected": false,
+        "escalation_note": "DEMONSTRATION SCENARIO -- this comparison uses a constructed example, not a real linked patient encounter. No escalation detected by this deterministic comparison: the safety status and vital signs reviewed did not cross into a more concerning range between the two stays. This is not a clearance and does not reduce the requirement for clinician review.",
+        "workflow_action": "NO_ESCALATION_DETECTED",
+        "requires_clinician_review": true,
+        "research_note": "This comparison is a workflow demonstration capability. The link between the two stay_ids is a user-declared assertion, not a system-verified patient match. No automatic repeat-patient detection is performed anywhere in this project."
+      }
+    },
+    {
+      "scenario": "followup_escalation_boss_worked_example",
+      "previous_stay_id": 8,
+      "new_stay_id": 9,
+      "comparison": {
+        "previous_stay_id": 8,
+        "new_stay_id": 9,
+        "linked_by": "walkthrough_script",
+        "link_reason": "Scenario 7: demonstrate deteriorating follow-up per boss's worked example",
+        "is_demonstration_scenario": true,
+        "dataset_consistency_warning": null,
+        "vital_deltas": [
+          {
+            "field_name": "temperature",
+            "previous_value": 36.7,
+            "new_value": 38.9,
+            "delta": 2.2,
+            "unit": "C",
+            "direction": "UNCHANGED",
+            "clinically_notable": false
+          },
+          {
+            "field_name": "o2sat",
+            "previous_value": 98.0,
+            "new_value": 86.0,
+            "delta": -12.0,
+            "unit": "%",
+            "direction": "WORSENED",
+            "clinically_notable": true
+          },
+          {
+            "field_name": "resprate",
+            "previous_value": 16.0,
+            "new_value": 28.0,
+            "delta": 12.0,
+            "unit": "/min",
+            "direction": "WORSENED",
+            "clinically_notable": true
+          },
+          {
+            "field_name": "heartrate",
+            "previous_value": 78.0,
+            "new_value": 132.0,
+            "delta": 54.0,
+            "unit": "bpm",
+            "direction": "WORSENED",
+            "clinically_notable": true
+          },
+          {
+            "field_name": "sbp",
+            "previous_value": 118.0,
+            "new_value": 82.0,
+            "delta": -36.0,
+            "unit": "mmHg",
+            "direction": "WORSENED",
+            "clinically_notable": true
+          }
+        ],
+        "previous_classification_status": "AWAITING_APPROVED_CLINICAL_RULESET",
+        "new_classification_status": "CRITICAL_PHYSIOLOGY_FLAGGED",
+        "previous_reason_codes": [
+          "UNRECOGNISED_COMPLAINT",
+          "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+        ],
+        "new_reason_codes": [
+          "CRITICAL_PHYSIOLOGY_DETECTED",
+          "CRITICAL_HYPOXIA_SPO2_BELOW_90",
+          "CRITICAL_HEART_RATE_ABOVE_130",
+          "CRITICAL_HYPOTENSION_SBP_BELOW_90"
+        ],
+        "previous_ml_estimate_available": false,
+        "new_ml_estimate_available": false,
+        "escalation_detected": true,
+        "escalation_note": "DEMONSTRATION SCENARIO -- this comparison uses a constructed example, not a real linked patient encounter. ESCALATION: the deterministic safety status moved from 'AWAITING_APPROVED_CLINICAL_RULESET' to 'CRITICAL_PHYSIOLOGY_FLAGGED' and the following vital(s) crossed into a more concerning range: o2sat (98.0 -> 86.0 %); resprate (16.0 -> 28.0 /min); heartrate (78.0 -> 132.0 bpm); sbp (118.0 -> 82.0 mmHg). Clinician review is required before any action on this follow-up.",
+        "workflow_action": "ESCALATION_REQUIRED",
+        "requires_clinician_review": true,
+        "research_note": "This comparison is a workflow demonstration capability. The link between the two stay_ids is a user-declared assertion, not a system-verified patient match. No automatic repeat-patient detection is performed anywhere in this project."
+      }
+    },
+    {
+      "scenario": "followup_newly_missing_vital",
+      "previous_stay_id": 10,
+      "new_stay_id": 11,
+      "comparison": {
+        "previous_stay_id": 10,
+        "new_stay_id": 11,
+        "linked_by": "walkthrough_script",
+        "link_reason": "Scenario 8: demonstrate that a newly-missing vital is itself flagged as notable",
+        "is_demonstration_scenario": true,
+        "dataset_consistency_warning": null,
+        "vital_deltas": [
+          {
+            "field_name": "temperature",
+            "previous_value": 36.8,
+            "new_value": 36.8,
+            "delta": 0.0,
+            "unit": "C",
+            "direction": "UNCHANGED",
+            "clinically_notable": false
+          },
+          {
+            "field_name": "o2sat",
+            "previous_value": 98.0,
+            "new_value": null,
+            "delta": null,
+            "unit": "%",
+            "direction": "NEWLY_MISSING",
+            "clinically_notable": true
+          },
+          {
+            "field_name": "resprate",
+            "previous_value": 16.0,
+            "new_value": 16.0,
+            "delta": 0.0,
+            "unit": "/min",
+            "direction": "UNCHANGED",
+            "clinically_notable": false
+          },
+          {
+            "field_name": "heartrate",
+            "previous_value": 80.0,
+            "new_value": 80.0,
+            "delta": 0.0,
+            "unit": "bpm",
+            "direction": "UNCHANGED",
+            "clinically_notable": false
+          },
+          {
+            "field_name": "sbp",
+            "previous_value": 120.0,
+            "new_value": 120.0,
+            "delta": 0.0,
+            "unit": "mmHg",
+            "direction": "UNCHANGED",
+            "clinically_notable": false
+          }
+        ],
+        "previous_classification_status": "AWAITING_APPROVED_CLINICAL_RULESET",
+        "new_classification_status": "AWAITING_APPROVED_CLINICAL_RULESET",
+        "previous_reason_codes": [
+          "UNRECOGNISED_COMPLAINT",
+          "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+        ],
+        "new_reason_codes": [
+          "UNRECOGNISED_COMPLAINT",
+          "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"
+        ],
+        "previous_ml_estimate_available": false,
+        "new_ml_estimate_available": false,
+        "escalation_detected": true,
+        "escalation_note": "DEMONSTRATION SCENARIO -- this comparison uses a constructed example, not a real linked patient encounter. ESCALATION: the following vital(s) crossed into a more concerning range: o2sat (98.0 -> None %). Clinician review is required before any action on this follow-up.",
+        "workflow_action": "ESCALATION_REQUIRED",
+        "requires_clinician_review": true,
+        "research_note": "This comparison is a workflow demonstration capability. The link between the two stay_ids is a user-declared assertion, not a system-verified patient match. No automatic repeat-patient detection is performed anywhere in this project."
+      }
+    }
+  ]
+}

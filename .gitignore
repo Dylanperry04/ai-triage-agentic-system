@@ -1,0 +1,27 @@
+
+# Secrets / environment
+.env
+.env.*
+!.env.example
+
+# Python local files
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# IDE/system
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Raw/private datasets
+data/raw/
+data/private/
+data/full/

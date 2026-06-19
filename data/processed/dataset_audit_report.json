@@ -1,0 +1,246 @@
+{
+  "dataset": "Kaggle-KTAS",
+  "sample_size": 1267,
+  "triage_input_fields": [
+    "subject_id",
+    "stay_id",
+    "source_dataset",
+    "gender",
+    "age",
+    "arrival_transport",
+    "chiefcomplaint",
+    "mental_code",
+    "temperature",
+    "temperature_unit",
+    "heartrate",
+    "resprate",
+    "o2sat",
+    "sbp",
+    "dbp",
+    "pain_present",
+    "nrs_pain"
+  ],
+  "retrospective_label_fields": [
+    "stay_id",
+    "ktas_rn",
+    "ktas_expert",
+    "mistriage",
+    "error_group",
+    "disposition",
+    "diagnosis_in_ed",
+    "length_of_stay_min",
+    "ktas_duration_min"
+  ],
+  "missingness_triage_inputs": {
+    "subject_id": {
+      "missing_count": 0,
+      "missing_percent": 0.0
+    },
+    "stay_id": {
+      "missing_count": 0,
+      "missing_percent": 0.0
+    },
+    "source_dataset": {
+      "missing_count": 0,
+      "missing_percent": 0.0
+    },
+    "gender": {
+      "missing_count": 0,
+      "missing_percent": 0.0
+    },
+    "age": {
+      "missing_count": 0,
+      "missing_percent": 0.0
+    },
+    "arrival_transport": {
+      "missing_count": 0,
+      "missing_percent": 0.0
+    },
+    "chiefcomplaint": {
+      "missing_count": 5,
+      "missing_percent": 0.39
+    },
+    "mental_code": {
+      "missing_count": 0,
+      "missing_percent": 0.0
+    },
+    "temperature": {
+      "missing_count": 18,
+      "missing_percent": 1.42
+    },
+    "temperature_unit": {
+      "missing_count": 0,
+      "missing_percent": 0.0
+    },
+    "heartrate": {
+      "missing_count": 20,
+      "missing_percent": 1.58
+    },
+    "resprate": {
+      "missing_count": 22,
+      "missing_percent": 1.74
+    },
+    "o2sat": {
+      "missing_count": 697,
+      "missing_percent": 55.01
+    },
+    "sbp": {
+      "missing_count": 25,
+      "missing_percent": 1.97
+    },
+    "dbp": {
+      "missing_count": 29,
+      "missing_percent": 2.29
+    },
+    "pain_present": {
+      "missing_count": 0,
+      "missing_percent": 0.0
+    },
+    "nrs_pain": {
+      "missing_count": 556,
+      "missing_percent": 43.88
+    }
+  },
+  "top_chief_complaints": [
+    [
+      "abd pain",
+      72
+    ],
+    [
+      "dyspnea",
+      60
+    ],
+    [
+      "dizziness",
+      59
+    ],
+    [
+      "fever",
+      45
+    ],
+    [
+      "ant. chest pain",
+      44
+    ],
+    [
+      "Open Wound",
+      31
+    ],
+    [
+      "headache",
+      30
+    ],
+    [
+      "epigastric pain",
+      22
+    ],
+    [
+      "mental change",
+      22
+    ],
+    [
+      "general weakness",
+      21
+    ],
+    [
+      "pain, chest",
+      16
+    ],
+    [
+      "vomiting",
+      16
+    ],
+    [
+      "hematemesis",
+      14
+    ],
+    [
+      "Left chest pain",
+      12
+    ],
+    [
+      "Abd. pain",
+      12
+    ],
+    [
+      "Lt flank pain",
+      11
+    ],
+    [
+      "syncope",
+      10
+    ],
+    [
+      "dysarthria",
+      10
+    ],
+    [
+      "abdomen pain",
+      10
+    ],
+    [
+      "palpitation",
+      9
+    ]
+  ],
+  "ktas_expert_distribution": [
+    [
+      "3",
+      487
+    ],
+    [
+      "4",
+      459
+    ],
+    [
+      "2",
+      220
+    ],
+    [
+      "5",
+      75
+    ],
+    [
+      "1",
+      26
+    ]
+  ],
+  "ktas_rn_distribution": [
+    [
+      "4",
+      501
+    ],
+    [
+      "3",
+      447
+    ],
+    [
+      "2",
+      214
+    ],
+    [
+      "5",
+      87
+    ],
+    [
+      "1",
+      18
+    ]
+  ],
+  "mistriage_distribution": [
+    [
+      "0",
+      1081
+    ],
+    [
+      "2",
+      131
+    ],
+    [
+      "1",
+      55
+    ]
+  ],
+  "leakage_policy": "Retrospective labels are excluded from TriageTimeInput and model features.",
+  "manchester_policy": "No KTAS-to-Manchester mapping is implemented."
+}

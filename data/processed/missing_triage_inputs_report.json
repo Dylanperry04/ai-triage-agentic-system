@@ -1,0 +1,5770 @@
+{
+  "dataset": "Kaggle-KTAS",
+  "sample_size": 1267,
+  "cases_with_missing_triage_inputs": 706,
+  "missing_case_percent": 55.72,
+  "missing_cases": [
+    {
+      "stay_id": 2,
+      "subject_id": 900002,
+      "chiefcomplaint": "right forearm burn",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 4,
+      "subject_id": 900004,
+      "chiefcomplaint": "ascites tapping",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 5,
+      "subject_id": 900005,
+      "chiefcomplaint": "distension, abd",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 8,
+      "subject_id": 900008,
+      "chiefcomplaint": "pain, chest",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 9,
+      "subject_id": 900009,
+      "chiefcomplaint": "LBP - Low back pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 11,
+      "subject_id": 900011,
+      "chiefcomplaint": "acute epigastric pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 12,
+      "subject_id": 900012,
+      "chiefcomplaint": "pain, leg",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 14,
+      "subject_id": 900014,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 15,
+      "subject_id": 900015,
+      "chiefcomplaint": "headache",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 17,
+      "subject_id": 900017,
+      "chiefcomplaint": null,
+      "missing_fields": [
+        "chiefcomplaint",
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 20,
+      "subject_id": 900020,
+      "chiefcomplaint": "Gingival swelling",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 22,
+      "subject_id": 900022,
+      "chiefcomplaint": "Finger Injury",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 23,
+      "subject_id": 900023,
+      "chiefcomplaint": "skin rash",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 25,
+      "subject_id": 900025,
+      "chiefcomplaint": "Lt. hip joint pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 26,
+      "subject_id": 900026,
+      "chiefcomplaint": "face laceration",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 29,
+      "subject_id": 900029,
+      "chiefcomplaint": "pain, arm",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 30,
+      "subject_id": 900030,
+      "chiefcomplaint": "Seizure Like Activity",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 31,
+      "subject_id": 900031,
+      "chiefcomplaint": "post seizure",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 32,
+      "subject_id": 900032,
+      "chiefcomplaint": "vomiting",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 33,
+      "subject_id": 900033,
+      "chiefcomplaint": "palpitation",
+      "missing_fields": [
+        "o2sat",
+        "nrs_pain"
+      ]
+    },
+    {
+      "stay_id": 34,
+      "subject_id": 900034,
+      "chiefcomplaint": "syncope",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 35,
+      "subject_id": 900035,
+      "chiefcomplaint": null,
+      "missing_fields": [
+        "chiefcomplaint",
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 37,
+      "subject_id": 900037,
+      "chiefcomplaint": "injury, finger",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 38,
+      "subject_id": 900038,
+      "chiefcomplaint": "syncope",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 39,
+      "subject_id": 900039,
+      "chiefcomplaint": null,
+      "missing_fields": [
+        "chiefcomplaint",
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 40,
+      "subject_id": 900040,
+      "chiefcomplaint": "hyperventilation",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 41,
+      "subject_id": 900041,
+      "chiefcomplaint": "involuntary movt.",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 42,
+      "subject_id": 900042,
+      "chiefcomplaint": "Urticarial rash",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 44,
+      "subject_id": 900044,
+      "chiefcomplaint": "throat pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 45,
+      "subject_id": 900045,
+      "chiefcomplaint": "swelling, facial",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 46,
+      "subject_id": 900046,
+      "chiefcomplaint": "post seizure",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 47,
+      "subject_id": 900047,
+      "chiefcomplaint": "dyspnea",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 56,
+      "subject_id": 900056,
+      "chiefcomplaint": "needle stick injury",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 58,
+      "subject_id": 900058,
+      "chiefcomplaint": "palpitation",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 59,
+      "subject_id": 900059,
+      "chiefcomplaint": "fever",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 60,
+      "subject_id": 900060,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 61,
+      "subject_id": 900061,
+      "chiefcomplaint": "fever",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 62,
+      "subject_id": 900062,
+      "chiefcomplaint": "dyspnea",
+      "missing_fields": [
+        "sbp",
+        "dbp"
+      ]
+    },
+    {
+      "stay_id": 63,
+      "subject_id": 900063,
+      "chiefcomplaint": "vomiting",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 64,
+      "subject_id": 900064,
+      "chiefcomplaint": "lip laceration",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 66,
+      "subject_id": 900066,
+      "chiefcomplaint": "?? ??",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 69,
+      "subject_id": 900069,
+      "chiefcomplaint": "leg pain, Lt.",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 70,
+      "subject_id": 900070,
+      "chiefcomplaint": "left wrist swelling",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 72,
+      "subject_id": 900072,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 73,
+      "subject_id": 900073,
+      "chiefcomplaint": "chest pain rt",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 74,
+      "subject_id": 900074,
+      "chiefcomplaint": "epigastric pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 80,
+      "subject_id": 900080,
+      "chiefcomplaint": "tooth pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 81,
+      "subject_id": 900081,
+      "chiefcomplaint": "acute epigastric pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 83,
+      "subject_id": 900083,
+      "chiefcomplaint": "Edema, Cheek",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 88,
+      "subject_id": 900088,
+      "chiefcomplaint": "pain, low back",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 90,
+      "subject_id": 900090,
+      "chiefcomplaint": "pain, low back",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 92,
+      "subject_id": 900092,
+      "chiefcomplaint": "pain, back",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 97,
+      "subject_id": 900097,
+      "chiefcomplaint": "pain, low back",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 99,
+      "subject_id": 900099,
+      "chiefcomplaint": "pain, abdominal",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 100,
+      "subject_id": 900100,
+      "chiefcomplaint": "Pain, Hip",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 103,
+      "subject_id": 900103,
+      "chiefcomplaint": "Elbow Injury",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 104,
+      "subject_id": 900104,
+      "chiefcomplaint": "fever",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 114,
+      "subject_id": 900114,
+      "chiefcomplaint": "both leg pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 115,
+      "subject_id": 900115,
+      "chiefcomplaint": "ocular pain, Lt.",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 117,
+      "subject_id": 900117,
+      "chiefcomplaint": "leg pain left",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 118,
+      "subject_id": 900118,
+      "chiefcomplaint": "headache",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 119,
+      "subject_id": 900119,
+      "chiefcomplaint": "Arm Injury",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 120,
+      "subject_id": 900120,
+      "chiefcomplaint": "HA",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 121,
+      "subject_id": 900121,
+      "chiefcomplaint": "vomiting",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 122,
+      "subject_id": 900122,
+      "chiefcomplaint": "dyspnea",
+      "missing_fields": [
+        "temperature",
+        "heartrate",
+        "resprate",
+        "o2sat",
+        "sbp",
+        "dbp"
+      ]
+    },
+    {
+      "stay_id": 123,
+      "subject_id": 900123,
+      "chiefcomplaint": "Blood Pressure, Low",
+      "missing_fields": [
+        "temperature",
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 124,
+      "subject_id": 900124,
+      "chiefcomplaint": "Blood Pressure, Low",
+      "missing_fields": [
+        "temperature",
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 125,
+      "subject_id": 900125,
+      "chiefcomplaint": "syncope",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 126,
+      "subject_id": 900126,
+      "chiefcomplaint": "general weakness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 127,
+      "subject_id": 900127,
+      "chiefcomplaint": "dyspnea",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 128,
+      "subject_id": 900128,
+      "chiefcomplaint": "general weakness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 130,
+      "subject_id": 900130,
+      "chiefcomplaint": "fever & chill",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 134,
+      "subject_id": 900134,
+      "chiefcomplaint": "acute dyspnea",
+      "missing_fields": [
+        "o2sat",
+        "nrs_pain"
+      ]
+    },
+    {
+      "stay_id": 136,
+      "subject_id": 900136,
+      "chiefcomplaint": "general weakness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 137,
+      "subject_id": 900137,
+      "chiefcomplaint": "vomiting",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 138,
+      "subject_id": 900138,
+      "chiefcomplaint": "weakness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 140,
+      "subject_id": 900140,
+      "chiefcomplaint": "dizziness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 144,
+      "subject_id": 900144,
+      "chiefcomplaint": "general weakness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 146,
+      "subject_id": 900146,
+      "chiefcomplaint": "low Hb",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 147,
+      "subject_id": 900147,
+      "chiefcomplaint": "Suicidal Attempt",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 151,
+      "subject_id": 900151,
+      "chiefcomplaint": "mental change",
+      "missing_fields": [
+        "temperature",
+        "heartrate",
+        "resprate",
+        "o2sat",
+        "sbp",
+        "dbp"
+      ]
+    },
+    {
+      "stay_id": 154,
+      "subject_id": 900154,
+      "chiefcomplaint": "mental change",
+      "missing_fields": [
+        "dbp"
+      ]
+    },
+    {
+      "stay_id": 156,
+      "subject_id": 900156,
+      "chiefcomplaint": "Motor weakness",
+      "missing_fields": [
+        "temperature",
+        "heartrate",
+        "resprate",
+        "o2sat",
+        "sbp",
+        "dbp"
+      ]
+    },
+    {
+      "stay_id": 157,
+      "subject_id": 900157,
+      "chiefcomplaint": "fever",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 158,
+      "subject_id": 900158,
+      "chiefcomplaint": "fever",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 159,
+      "subject_id": 900159,
+      "chiefcomplaint": "Catheter removal",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 162,
+      "subject_id": 900162,
+      "chiefcomplaint": "melena",
+      "missing_fields": [
+        "heartrate",
+        "o2sat",
+        "sbp",
+        "dbp"
+      ]
+    },
+    {
+      "stay_id": 165,
+      "subject_id": 900165,
+      "chiefcomplaint": "dyspnea",
+      "missing_fields": [
+        "resprate",
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 167,
+      "subject_id": 900167,
+      "chiefcomplaint": "Drug Intoxication",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 169,
+      "subject_id": 900169,
+      "chiefcomplaint": "limb paresthesia",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 171,
+      "subject_id": 900171,
+      "chiefcomplaint": "fever",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 172,
+      "subject_id": 900172,
+      "chiefcomplaint": "fever",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 181,
+      "subject_id": 900181,
+      "chiefcomplaint": "erection, penile",
+      "missing_fields": [
+        "temperature",
+        "heartrate",
+        "resprate",
+        "o2sat",
+        "sbp",
+        "dbp"
+      ]
+    },
+    {
+      "stay_id": 187,
+      "subject_id": 900187,
+      "chiefcomplaint": "Urticarial rash",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 188,
+      "subject_id": 900188,
+      "chiefcomplaint": "FB in eye",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 189,
+      "subject_id": 900189,
+      "chiefcomplaint": "abdomen discomfort",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 190,
+      "subject_id": 900190,
+      "chiefcomplaint": "?? ??? ??",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 191,
+      "subject_id": 900191,
+      "chiefcomplaint": null,
+      "missing_fields": [
+        "chiefcomplaint",
+        "heartrate",
+        "o2sat",
+        "sbp",
+        "dbp"
+      ]
+    },
+    {
+      "stay_id": 193,
+      "subject_id": 900193,
+      "chiefcomplaint": "hand tingling sense",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 197,
+      "subject_id": 900197,
+      "chiefcomplaint": "chest wall pain left",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 198,
+      "subject_id": 900198,
+      "chiefcomplaint": "head trauma",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 199,
+      "subject_id": 900199,
+      "chiefcomplaint": "HA",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 202,
+      "subject_id": 900202,
+      "chiefcomplaint": "scalp lac.",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 205,
+      "subject_id": 900205,
+      "chiefcomplaint": "vaginal bleeding",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 206,
+      "subject_id": 900206,
+      "chiefcomplaint": "vomiting",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 210,
+      "subject_id": 900210,
+      "chiefcomplaint": "Ankle Injury",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 213,
+      "subject_id": 900213,
+      "chiefcomplaint": "Arm Injury",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 215,
+      "subject_id": 900215,
+      "chiefcomplaint": "Discomfort, Chest",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 216,
+      "subject_id": 900216,
+      "chiefcomplaint": "mental change",
+      "missing_fields": [
+        "resprate"
+      ]
+    },
+    {
+      "stay_id": 217,
+      "subject_id": 900217,
+      "chiefcomplaint": "pain, flank",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 218,
+      "subject_id": 900218,
+      "chiefcomplaint": "Urticarial rash",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 219,
+      "subject_id": 900219,
+      "chiefcomplaint": "pain, chest",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 220,
+      "subject_id": 900220,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 221,
+      "subject_id": 900221,
+      "chiefcomplaint": "pain, low back",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 222,
+      "subject_id": 900222,
+      "chiefcomplaint": "pain, chest",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 223,
+      "subject_id": 900223,
+      "chiefcomplaint": "LBP - Low back pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 224,
+      "subject_id": 900224,
+      "chiefcomplaint": "fever",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 225,
+      "subject_id": 900225,
+      "chiefcomplaint": "for A/tapping",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 226,
+      "subject_id": 900226,
+      "chiefcomplaint": "Discomfort, Chest",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 227,
+      "subject_id": 900227,
+      "chiefcomplaint": "?? ??",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 228,
+      "subject_id": 900228,
+      "chiefcomplaint": "??? ??",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 229,
+      "subject_id": 900229,
+      "chiefcomplaint": "HA",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 230,
+      "subject_id": 900230,
+      "chiefcomplaint": "headache",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 231,
+      "subject_id": 900231,
+      "chiefcomplaint": "acute epigastric pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 232,
+      "subject_id": 900232,
+      "chiefcomplaint": "throat pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 234,
+      "subject_id": 900234,
+      "chiefcomplaint": "ocular pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 235,
+      "subject_id": 900235,
+      "chiefcomplaint": "PTx - Pneumothorax",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 236,
+      "subject_id": 900236,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 239,
+      "subject_id": 900239,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 240,
+      "subject_id": 900240,
+      "chiefcomplaint": "left knee swelling",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 241,
+      "subject_id": 900241,
+      "chiefcomplaint": "sorethroat",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 242,
+      "subject_id": 900242,
+      "chiefcomplaint": "laceration, chin",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 243,
+      "subject_id": 900243,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 244,
+      "subject_id": 900244,
+      "chiefcomplaint": "acute epigastric pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 245,
+      "subject_id": 900245,
+      "chiefcomplaint": "Vaginal Bleeding",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 246,
+      "subject_id": 900246,
+      "chiefcomplaint": "Burn, arm",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 247,
+      "subject_id": 900247,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 248,
+      "subject_id": 900248,
+      "chiefcomplaint": "epigastric pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 249,
+      "subject_id": 900249,
+      "chiefcomplaint": "dysuria",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 250,
+      "subject_id": 900250,
+      "chiefcomplaint": "pain, chest",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 251,
+      "subject_id": 900251,
+      "chiefcomplaint": "Gingival bleeding",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 252,
+      "subject_id": 900252,
+      "chiefcomplaint": "anal bleeding",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 253,
+      "subject_id": 900253,
+      "chiefcomplaint": "pain, chest",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 254,
+      "subject_id": 900254,
+      "chiefcomplaint": "swelling, neck",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 255,
+      "subject_id": 900255,
+      "chiefcomplaint": "headache",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 256,
+      "subject_id": 900256,
+      "chiefcomplaint": "FB in pharynx",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 257,
+      "subject_id": 900257,
+      "chiefcomplaint": "abdomen pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 258,
+      "subject_id": 900258,
+      "chiefcomplaint": "injury, finger",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 259,
+      "subject_id": 900259,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 262,
+      "subject_id": 900262,
+      "chiefcomplaint": "vomiting",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 263,
+      "subject_id": 900263,
+      "chiefcomplaint": "Knee Injury",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 264,
+      "subject_id": 900264,
+      "chiefcomplaint": "LBP - Low back pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 265,
+      "subject_id": 900265,
+      "chiefcomplaint": "headache",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 266,
+      "subject_id": 900266,
+      "chiefcomplaint": "facial injury",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 267,
+      "subject_id": 900267,
+      "chiefcomplaint": "epigastric pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 268,
+      "subject_id": 900268,
+      "chiefcomplaint": "eyebrow laceration",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 269,
+      "subject_id": 900269,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 270,
+      "subject_id": 900270,
+      "chiefcomplaint": "pain, foot",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 272,
+      "subject_id": 900272,
+      "chiefcomplaint": "pain, chest",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 273,
+      "subject_id": 900273,
+      "chiefcomplaint": "vomiting",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 274,
+      "subject_id": 900274,
+      "chiefcomplaint": "vaginal spotting",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 275,
+      "subject_id": 900275,
+      "chiefcomplaint": "abdomen pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 277,
+      "subject_id": 900277,
+      "chiefcomplaint": "anxiety",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 278,
+      "subject_id": 900278,
+      "chiefcomplaint": "?? ???",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 279,
+      "subject_id": 900279,
+      "chiefcomplaint": "myalgia",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 280,
+      "subject_id": 900280,
+      "chiefcomplaint": "headache",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 281,
+      "subject_id": 900281,
+      "chiefcomplaint": "headache",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 285,
+      "subject_id": 900285,
+      "chiefcomplaint": "pain, low back",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 286,
+      "subject_id": 900286,
+      "chiefcomplaint": "Rt abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 287,
+      "subject_id": 900287,
+      "chiefcomplaint": "RLQ abd. pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 288,
+      "subject_id": 900288,
+      "chiefcomplaint": "Lt flank pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 291,
+      "subject_id": 900291,
+      "chiefcomplaint": "left eyelid laceration",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 294,
+      "subject_id": 900294,
+      "chiefcomplaint": "sorethroat",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 295,
+      "subject_id": 900295,
+      "chiefcomplaint": "epigastric pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 296,
+      "subject_id": 900296,
+      "chiefcomplaint": "Midmenstrual pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 299,
+      "subject_id": 900299,
+      "chiefcomplaint": "Eye Injury",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 302,
+      "subject_id": 900302,
+      "chiefcomplaint": "Lt flank pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 304,
+      "subject_id": 900304,
+      "chiefcomplaint": "cough",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 305,
+      "subject_id": 900305,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 306,
+      "subject_id": 900306,
+      "chiefcomplaint": "painful skin lesion",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 308,
+      "subject_id": 900308,
+      "chiefcomplaint": "Rt abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 309,
+      "subject_id": 900309,
+      "chiefcomplaint": "upper abdominal pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 311,
+      "subject_id": 900311,
+      "chiefcomplaint": "Leg pain, NOS",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 313,
+      "subject_id": 900313,
+      "chiefcomplaint": "RLQ pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 317,
+      "subject_id": 900317,
+      "chiefcomplaint": "bleeding, knee",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 318,
+      "subject_id": 900318,
+      "chiefcomplaint": "headache",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 319,
+      "subject_id": 900319,
+      "chiefcomplaint": "Rt. flank pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 323,
+      "subject_id": 900323,
+      "chiefcomplaint": "HA",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 327,
+      "subject_id": 900327,
+      "chiefcomplaint": "abdomen pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 329,
+      "subject_id": 900329,
+      "chiefcomplaint": "pain, neck",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 339,
+      "subject_id": 900339,
+      "chiefcomplaint": "whirling type vertigo",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 340,
+      "subject_id": 900340,
+      "chiefcomplaint": "rt flank pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 341,
+      "subject_id": 900341,
+      "chiefcomplaint": "rt. side neck pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 349,
+      "subject_id": 900349,
+      "chiefcomplaint": "finger laceration wound",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 350,
+      "subject_id": 900350,
+      "chiefcomplaint": "head trauma",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 351,
+      "subject_id": 900351,
+      "chiefcomplaint": "pain on Knee",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 352,
+      "subject_id": 900352,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 355,
+      "subject_id": 900355,
+      "chiefcomplaint": "both leg pain",
+      "missing_fields": [
+        "temperature",
+        "heartrate",
+        "resprate",
+        "o2sat",
+        "sbp",
+        "dbp"
+      ]
+    },
+    {
+      "stay_id": 356,
+      "subject_id": 900356,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 358,
+      "subject_id": 900358,
+      "chiefcomplaint": "epigastric pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 359,
+      "subject_id": 900359,
+      "chiefcomplaint": "for medication",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 370,
+      "subject_id": 900370,
+      "chiefcomplaint": "pain, flank",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 371,
+      "subject_id": 900371,
+      "chiefcomplaint": "LLQ pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 372,
+      "subject_id": 900372,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 375,
+      "subject_id": 900375,
+      "chiefcomplaint": "headache",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 379,
+      "subject_id": 900379,
+      "chiefcomplaint": "????",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 383,
+      "subject_id": 900383,
+      "chiefcomplaint": "head trauma",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 388,
+      "subject_id": 900388,
+      "chiefcomplaint": "VOIDING PAIN",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 389,
+      "subject_id": 900389,
+      "chiefcomplaint": "???",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 394,
+      "subject_id": 900394,
+      "chiefcomplaint": "pain, chest",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 395,
+      "subject_id": 900395,
+      "chiefcomplaint": "Pain, Eye",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 397,
+      "subject_id": 900397,
+      "chiefcomplaint": "left thigh swelling",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 398,
+      "subject_id": 900398,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 401,
+      "subject_id": 900401,
+      "chiefcomplaint": "??? ? ???",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 407,
+      "subject_id": 900407,
+      "chiefcomplaint": "epigastric pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 412,
+      "subject_id": 900412,
+      "chiefcomplaint": "backache",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 416,
+      "subject_id": 900416,
+      "chiefcomplaint": "fever",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 417,
+      "subject_id": 900417,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 421,
+      "subject_id": 900421,
+      "chiefcomplaint": "headache",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 428,
+      "subject_id": 900428,
+      "chiefcomplaint": "alcohol smell",
+      "missing_fields": [
+        "temperature",
+        "heartrate",
+        "resprate",
+        "o2sat",
+        "sbp",
+        "dbp"
+      ]
+    },
+    {
+      "stay_id": 433,
+      "subject_id": 900433,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 436,
+      "subject_id": 900436,
+      "chiefcomplaint": "abdomen pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 437,
+      "subject_id": 900437,
+      "chiefcomplaint": "Voiding Failure",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 447,
+      "subject_id": 900447,
+      "chiefcomplaint": "fever",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 450,
+      "subject_id": 900450,
+      "chiefcomplaint": "distended abdomen",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 451,
+      "subject_id": 900451,
+      "chiefcomplaint": "ascites tapping",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 452,
+      "subject_id": 900452,
+      "chiefcomplaint": "pain, chest",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 453,
+      "subject_id": 900453,
+      "chiefcomplaint": "discomfort, chest",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 454,
+      "subject_id": 900454,
+      "chiefcomplaint": "pain, chest",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 455,
+      "subject_id": 900455,
+      "chiefcomplaint": "palpitation",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 457,
+      "subject_id": 900457,
+      "chiefcomplaint": "Ankle Injury",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 458,
+      "subject_id": 900458,
+      "chiefcomplaint": "right forearm laceration",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 459,
+      "subject_id": 900459,
+      "chiefcomplaint": "Ankle Injury",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 462,
+      "subject_id": 900462,
+      "chiefcomplaint": "mandibular pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 463,
+      "subject_id": 900463,
+      "chiefcomplaint": "Toe injury",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 464,
+      "subject_id": 900464,
+      "chiefcomplaint": "both leg pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 466,
+      "subject_id": 900466,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 467,
+      "subject_id": 900467,
+      "chiefcomplaint": "otalgia, Rt.",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 468,
+      "subject_id": 900468,
+      "chiefcomplaint": "pain, chest",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 469,
+      "subject_id": 900469,
+      "chiefcomplaint": "otalgia, Lt.",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 472,
+      "subject_id": 900472,
+      "chiefcomplaint": "Ankle Injury",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 473,
+      "subject_id": 900473,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 474,
+      "subject_id": 900474,
+      "chiefcomplaint": "Pain, Hand",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 477,
+      "subject_id": 900477,
+      "chiefcomplaint": "facial injury",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 478,
+      "subject_id": 900478,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 479,
+      "subject_id": 900479,
+      "chiefcomplaint": "facial injury",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 481,
+      "subject_id": 900481,
+      "chiefcomplaint": "Arm Injury",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 482,
+      "subject_id": 900482,
+      "chiefcomplaint": "Foot Injury",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 483,
+      "subject_id": 900483,
+      "chiefcomplaint": "cough",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 484,
+      "subject_id": 900484,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 486,
+      "subject_id": 900486,
+      "chiefcomplaint": "ankle pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 487,
+      "subject_id": 900487,
+      "chiefcomplaint": "Toe redness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 488,
+      "subject_id": 900488,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 490,
+      "subject_id": 900490,
+      "chiefcomplaint": "ear pain lt",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 491,
+      "subject_id": 900491,
+      "chiefcomplaint": "toothache",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 495,
+      "subject_id": 900495,
+      "chiefcomplaint": "injury, finger",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 500,
+      "subject_id": 900500,
+      "chiefcomplaint": "pain, chest",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 502,
+      "subject_id": 900502,
+      "chiefcomplaint": "facial injury",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 512,
+      "subject_id": 900512,
+      "chiefcomplaint": "Rt abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 513,
+      "subject_id": 900513,
+      "chiefcomplaint": "pain, foot",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 514,
+      "subject_id": 900514,
+      "chiefcomplaint": "epigastric pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 515,
+      "subject_id": 900515,
+      "chiefcomplaint": "RLQ abd. pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 518,
+      "subject_id": 900518,
+      "chiefcomplaint": "Discomfort, Chest",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 519,
+      "subject_id": 900519,
+      "chiefcomplaint": "facial injury",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 521,
+      "subject_id": 900521,
+      "chiefcomplaint": "left eye swelling",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 522,
+      "subject_id": 900522,
+      "chiefcomplaint": "pain, abdominal",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 523,
+      "subject_id": 900523,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 524,
+      "subject_id": 900524,
+      "chiefcomplaint": "wrist pain, Lt",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 525,
+      "subject_id": 900525,
+      "chiefcomplaint": "epigastric pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 526,
+      "subject_id": 900526,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 530,
+      "subject_id": 900530,
+      "chiefcomplaint": "low abdominal pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 533,
+      "subject_id": 900533,
+      "chiefcomplaint": "hypertension",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 536,
+      "subject_id": 900536,
+      "chiefcomplaint": "Head Injury",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 538,
+      "subject_id": 900538,
+      "chiefcomplaint": "Rt abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 539,
+      "subject_id": 900539,
+      "chiefcomplaint": "shoulder pain, Lt",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 540,
+      "subject_id": 900540,
+      "chiefcomplaint": "right leg injury",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 542,
+      "subject_id": 900542,
+      "chiefcomplaint": "????",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 543,
+      "subject_id": 900543,
+      "chiefcomplaint": "leg swelling, Lt.",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 553,
+      "subject_id": 900553,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 556,
+      "subject_id": 900556,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 557,
+      "subject_id": 900557,
+      "chiefcomplaint": "dizziness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 558,
+      "subject_id": 900558,
+      "chiefcomplaint": "leg swelling, Lt.",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 559,
+      "subject_id": 900559,
+      "chiefcomplaint": "vomiting",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 560,
+      "subject_id": 900560,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 561,
+      "subject_id": 900561,
+      "chiefcomplaint": "pain, chest",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 562,
+      "subject_id": 900562,
+      "chiefcomplaint": "leg pain, Rt.",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 563,
+      "subject_id": 900563,
+      "chiefcomplaint": "Femur Lesion",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 565,
+      "subject_id": 900565,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 566,
+      "subject_id": 900566,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 567,
+      "subject_id": 900567,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 568,
+      "subject_id": 900568,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 569,
+      "subject_id": 900569,
+      "chiefcomplaint": "HA",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 571,
+      "subject_id": 900571,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 572,
+      "subject_id": 900572,
+      "chiefcomplaint": "Hand Injury",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 573,
+      "subject_id": 900573,
+      "chiefcomplaint": "headache",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 574,
+      "subject_id": 900574,
+      "chiefcomplaint": "pain, abdominal",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 575,
+      "subject_id": 900575,
+      "chiefcomplaint": "pain, abdominal",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 576,
+      "subject_id": 900576,
+      "chiefcomplaint": "finger lac.",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 578,
+      "subject_id": 900578,
+      "chiefcomplaint": "RLQ pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 579,
+      "subject_id": 900579,
+      "chiefcomplaint": "right shoulder pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 580,
+      "subject_id": 900580,
+      "chiefcomplaint": "epigastric pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 581,
+      "subject_id": 900581,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 582,
+      "subject_id": 900582,
+      "chiefcomplaint": "foot swelling",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 583,
+      "subject_id": 900583,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 584,
+      "subject_id": 900584,
+      "chiefcomplaint": "Finger Injury",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 585,
+      "subject_id": 900585,
+      "chiefcomplaint": "pain, abdominal",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 586,
+      "subject_id": 900586,
+      "chiefcomplaint": "Wrist Injury",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 587,
+      "subject_id": 900587,
+      "chiefcomplaint": "myalgia",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 589,
+      "subject_id": 900589,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 590,
+      "subject_id": 900590,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 591,
+      "subject_id": 900591,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 592,
+      "subject_id": 900592,
+      "chiefcomplaint": "skin rash",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 593,
+      "subject_id": 900593,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 594,
+      "subject_id": 900594,
+      "chiefcomplaint": "sorethroat",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 596,
+      "subject_id": 900596,
+      "chiefcomplaint": "fever",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 597,
+      "subject_id": 900597,
+      "chiefcomplaint": "head injury",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 598,
+      "subject_id": 900598,
+      "chiefcomplaint": "elbow painful swelling",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 599,
+      "subject_id": 900599,
+      "chiefcomplaint": "headache",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 600,
+      "subject_id": 900600,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 601,
+      "subject_id": 900601,
+      "chiefcomplaint": "pain, chest wall, Rt",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 602,
+      "subject_id": 900602,
+      "chiefcomplaint": "pain, flank",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 603,
+      "subject_id": 900603,
+      "chiefcomplaint": "Pain, Hip",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 606,
+      "subject_id": 900606,
+      "chiefcomplaint": "ankle pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 607,
+      "subject_id": 900607,
+      "chiefcomplaint": "LBP - Low back pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 609,
+      "subject_id": 900609,
+      "chiefcomplaint": "backache",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 612,
+      "subject_id": 900612,
+      "chiefcomplaint": "Ankle Injury",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 613,
+      "subject_id": 900613,
+      "chiefcomplaint": "epigastric pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 614,
+      "subject_id": 900614,
+      "chiefcomplaint": "Foot Injury",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 615,
+      "subject_id": 900615,
+      "chiefcomplaint": "injury, ankle",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 616,
+      "subject_id": 900616,
+      "chiefcomplaint": "injury, ankle",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 620,
+      "subject_id": 900620,
+      "chiefcomplaint": "FB in eye",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 621,
+      "subject_id": 900621,
+      "chiefcomplaint": "abdomen pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 622,
+      "subject_id": 900622,
+      "chiefcomplaint": "abdomen pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 623,
+      "subject_id": 900623,
+      "chiefcomplaint": "dizziness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 624,
+      "subject_id": 900624,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 625,
+      "subject_id": 900625,
+      "chiefcomplaint": "Chin swelling",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 627,
+      "subject_id": 900627,
+      "chiefcomplaint": "epigastric pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 629,
+      "subject_id": 900629,
+      "chiefcomplaint": "pain, chest",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 630,
+      "subject_id": 900630,
+      "chiefcomplaint": "abdomen pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 633,
+      "subject_id": 900633,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 634,
+      "subject_id": 900634,
+      "chiefcomplaint": "Pain, ?nus",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 636,
+      "subject_id": 900636,
+      "chiefcomplaint": "Lt. hip joint pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 637,
+      "subject_id": 900637,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 638,
+      "subject_id": 900638,
+      "chiefcomplaint": "pain, abdominal",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 640,
+      "subject_id": 900640,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 641,
+      "subject_id": 900641,
+      "chiefcomplaint": "left leg pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 642,
+      "subject_id": 900642,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 643,
+      "subject_id": 900643,
+      "chiefcomplaint": "voiding difficulty",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 644,
+      "subject_id": 900644,
+      "chiefcomplaint": "myalgia",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 645,
+      "subject_id": 900645,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 647,
+      "subject_id": 900647,
+      "chiefcomplaint": "Ankle Injury",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 648,
+      "subject_id": 900648,
+      "chiefcomplaint": "pain, abdominal",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 649,
+      "subject_id": 900649,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 653,
+      "subject_id": 900653,
+      "chiefcomplaint": "leg pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 654,
+      "subject_id": 900654,
+      "chiefcomplaint": "Urticarial rash",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 655,
+      "subject_id": 900655,
+      "chiefcomplaint": "headache",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 657,
+      "subject_id": 900657,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 658,
+      "subject_id": 900658,
+      "chiefcomplaint": "shoulder pain, both",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 660,
+      "subject_id": 900660,
+      "chiefcomplaint": "shoulder pain, Rt",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 662,
+      "subject_id": 900662,
+      "chiefcomplaint": "lower chest wall pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 663,
+      "subject_id": 900663,
+      "chiefcomplaint": "headache",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 664,
+      "subject_id": 900664,
+      "chiefcomplaint": "pain, tooth",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 666,
+      "subject_id": 900666,
+      "chiefcomplaint": "Burn, hand",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 667,
+      "subject_id": 900667,
+      "chiefcomplaint": "general ache",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 669,
+      "subject_id": 900669,
+      "chiefcomplaint": "pain, chest",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 670,
+      "subject_id": 900670,
+      "chiefcomplaint": "pain, chest",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 671,
+      "subject_id": 900671,
+      "chiefcomplaint": "visual disturbance",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 673,
+      "subject_id": 900673,
+      "chiefcomplaint": "leg pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 674,
+      "subject_id": 900674,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 675,
+      "subject_id": 900675,
+      "chiefcomplaint": "Finger Injury",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 676,
+      "subject_id": 900676,
+      "chiefcomplaint": "pain, abdominal",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 677,
+      "subject_id": 900677,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 678,
+      "subject_id": 900678,
+      "chiefcomplaint": "foreign body ingestion",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 680,
+      "subject_id": 900680,
+      "chiefcomplaint": "RLQ pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 681,
+      "subject_id": 900681,
+      "chiefcomplaint": "headache",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 682,
+      "subject_id": 900682,
+      "chiefcomplaint": "Wrist Injury",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 684,
+      "subject_id": 900684,
+      "chiefcomplaint": "pain, flank",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 690,
+      "subject_id": 900690,
+      "chiefcomplaint": "pain, arm",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 695,
+      "subject_id": 900695,
+      "chiefcomplaint": "pain, low back",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 696,
+      "subject_id": 900696,
+      "chiefcomplaint": "ocular pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 697,
+      "subject_id": 900697,
+      "chiefcomplaint": "bee sting",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 698,
+      "subject_id": 900698,
+      "chiefcomplaint": "pelvic pain, Lt",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 699,
+      "subject_id": 900699,
+      "chiefcomplaint": "right elbow pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 705,
+      "subject_id": 900705,
+      "chiefcomplaint": "dysuria",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 706,
+      "subject_id": 900706,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "temperature",
+        "heartrate",
+        "resprate",
+        "o2sat",
+        "sbp",
+        "dbp"
+      ]
+    },
+    {
+      "stay_id": 709,
+      "subject_id": 900709,
+      "chiefcomplaint": "facial injury",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 714,
+      "subject_id": 900714,
+      "chiefcomplaint": "Rt. shoulder pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 716,
+      "subject_id": 900716,
+      "chiefcomplaint": "pain, flank",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 717,
+      "subject_id": 900717,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 722,
+      "subject_id": 900722,
+      "chiefcomplaint": "pain, facial",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 725,
+      "subject_id": 900725,
+      "chiefcomplaint": "epigastric pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 726,
+      "subject_id": 900726,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 727,
+      "subject_id": 900727,
+      "chiefcomplaint": "general weakness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 728,
+      "subject_id": 900728,
+      "chiefcomplaint": "myalgia",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 729,
+      "subject_id": 900729,
+      "chiefcomplaint": "leg pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 730,
+      "subject_id": 900730,
+      "chiefcomplaint": "buttock pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 731,
+      "subject_id": 900731,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 732,
+      "subject_id": 900732,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 733,
+      "subject_id": 900733,
+      "chiefcomplaint": "wrist laceration",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 735,
+      "subject_id": 900735,
+      "chiefcomplaint": "both shoulder pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 736,
+      "subject_id": 900736,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 737,
+      "subject_id": 900737,
+      "chiefcomplaint": "Injury, Leg",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 738,
+      "subject_id": 900738,
+      "chiefcomplaint": "COCCYGEAL PAIN",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 739,
+      "subject_id": 900739,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 740,
+      "subject_id": 900740,
+      "chiefcomplaint": "Lt flank pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 741,
+      "subject_id": 900741,
+      "chiefcomplaint": "Lt flank pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 742,
+      "subject_id": 900742,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 743,
+      "subject_id": 900743,
+      "chiefcomplaint": "Lt flank pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 744,
+      "subject_id": 900744,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 745,
+      "subject_id": 900745,
+      "chiefcomplaint": "LLQ pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 746,
+      "subject_id": 900746,
+      "chiefcomplaint": "leg pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 747,
+      "subject_id": 900747,
+      "chiefcomplaint": "Flank pain, Rt.",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 748,
+      "subject_id": 900748,
+      "chiefcomplaint": "epigastric pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 749,
+      "subject_id": 900749,
+      "chiefcomplaint": "epigastric pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 750,
+      "subject_id": 900750,
+      "chiefcomplaint": "pain, low back",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 751,
+      "subject_id": 900751,
+      "chiefcomplaint": "tooth pain, Lt",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 752,
+      "subject_id": 900752,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 753,
+      "subject_id": 900753,
+      "chiefcomplaint": "pain, shoulder",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 755,
+      "subject_id": 900755,
+      "chiefcomplaint": "finger pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 757,
+      "subject_id": 900757,
+      "chiefcomplaint": "abdomen pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 758,
+      "subject_id": 900758,
+      "chiefcomplaint": "HA",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 759,
+      "subject_id": 900759,
+      "chiefcomplaint": "pain, chest",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 760,
+      "subject_id": 900760,
+      "chiefcomplaint": "dyspnea",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 761,
+      "subject_id": 900761,
+      "chiefcomplaint": "dizziness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 762,
+      "subject_id": 900762,
+      "chiefcomplaint": "for PEG tube change",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 763,
+      "subject_id": 900763,
+      "chiefcomplaint": "Rt.arm weakness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 764,
+      "subject_id": 900764,
+      "chiefcomplaint": "general weakness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 765,
+      "subject_id": 900765,
+      "chiefcomplaint": "high BSL",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 766,
+      "subject_id": 900766,
+      "chiefcomplaint": "dyspnea",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 767,
+      "subject_id": 900767,
+      "chiefcomplaint": "Discomfort, Chest",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 768,
+      "subject_id": 900768,
+      "chiefcomplaint": "sezure like motion",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 769,
+      "subject_id": 900769,
+      "chiefcomplaint": "dizziness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 770,
+      "subject_id": 900770,
+      "chiefcomplaint": "dizziness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 771,
+      "subject_id": 900771,
+      "chiefcomplaint": "general weakness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 772,
+      "subject_id": 900772,
+      "chiefcomplaint": "vomiting",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 773,
+      "subject_id": 900773,
+      "chiefcomplaint": "dizziness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 774,
+      "subject_id": 900774,
+      "chiefcomplaint": "Nasal swelling",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 775,
+      "subject_id": 900775,
+      "chiefcomplaint": "Sudden hearing loss",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 776,
+      "subject_id": 900776,
+      "chiefcomplaint": "for A/tapping",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 777,
+      "subject_id": 900777,
+      "chiefcomplaint": "hematemesis",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 778,
+      "subject_id": 900778,
+      "chiefcomplaint": "distended abdomen",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 779,
+      "subject_id": 900779,
+      "chiefcomplaint": "dizziness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 780,
+      "subject_id": 900780,
+      "chiefcomplaint": "distension, abd",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 781,
+      "subject_id": 900781,
+      "chiefcomplaint": "decreased activity",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 782,
+      "subject_id": 900782,
+      "chiefcomplaint": "for ascites tapping",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 783,
+      "subject_id": 900783,
+      "chiefcomplaint": "fever",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 784,
+      "subject_id": 900784,
+      "chiefcomplaint": "sleeping tendency",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 785,
+      "subject_id": 900785,
+      "chiefcomplaint": "hematochezia",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 786,
+      "subject_id": 900786,
+      "chiefcomplaint": "distension, abd",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 787,
+      "subject_id": 900787,
+      "chiefcomplaint": "vomiting",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 788,
+      "subject_id": 900788,
+      "chiefcomplaint": "sezure like motion",
+      "missing_fields": [
+        "o2sat",
+        "sbp",
+        "dbp"
+      ]
+    },
+    {
+      "stay_id": 789,
+      "subject_id": 900789,
+      "chiefcomplaint": "fever",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 790,
+      "subject_id": 900790,
+      "chiefcomplaint": "rt. side weakness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 791,
+      "subject_id": 900791,
+      "chiefcomplaint": "post seizure",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 792,
+      "subject_id": 900792,
+      "chiefcomplaint": "Retention, Bladder",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 793,
+      "subject_id": 900793,
+      "chiefcomplaint": "Free voiding",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 794,
+      "subject_id": 900794,
+      "chiefcomplaint": "??? ??",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 795,
+      "subject_id": 900795,
+      "chiefcomplaint": "facial injury",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 796,
+      "subject_id": 900796,
+      "chiefcomplaint": "Amnesia",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 797,
+      "subject_id": 900797,
+      "chiefcomplaint": "dyspnea",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 798,
+      "subject_id": 900798,
+      "chiefcomplaint": "dizziness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 799,
+      "subject_id": 900799,
+      "chiefcomplaint": "fever",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 800,
+      "subject_id": 900800,
+      "chiefcomplaint": "dyspnea",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 801,
+      "subject_id": 900801,
+      "chiefcomplaint": "for PEG tube change",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 802,
+      "subject_id": 900802,
+      "chiefcomplaint": "anxiety",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 803,
+      "subject_id": 900803,
+      "chiefcomplaint": "fever",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 804,
+      "subject_id": 900804,
+      "chiefcomplaint": "epistaxis",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 805,
+      "subject_id": 900805,
+      "chiefcomplaint": "mental change",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 806,
+      "subject_id": 900806,
+      "chiefcomplaint": "right hip pain",
+      "missing_fields": [
+        "o2sat",
+        "nrs_pain"
+      ]
+    },
+    {
+      "stay_id": 807,
+      "subject_id": 900807,
+      "chiefcomplaint": "F/C, C/S",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 808,
+      "subject_id": 900808,
+      "chiefcomplaint": "for L-tube insertion",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 809,
+      "subject_id": 900809,
+      "chiefcomplaint": "swelling, facial",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 810,
+      "subject_id": 900810,
+      "chiefcomplaint": "fever",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 811,
+      "subject_id": 900811,
+      "chiefcomplaint": "dyspnea",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 812,
+      "subject_id": 900812,
+      "chiefcomplaint": "Discomfort, Chest",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 813,
+      "subject_id": 900813,
+      "chiefcomplaint": "hypoglycemic symptom",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 814,
+      "subject_id": 900814,
+      "chiefcomplaint": "epistaxis",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 815,
+      "subject_id": 900815,
+      "chiefcomplaint": "anxiety",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 816,
+      "subject_id": 900816,
+      "chiefcomplaint": "Voice changes",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 817,
+      "subject_id": 900817,
+      "chiefcomplaint": "abnormal lab.",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 818,
+      "subject_id": 900818,
+      "chiefcomplaint": "vomiting",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 819,
+      "subject_id": 900819,
+      "chiefcomplaint": "general weakness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 820,
+      "subject_id": 900820,
+      "chiefcomplaint": "dyspnea",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 821,
+      "subject_id": 900821,
+      "chiefcomplaint": "mental change",
+      "missing_fields": [
+        "temperature",
+        "heartrate",
+        "resprate",
+        "o2sat",
+        "sbp",
+        "dbp"
+      ]
+    },
+    {
+      "stay_id": 822,
+      "subject_id": 900822,
+      "chiefcomplaint": "dizziness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 823,
+      "subject_id": 900823,
+      "chiefcomplaint": "dyspnea",
+      "missing_fields": [
+        "o2sat",
+        "sbp",
+        "dbp"
+      ]
+    },
+    {
+      "stay_id": 824,
+      "subject_id": 900824,
+      "chiefcomplaint": "dyspnea",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 825,
+      "subject_id": 900825,
+      "chiefcomplaint": "anemia w/u",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 826,
+      "subject_id": 900826,
+      "chiefcomplaint": "DZ - Dizziness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 827,
+      "subject_id": 900827,
+      "chiefcomplaint": "Discomfort, Chest",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 828,
+      "subject_id": 900828,
+      "chiefcomplaint": "forehead laceration",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 829,
+      "subject_id": 900829,
+      "chiefcomplaint": "post seizure",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 832,
+      "subject_id": 900832,
+      "chiefcomplaint": "altered mentality",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 833,
+      "subject_id": 900833,
+      "chiefcomplaint": "eye discomfort",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 834,
+      "subject_id": 900834,
+      "chiefcomplaint": "po medication",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 837,
+      "subject_id": 900837,
+      "chiefcomplaint": "??? ??? ??",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 838,
+      "subject_id": 900838,
+      "chiefcomplaint": "finger laceration",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 839,
+      "subject_id": 900839,
+      "chiefcomplaint": "Sexual Abuse of Adult",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 840,
+      "subject_id": 900840,
+      "chiefcomplaint": "DI, drug intoxication",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 844,
+      "subject_id": 900844,
+      "chiefcomplaint": "bleeding, gingival",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 845,
+      "subject_id": 900845,
+      "chiefcomplaint": "????",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 847,
+      "subject_id": 900847,
+      "chiefcomplaint": "laceration, scalp",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 848,
+      "subject_id": 900848,
+      "chiefcomplaint": "nasal injury",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 849,
+      "subject_id": 900849,
+      "chiefcomplaint": "Near syncope",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 850,
+      "subject_id": 900850,
+      "chiefcomplaint": "po medication",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 852,
+      "subject_id": 900852,
+      "chiefcomplaint": "post seizure",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 853,
+      "subject_id": 900853,
+      "chiefcomplaint": "syncope",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 854,
+      "subject_id": 900854,
+      "chiefcomplaint": "vomiting",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 856,
+      "subject_id": 900856,
+      "chiefcomplaint": "sexual violence",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 857,
+      "subject_id": 900857,
+      "chiefcomplaint": "eyelid laceration",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 858,
+      "subject_id": 900858,
+      "chiefcomplaint": "dizziness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 859,
+      "subject_id": 900859,
+      "chiefcomplaint": "finger laceration",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 860,
+      "subject_id": 900860,
+      "chiefcomplaint": "vomiting",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 861,
+      "subject_id": 900861,
+      "chiefcomplaint": "sexual violence",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 862,
+      "subject_id": 900862,
+      "chiefcomplaint": "vomiting",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 863,
+      "subject_id": 900863,
+      "chiefcomplaint": "dizziness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 864,
+      "subject_id": 900864,
+      "chiefcomplaint": "laceration, chin",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 865,
+      "subject_id": 900865,
+      "chiefcomplaint": "F/C, C/S",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 866,
+      "subject_id": 900866,
+      "chiefcomplaint": "general weakness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 867,
+      "subject_id": 900867,
+      "chiefcomplaint": "cough",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 868,
+      "subject_id": 900868,
+      "chiefcomplaint": "depression",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 869,
+      "subject_id": 900869,
+      "chiefcomplaint": "dizziness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 870,
+      "subject_id": 900870,
+      "chiefcomplaint": "hematemesis",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 871,
+      "subject_id": 900871,
+      "chiefcomplaint": "fever",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 872,
+      "subject_id": 900872,
+      "chiefcomplaint": "Suicidal Attempt",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 873,
+      "subject_id": 900873,
+      "chiefcomplaint": "alcohol smelling state, drunken state",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 874,
+      "subject_id": 900874,
+      "chiefcomplaint": "Facial Palsy",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 875,
+      "subject_id": 900875,
+      "chiefcomplaint": "finger laceration",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 876,
+      "subject_id": 900876,
+      "chiefcomplaint": "eyebrow laceration",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 877,
+      "subject_id": 900877,
+      "chiefcomplaint": "skin rash",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 878,
+      "subject_id": 900878,
+      "chiefcomplaint": "diarrhea",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 883,
+      "subject_id": 900883,
+      "chiefcomplaint": "Suicidal thoughts (finding)",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 885,
+      "subject_id": 900885,
+      "chiefcomplaint": "fever",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 886,
+      "subject_id": 900886,
+      "chiefcomplaint": "post seizure",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 887,
+      "subject_id": 900887,
+      "chiefcomplaint": "epistaxis",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 888,
+      "subject_id": 900888,
+      "chiefcomplaint": "seizure",
+      "missing_fields": [
+        "temperature",
+        "heartrate",
+        "resprate",
+        "o2sat",
+        "sbp",
+        "dbp"
+      ]
+    },
+    {
+      "stay_id": 889,
+      "subject_id": 900889,
+      "chiefcomplaint": "eye discomfort",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 891,
+      "subject_id": 900891,
+      "chiefcomplaint": "Delusional Idea",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 892,
+      "subject_id": 900892,
+      "chiefcomplaint": "dyspnea",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 893,
+      "subject_id": 900893,
+      "chiefcomplaint": "DZ - Dizziness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 894,
+      "subject_id": 900894,
+      "chiefcomplaint": "cerebral concussion",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 900,
+      "subject_id": 900900,
+      "chiefcomplaint": "anxiety",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 901,
+      "subject_id": 900901,
+      "chiefcomplaint": "Vaginal Bleeding",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 903,
+      "subject_id": 900903,
+      "chiefcomplaint": "vaginal bleeding",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 904,
+      "subject_id": 900904,
+      "chiefcomplaint": "abd pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 905,
+      "subject_id": 900905,
+      "chiefcomplaint": "????",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 907,
+      "subject_id": 900907,
+      "chiefcomplaint": "headache",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 908,
+      "subject_id": 900908,
+      "chiefcomplaint": "face laceration",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 909,
+      "subject_id": 900909,
+      "chiefcomplaint": "vaginal bleeding",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 910,
+      "subject_id": 900910,
+      "chiefcomplaint": "dizziness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 911,
+      "subject_id": 900911,
+      "chiefcomplaint": "fever",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 913,
+      "subject_id": 900913,
+      "chiefcomplaint": "Vaginal Bleeding",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 914,
+      "subject_id": 900914,
+      "chiefcomplaint": "anxiety",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 916,
+      "subject_id": 900916,
+      "chiefcomplaint": "anxiety",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 917,
+      "subject_id": 900917,
+      "chiefcomplaint": "sexual violence",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 918,
+      "subject_id": 900918,
+      "chiefcomplaint": "scratch wound",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 919,
+      "subject_id": 900919,
+      "chiefcomplaint": "facial injury",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 920,
+      "subject_id": 900920,
+      "chiefcomplaint": "scalp lac.",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 921,
+      "subject_id": 900921,
+      "chiefcomplaint": "diarrhea",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 922,
+      "subject_id": 900922,
+      "chiefcomplaint": "distension, abd",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 923,
+      "subject_id": 900923,
+      "chiefcomplaint": "facial palsy left",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 924,
+      "subject_id": 900924,
+      "chiefcomplaint": "FB in esophagus",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 925,
+      "subject_id": 900925,
+      "chiefcomplaint": "forehead laceration",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 926,
+      "subject_id": 900926,
+      "chiefcomplaint": "left side weakness",
+      "missing_fields": [
+        "heartrate",
+        "o2sat",
+        "sbp",
+        "dbp"
+      ]
+    },
+    {
+      "stay_id": 927,
+      "subject_id": 900927,
+      "chiefcomplaint": "epistaxis",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 928,
+      "subject_id": 900928,
+      "chiefcomplaint": null,
+      "missing_fields": [
+        "chiefcomplaint",
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 929,
+      "subject_id": 900929,
+      "chiefcomplaint": "Facial Palsy",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 934,
+      "subject_id": 900934,
+      "chiefcomplaint": "??? ??",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 935,
+      "subject_id": 900935,
+      "chiefcomplaint": "dizziness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 936,
+      "subject_id": 900936,
+      "chiefcomplaint": "skin defect",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 939,
+      "subject_id": 900939,
+      "chiefcomplaint": "fever",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 940,
+      "subject_id": 900940,
+      "chiefcomplaint": "dizziness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 941,
+      "subject_id": 900941,
+      "chiefcomplaint": "general weakness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 943,
+      "subject_id": 900943,
+      "chiefcomplaint": "alcohol smelling state, drunken state",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 946,
+      "subject_id": 900946,
+      "chiefcomplaint": "dizziness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 949,
+      "subject_id": 900949,
+      "chiefcomplaint": "knee pain",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 950,
+      "subject_id": 900950,
+      "chiefcomplaint": "Suicidal ideation",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 951,
+      "subject_id": 900951,
+      "chiefcomplaint": "facial injury",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 952,
+      "subject_id": 900952,
+      "chiefcomplaint": "dizziness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 953,
+      "subject_id": 900953,
+      "chiefcomplaint": "dyspnea",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 955,
+      "subject_id": 900955,
+      "chiefcomplaint": "finger laceration",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 956,
+      "subject_id": 900956,
+      "chiefcomplaint": "Suicidal Attempt",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 957,
+      "subject_id": 900957,
+      "chiefcomplaint": "DI, drug intoxication",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 960,
+      "subject_id": 900960,
+      "chiefcomplaint": "eyelid laceration",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 961,
+      "subject_id": 900961,
+      "chiefcomplaint": "Urticarial rash",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 962,
+      "subject_id": 900962,
+      "chiefcomplaint": "???",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 963,
+      "subject_id": 900963,
+      "chiefcomplaint": "skin defect",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 967,
+      "subject_id": 900967,
+      "chiefcomplaint": "Vaginal Bleeding",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 968,
+      "subject_id": 900968,
+      "chiefcomplaint": "CT film copy",
+      "missing_fields": [
+        "temperature",
+        "heartrate",
+        "resprate",
+        "o2sat",
+        "sbp",
+        "dbp"
+      ]
+    },
+    {
+      "stay_id": 969,
+      "subject_id": 900969,
+      "chiefcomplaint": "mental change",
+      "missing_fields": [
+        "resprate",
+        "dbp"
+      ]
+    },
+    {
+      "stay_id": 972,
+      "subject_id": 900972,
+      "chiefcomplaint": "fever",
+      "missing_fields": [
+        "dbp"
+      ]
+    },
+    {
+      "stay_id": 973,
+      "subject_id": 900973,
+      "chiefcomplaint": "altered mentality",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 974,
+      "subject_id": 900974,
+      "chiefcomplaint": "dizziness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 975,
+      "subject_id": 900975,
+      "chiefcomplaint": "hematemesis",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 981,
+      "subject_id": 900981,
+      "chiefcomplaint": "dizziness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 982,
+      "subject_id": 900982,
+      "chiefcomplaint": "dizziness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 983,
+      "subject_id": 900983,
+      "chiefcomplaint": "head injury",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 990,
+      "subject_id": 900990,
+      "chiefcomplaint": "dysarthria",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 992,
+      "subject_id": 900992,
+      "chiefcomplaint": "urinary Sx.-symptom",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 993,
+      "subject_id": 900993,
+      "chiefcomplaint": "syncope",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 995,
+      "subject_id": 900995,
+      "chiefcomplaint": "for examination",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 996,
+      "subject_id": 900996,
+      "chiefcomplaint": "voiding difficulty",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 999,
+      "subject_id": 900999,
+      "chiefcomplaint": "right side weakness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1000,
+      "subject_id": 901000,
+      "chiefcomplaint": "desaturation",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1001,
+      "subject_id": 901001,
+      "chiefcomplaint": "eyebrow laceration",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1002,
+      "subject_id": 901002,
+      "chiefcomplaint": "eye trauma",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1007,
+      "subject_id": 901007,
+      "chiefcomplaint": "post-CPR state",
+      "missing_fields": [
+        "resprate"
+      ]
+    },
+    {
+      "stay_id": 1010,
+      "subject_id": 901010,
+      "chiefcomplaint": "post-CPR state",
+      "missing_fields": [
+        "temperature",
+        "heartrate",
+        "resprate",
+        "o2sat",
+        "sbp",
+        "dbp"
+      ]
+    },
+    {
+      "stay_id": 1011,
+      "subject_id": 901011,
+      "chiefcomplaint": "facial lesion",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1018,
+      "subject_id": 901018,
+      "chiefcomplaint": "palpitation",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1019,
+      "subject_id": 901019,
+      "chiefcomplaint": "dysarthria",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1020,
+      "subject_id": 901020,
+      "chiefcomplaint": "itching",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1021,
+      "subject_id": 901021,
+      "chiefcomplaint": "copy",
+      "missing_fields": [
+        "temperature",
+        "heartrate",
+        "resprate",
+        "o2sat",
+        "sbp",
+        "dbp"
+      ]
+    },
+    {
+      "stay_id": 1023,
+      "subject_id": 901023,
+      "chiefcomplaint": "facial palsy left",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1024,
+      "subject_id": 901024,
+      "chiefcomplaint": "DZ - Dizziness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1028,
+      "subject_id": 901028,
+      "chiefcomplaint": "dyspnea",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1029,
+      "subject_id": 901029,
+      "chiefcomplaint": "Dental Problem",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1030,
+      "subject_id": 901030,
+      "chiefcomplaint": "skin rash",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1031,
+      "subject_id": 901031,
+      "chiefcomplaint": "PTBD malfunction",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1032,
+      "subject_id": 901032,
+      "chiefcomplaint": "PTBD malfunction",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1036,
+      "subject_id": 901036,
+      "chiefcomplaint": "Lt. side weakness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1040,
+      "subject_id": 901040,
+      "chiefcomplaint": "arrest",
+      "missing_fields": [
+        "temperature",
+        "heartrate",
+        "resprate",
+        "o2sat",
+        "sbp",
+        "dbp"
+      ]
+    },
+    {
+      "stay_id": 1042,
+      "subject_id": 901042,
+      "chiefcomplaint": "distension, abd",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1043,
+      "subject_id": 901043,
+      "chiefcomplaint": "hiccup",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1044,
+      "subject_id": 901044,
+      "chiefcomplaint": "rigth side weakness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1048,
+      "subject_id": 901048,
+      "chiefcomplaint": "distension, abd",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1049,
+      "subject_id": 901049,
+      "chiefcomplaint": "confuse mentality",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1050,
+      "subject_id": 901050,
+      "chiefcomplaint": "dyspnea",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1051,
+      "subject_id": 901051,
+      "chiefcomplaint": "palpitation",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1052,
+      "subject_id": 901052,
+      "chiefcomplaint": "cough",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1055,
+      "subject_id": 901055,
+      "chiefcomplaint": "loss of consciousness",
+      "missing_fields": [
+        "dbp"
+      ]
+    },
+    {
+      "stay_id": 1058,
+      "subject_id": 901058,
+      "chiefcomplaint": "Motor weakness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1059,
+      "subject_id": 901059,
+      "chiefcomplaint": "hematemesis",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1060,
+      "subject_id": 901060,
+      "chiefcomplaint": "myalgia",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1061,
+      "subject_id": 901061,
+      "chiefcomplaint": "general weakness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1064,
+      "subject_id": 901064,
+      "chiefcomplaint": "rotatory vertigo",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1065,
+      "subject_id": 901065,
+      "chiefcomplaint": "dysarthria",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1066,
+      "subject_id": 901066,
+      "chiefcomplaint": "dizziness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1067,
+      "subject_id": 901067,
+      "chiefcomplaint": "dysarthria",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1068,
+      "subject_id": 901068,
+      "chiefcomplaint": "vomiting",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1069,
+      "subject_id": 901069,
+      "chiefcomplaint": "Urticarial rash",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1070,
+      "subject_id": 901070,
+      "chiefcomplaint": "AVF malfunction",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1071,
+      "subject_id": 901071,
+      "chiefcomplaint": "general weakness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1074,
+      "subject_id": 901074,
+      "chiefcomplaint": "mental change",
+      "missing_fields": [
+        "resprate",
+        "sbp",
+        "dbp"
+      ]
+    },
+    {
+      "stay_id": 1075,
+      "subject_id": 901075,
+      "chiefcomplaint": "drowsy mentality",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1076,
+      "subject_id": 901076,
+      "chiefcomplaint": "post seizure",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1077,
+      "subject_id": 901077,
+      "chiefcomplaint": "Motor weakness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1078,
+      "subject_id": 901078,
+      "chiefcomplaint": "hematochezia",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1079,
+      "subject_id": 901079,
+      "chiefcomplaint": "altered mental change",
+      "missing_fields": [
+        "heartrate",
+        "resprate",
+        "o2sat",
+        "sbp",
+        "dbp"
+      ]
+    },
+    {
+      "stay_id": 1080,
+      "subject_id": 901080,
+      "chiefcomplaint": "hypoglycemic",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1085,
+      "subject_id": 901085,
+      "chiefcomplaint": "dyspnea",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1086,
+      "subject_id": 901086,
+      "chiefcomplaint": "Catheter removal",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1087,
+      "subject_id": 901087,
+      "chiefcomplaint": "hematochezia",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1088,
+      "subject_id": 901088,
+      "chiefcomplaint": "dizziness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1097,
+      "subject_id": 901097,
+      "chiefcomplaint": "rotatory vertigo",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1100,
+      "subject_id": 901100,
+      "chiefcomplaint": "hematuria",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1101,
+      "subject_id": 901101,
+      "chiefcomplaint": "dyspnea",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1102,
+      "subject_id": 901102,
+      "chiefcomplaint": "L side weakness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1103,
+      "subject_id": 901103,
+      "chiefcomplaint": "palpitation",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1104,
+      "subject_id": 901104,
+      "chiefcomplaint": "voiding difficulty",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1109,
+      "subject_id": 901109,
+      "chiefcomplaint": "rigth side weakness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1110,
+      "subject_id": 901110,
+      "chiefcomplaint": "PTBD leaukage",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1111,
+      "subject_id": 901111,
+      "chiefcomplaint": "dyspnea",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1112,
+      "subject_id": 901112,
+      "chiefcomplaint": "BST high",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1115,
+      "subject_id": 901115,
+      "chiefcomplaint": "epistaxis",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1116,
+      "subject_id": 901116,
+      "chiefcomplaint": "numbness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1117,
+      "subject_id": 901117,
+      "chiefcomplaint": "dizziness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1118,
+      "subject_id": 901118,
+      "chiefcomplaint": "dyspnea",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1124,
+      "subject_id": 901124,
+      "chiefcomplaint": "Seizure Like Activity",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1125,
+      "subject_id": 901125,
+      "chiefcomplaint": "dizziness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1126,
+      "subject_id": 901126,
+      "chiefcomplaint": "fever",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1127,
+      "subject_id": 901127,
+      "chiefcomplaint": "dizziness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1132,
+      "subject_id": 901132,
+      "chiefcomplaint": "mental change",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1133,
+      "subject_id": 901133,
+      "chiefcomplaint": "mental change",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1134,
+      "subject_id": 901134,
+      "chiefcomplaint": "acute dyspnea",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1135,
+      "subject_id": 901135,
+      "chiefcomplaint": "altered mentality",
+      "missing_fields": [
+        "temperature",
+        "heartrate",
+        "resprate",
+        "o2sat",
+        "sbp",
+        "dbp"
+      ]
+    },
+    {
+      "stay_id": 1144,
+      "subject_id": 901144,
+      "chiefcomplaint": "post-CPR state",
+      "missing_fields": [
+        "temperature",
+        "heartrate",
+        "resprate",
+        "o2sat",
+        "sbp",
+        "dbp"
+      ]
+    },
+    {
+      "stay_id": 1145,
+      "subject_id": 901145,
+      "chiefcomplaint": "hematemesis",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1152,
+      "subject_id": 901152,
+      "chiefcomplaint": "dizziness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1156,
+      "subject_id": 901156,
+      "chiefcomplaint": "dizziness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1157,
+      "subject_id": 901157,
+      "chiefcomplaint": "dizziness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1158,
+      "subject_id": 901158,
+      "chiefcomplaint": "general weakness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1159,
+      "subject_id": 901159,
+      "chiefcomplaint": "cold",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1164,
+      "subject_id": 901164,
+      "chiefcomplaint": "abnormal lab.",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1165,
+      "subject_id": 901165,
+      "chiefcomplaint": "fever",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1166,
+      "subject_id": 901166,
+      "chiefcomplaint": "tachycardia",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1172,
+      "subject_id": 901172,
+      "chiefcomplaint": "acute dyspnea",
+      "missing_fields": [
+        "temperature",
+        "heartrate",
+        "resprate",
+        "o2sat",
+        "sbp",
+        "dbp"
+      ]
+    },
+    {
+      "stay_id": 1173,
+      "subject_id": 901173,
+      "chiefcomplaint": "general weakness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1179,
+      "subject_id": 901179,
+      "chiefcomplaint": "Numbness, Arm",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1180,
+      "subject_id": 901180,
+      "chiefcomplaint": "syncope",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1181,
+      "subject_id": 901181,
+      "chiefcomplaint": "hypoglycemic symptom",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1182,
+      "subject_id": 901182,
+      "chiefcomplaint": "epistaxis",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1186,
+      "subject_id": 901186,
+      "chiefcomplaint": "?? ???",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1187,
+      "subject_id": 901187,
+      "chiefcomplaint": "perm cath. malfunction",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1191,
+      "subject_id": 901191,
+      "chiefcomplaint": "dyspnea",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1192,
+      "subject_id": 901192,
+      "chiefcomplaint": "acute dyspnea",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1198,
+      "subject_id": 901198,
+      "chiefcomplaint": "dyspnea",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1199,
+      "subject_id": 901199,
+      "chiefcomplaint": "dizziness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1200,
+      "subject_id": 901200,
+      "chiefcomplaint": "dizziness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1202,
+      "subject_id": 901202,
+      "chiefcomplaint": "hand laceration",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1205,
+      "subject_id": 901205,
+      "chiefcomplaint": "dysarthria",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1207,
+      "subject_id": 901207,
+      "chiefcomplaint": "medication",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1208,
+      "subject_id": 901208,
+      "chiefcomplaint": "dizziness",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1209,
+      "subject_id": 901209,
+      "chiefcomplaint": "Hyperkalemia (disorder)",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1216,
+      "subject_id": 901216,
+      "chiefcomplaint": "Drug Allergy",
+      "missing_fields": [
+        "o2sat"
+      ]
+    },
+    {
+      "stay_id": 1246,
+      "subject_id": 901246,
+      "chiefcomplaint": "ant. chest pain",
+      "missing_fields": [
+        "sbp",
+        "dbp"
+      ]
+    }
+  ],
+  "note": "Missing data is made visible for human review; no values are fabricated."
+}

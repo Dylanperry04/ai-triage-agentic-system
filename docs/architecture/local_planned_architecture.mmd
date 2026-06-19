@@ -1,0 +1,38 @@
+﻿flowchart TD
+    U[Research user / supervisor / future clinician reviewer] --> UI[Local Streamlit UI<br/>frontend/app.py]
+
+    UI --> DATASET{Dataset selected in UI}
+
+    DATASET --> MIMIC[MIMIC-IV-ED Demo adapter<br/>app/data_pipeline/mimic_adapter.py]
+    DATASET --> KTAS[Kaggle KTAS adapter<br/>app/data_pipeline/ktas_adapter.py]
+
+    MIMIC --> CASE[Canonical ED triage case<br/>EDTriageCase]
+    KTAS --> CASE
+
+    CASE --> ORCH[Workflow orchestrator<br/>app/agents/orchestrator.py]
+
+    ORCH --> VALIDATION[Data Validation Agent<br/>app/agents/data_validation_agent.py]
+    ORCH --> SUMMARY[Case Summary Agent<br/>app/agents/case_summary_agent.py]
+    ORCH --> RULES[Deterministic rules / safety layer<br/>Manchester engine<br/>provisional MTS ruleset<br/>acuity mapping<br/>vital escalation override<br/>leakage guard]
+    ORCH --> SAFETY[Safety Review Agent<br/>app/agents/safety_review_agent.py]
+    ORCH --> MLAGENT[ML Prediction Agent<br/>app/agents/ml_prediction_agent.py]
+
+    MLAGENT --> MIMICML[MIMIC acuity research model<br/>data/models/mimic_demo_acuity_rf_v1.joblib]
+    MLAGENT --> KTASML[KTAS research models<br/>RandomForest_ktas_5class.pkl<br/>RandomForest_ktas_emergency.pkl]
+
+    UI --> AUTOGEN[AutoGen explanation/chat layer<br/>single clinician chat agent<br/>multi-agent team:<br/>IntakeAgent<br/>ValidationAgent<br/>SafetyReviewAgent<br/>ExplanationAgent]
+
+    AUTOGEN --> ORCH
+    AUTOGEN --> AOAI[Azure OpenAI deployment<br/>configured by local .env]
+
+    UI --> AUDIT[Local audit/review storage<br/>data/processed/*.jsonl<br/>human review records<br/>follow-up records<br/>workflow run records]
+
+    VALIDATION --> REVIEW[Human clinician review required<br/>research-only output<br/>not for clinical use]
+    RULES --> REVIEW
+    SAFETY --> REVIEW
+    MLAGENT --> REVIEW
+    AUTOGEN --> REVIEW
+
+    AZURENOTE[Current deployment status:<br/>Deployed to Azure Web App<br/>ARI can now inventory Azure resources]
+
+    AZURENOTE -.-> UI

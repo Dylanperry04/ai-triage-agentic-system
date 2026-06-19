@@ -1,0 +1,18 @@
+﻿LOCAL ARCHITECTURE STATUS
+
+Project state:
+- Local VS Code project
+- Not yet deployed to Azure
+- Streamlit UI is the deployable app path
+- FastAPI exists but is not the current deployment path
+- Azure OpenAI is used by the AutoGen/explanation layer
+- MIMIC-IV-ED Demo and Kaggle KTAS are separate pipelines
+- Outputs are research-only and require clinician review
+
+Current local checks to record:
+- azure_preflight_check.py:
+- audit_mimic_demo.py:
+- run_triage_indicator_matrix.py:
+- pytest:
+- Streamlit local run:
+- Azure OpenAI local chat:

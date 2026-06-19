@@ -1,0 +1,75 @@
+{
+  "summary": {
+    "model_name": "mimic_demo_acuity_rf_v1",
+    "model_path": "/home/claude/work/verify_v6/ai_triage_ktas/data/models/mimic_demo_acuity_rf_v1.joblib",
+    "dataset": "MIMIC-IV-ED-Demo-v2.2",
+    "target": "acuity",
+    "n_train_rows": 207,
+    "class_distribution": {
+      "2": 97,
+      "3": 90,
+      "1": 18,
+      "4": 2
+    },
+    "cv_n_splits": 2,
+    "cv_accuracy": 0.5169082125603864,
+    "features_numeric": [
+      "temperature",
+      "heartrate",
+      "resprate",
+      "o2sat",
+      "sbp",
+      "dbp",
+      "pain"
+    ],
+    "features_categorical": [
+      "chiefcomplaint",
+      "gender",
+      "race",
+      "arrival_transport"
+    ],
+    "leakage_excluded": true,
+    "clinical_use": false,
+    "human_review_required": true,
+    "small_data_warning": "Trained on 207 public-demo rows with severe class imbalance (acuity 5 absent, acuity 4 ~2 rows). Metrics are illustrative only, NOT evidence of clinical performance."
+  },
+  "classification_report": {
+    "1": {
+      "precision": 0.375,
+      "recall": 0.3333333333333333,
+      "f1-score": 0.35294117647058826,
+      "support": 18.0
+    },
+    "2": {
+      "precision": 0.53,
+      "recall": 0.5463917525773195,
+      "f1-score": 0.5380710659898477,
+      "support": 97.0
+    },
+    "3": {
+      "precision": 0.5274725274725275,
+      "recall": 0.5333333333333333,
+      "f1-score": 0.5303867403314917,
+      "support": 90.0
+    },
+    "4": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 2.0
+    },
+    "accuracy": 0.5169082125603864,
+    "macro avg": {
+      "precision": 0.3581181318681319,
+      "recall": 0.35326460481099653,
+      "f1-score": 0.3553497456979819,
+      "support": 207.0
+    },
+    "weighted avg": {
+      "precision": 0.5103020650846738,
+      "recall": 0.5169082125603864,
+      "f1-score": 0.513433049310725,
+      "support": 207.0
+    }
+  }
+}

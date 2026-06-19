@@ -1,0 +1,722 @@
+{
+  "evaluation_report_version": "ktas-1.0",
+  "generated_at": "2026-06-17T14:10:25.254357+00:00",
+  "dataset": "Kaggle-KTAS",
+  "training_data": "/home/claude/ai_triage_ktas/data/processed/ktas_labels.jsonl",
+  "n_samples": 1267,
+  "research_note": "Models are trained on public Kaggle KTAS data using KTAS_expert as the research target. KTAS is not Manchester triage. This is not a clinical validation result.",
+  "best_ktas_model": {
+    "name": "RandomForest",
+    "task": "ktas_5_class",
+    "accuracy": 0.6345698500394633,
+    "balanced_accuracy": 0.6103097022423027,
+    "macro_f1": 0.5852546881973223,
+    "macro_auroc": 0.8549258600753218,
+    "under_triage_rate": 0.18705603788476716,
+    "over_triage_rate": 0.17837411207576953,
+    "confusion_matrix": [
+      [
+        20,
+        6,
+        0,
+        0,
+        0
+      ],
+      [
+        6,
+        141,
+        43,
+        15,
+        15
+      ],
+      [
+        1,
+        68,
+        306,
+        73,
+        39
+      ],
+      [
+        1,
+        22,
+        78,
+        312,
+        46
+      ],
+      [
+        3,
+        3,
+        15,
+        29,
+        25
+      ]
+    ]
+  },
+  "best_emergency_model": {
+    "name": "RandomForest",
+    "task": "ktas_emergency_binary",
+    "accuracy": 0.7932123125493291,
+    "balanced_accuracy": 0.788236225863646,
+    "macro_f1": 0.788089219141004,
+    "macro_auroc": 0.8671255064866054,
+    "false_negative_emergency_rate": 0.1800818553888131,
+    "confusion_matrix": [
+      [
+        404,
+        130
+      ],
+      [
+        132,
+        601
+      ]
+    ]
+  },
+  "all_ktas_models": [
+    {
+      "name": "DummyMostFrequent",
+      "metrics": {
+        "model_name": "DummyMostFrequent",
+        "task": "ktas_5_class",
+        "classes": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "accuracy": 0.38437253354380424,
+        "balanced_accuracy": 0.2,
+        "macro_f1": 0.11106043329532497,
+        "weighted_f1": 0.2134429006109837,
+        "macro_auroc": 0.5,
+        "confusion_matrix": [
+          [
+            0,
+            0,
+            26,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            220,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            487,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            459,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            75,
+            0,
+            0
+          ]
+        ],
+        "classification_report": {
+          "1": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 26.0
+          },
+          "2": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 220.0
+          },
+          "3": {
+            "precision": 0.38437253354380424,
+            "recall": 1.0,
+            "f1-score": 0.5553021664766249,
+            "support": 487.0
+          },
+          "4": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 459.0
+          },
+          "5": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 75.0
+          },
+          "accuracy": 0.38437253354380424,
+          "macro avg": {
+            "precision": 0.07687450670876085,
+            "recall": 0.2,
+            "f1-score": 0.11106043329532497,
+            "support": 1267.0
+          },
+          "weighted avg": {
+            "precision": 0.14774224454288293,
+            "recall": 0.38437253354380424,
+            "f1-score": 0.2134429006109837,
+            "support": 1267.0
+          }
+        },
+        "under_triage_rate": 0.1941594317284925,
+        "over_triage_rate": 0.4214680347277032,
+        "selection_score": -0.1801787142974138
+      }
+    },
+    {
+      "name": "LogisticRegression",
+      "metrics": {
+        "model_name": "LogisticRegression",
+        "task": "ktas_5_class",
+        "classes": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "accuracy": 0.5627466456195738,
+        "balanced_accuracy": 0.6027556112786213,
+        "macro_f1": 0.5430992896698782,
+        "weighted_f1": 0.5842278358161782,
+        "macro_auroc": 0.8241427413772984,
+        "confusion_matrix": [
+          [
+            19,
+            6,
+            0,
+            1,
+            0
+          ],
+          [
+            11,
+            141,
+            39,
+            15,
+            14
+          ],
+          [
+            3,
+            78,
+            249,
+            82,
+            75
+          ],
+          [
+            0,
+            28,
+            63,
+            262,
+            106
+          ],
+          [
+            0,
+            7,
+            8,
+            18,
+            42
+          ]
+        ],
+        "classification_report": {
+          "1": {
+            "precision": 0.5757575757575758,
+            "recall": 0.7307692307692307,
+            "f1-score": 0.6440677966101694,
+            "support": 26.0
+          },
+          "2": {
+            "precision": 0.5423076923076923,
+            "recall": 0.6409090909090909,
+            "f1-score": 0.5875,
+            "support": 220.0
+          },
+          "3": {
+            "precision": 0.6935933147632312,
+            "recall": 0.5112936344969199,
+            "f1-score": 0.5886524822695035,
+            "support": 487.0
+          },
+          "4": {
+            "precision": 0.6931216931216931,
+            "recall": 0.5708061002178649,
+            "f1-score": 0.6260454002389486,
+            "support": 459.0
+          },
+          "5": {
+            "precision": 0.17721518987341772,
+            "recall": 0.56,
+            "f1-score": 0.2692307692307692,
+            "support": 75.0
+          },
+          "accuracy": 0.5627466456195738,
+          "macro avg": {
+            "precision": 0.536399093164722,
+            "recall": 0.6027556112786213,
+            "f1-score": 0.5430992896698782,
+            "support": 1267.0
+          },
+          "weighted avg": {
+            "precision": 0.6341683740729648,
+            "recall": 0.5627466456195738,
+            "f1-score": 0.5842278358161782,
+            "support": 1267.0
+          }
+        },
+        "under_triage_rate": 0.26677190213101815,
+        "over_triage_rate": 0.17048145224940806,
+        "selection_score": 0.142941436473351
+      }
+    },
+    {
+      "name": "RandomForest",
+      "metrics": {
+        "model_name": "RandomForest",
+        "task": "ktas_5_class",
+        "classes": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "accuracy": 0.6345698500394633,
+        "balanced_accuracy": 0.6103097022423027,
+        "macro_f1": 0.5852546881973223,
+        "weighted_f1": 0.6434318148850257,
+        "macro_auroc": 0.8549258600753218,
+        "confusion_matrix": [
+          [
+            20,
+            6,
+            0,
+            0,
+            0
+          ],
+          [
+            6,
+            141,
+            43,
+            15,
+            15
+          ],
+          [
+            1,
+            68,
+            306,
+            73,
+            39
+          ],
+          [
+            1,
+            22,
+            78,
+            312,
+            46
+          ],
+          [
+            3,
+            3,
+            15,
+            29,
+            25
+          ]
+        ],
+        "classification_report": {
+          "1": {
+            "precision": 0.6451612903225806,
+            "recall": 0.7692307692307693,
+            "f1-score": 0.7017543859649122,
+            "support": 26.0
+          },
+          "2": {
+            "precision": 0.5875,
+            "recall": 0.6409090909090909,
+            "f1-score": 0.6130434782608696,
+            "support": 220.0
+          },
+          "3": {
+            "precision": 0.6923076923076923,
+            "recall": 0.6283367556468172,
+            "f1-score": 0.658772874058127,
+            "support": 487.0
+          },
+          "4": {
+            "precision": 0.7272727272727273,
+            "recall": 0.6797385620915033,
+            "f1-score": 0.7027027027027027,
+            "support": 459.0
+          },
+          "5": {
+            "precision": 0.2,
+            "recall": 0.3333333333333333,
+            "f1-score": 0.25,
+            "support": 75.0
+          },
+          "accuracy": 0.6345698500394633,
+          "macro avg": {
+            "precision": 0.5704483419806001,
+            "recall": 0.6103097022423027,
+            "f1-score": 0.5852546881973223,
+            "support": 1267.0
+          },
+          "weighted avg": {
+            "precision": 0.6566663153278729,
+            "recall": 0.6345698500394633,
+            "f1-score": 0.6434318148850257,
+            "support": 1267.0
+          }
+        },
+        "under_triage_rate": 0.18705603788476716,
+        "over_triage_rate": 0.17837411207576953,
+        "selection_score": 0.3046706313701716
+      }
+    },
+    {
+      "name": "GaussianNB",
+      "metrics": {
+        "model_name": "GaussianNB",
+        "task": "ktas_5_class",
+        "classes": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "accuracy": 0.18468823993685873,
+        "balanced_accuracy": 0.45746490002148893,
+        "macro_f1": 0.21470904066156576,
+        "weighted_f1": 0.1861583389844146,
+        "macro_auroc": 0.7361226653687174,
+        "confusion_matrix": [
+          [
+            24,
+            2,
+            0,
+            0,
+            0
+          ],
+          [
+            73,
+            73,
+            13,
+            10,
+            51
+          ],
+          [
+            80,
+            17,
+            18,
+            43,
+            329
+          ],
+          [
+            16,
+            7,
+            14,
+            53,
+            369
+          ],
+          [
+            5,
+            1,
+            2,
+            1,
+            66
+          ]
+        ],
+        "classification_report": {
+          "1": {
+            "precision": 0.12121212121212122,
+            "recall": 0.9230769230769231,
+            "f1-score": 0.21428571428571427,
+            "support": 26.0
+          },
+          "2": {
+            "precision": 0.73,
+            "recall": 0.33181818181818185,
+            "f1-score": 0.45625,
+            "support": 220.0
+          },
+          "3": {
+            "precision": 0.3829787234042553,
+            "recall": 0.03696098562628337,
+            "f1-score": 0.06741573033707865,
+            "support": 487.0
+          },
+          "4": {
+            "precision": 0.4953271028037383,
+            "recall": 0.11546840958605664,
+            "f1-score": 0.1872791519434629,
+            "support": 459.0
+          },
+          "5": {
+            "precision": 0.08098159509202454,
+            "recall": 0.88,
+            "f1-score": 0.14831460674157304,
+            "support": 75.0
+          },
+          "accuracy": 0.18468823993685873,
+          "macro avg": {
+            "precision": 0.36209990850242785,
+            "recall": 0.45746490002148893,
+            "f1-score": 0.21470904066156576,
+            "support": 1267.0
+          },
+          "weighted avg": {
+            "precision": 0.46068738221642086,
+            "recall": 0.18468823993685873,
+            "f1-score": 0.1861583389844146,
+            "support": 1267.0
+          }
+        },
+        "under_triage_rate": 0.6448303078137332,
+        "over_triage_rate": 0.17048145224940806,
+        "selection_score": -0.752536421059034
+      }
+    }
+  ],
+  "all_emergency_models": [
+    {
+      "name": "DummyMostFrequent",
+      "metrics": {
+        "model_name": "DummyMostFrequent",
+        "task": "ktas_emergency_binary",
+        "classes": [
+          0,
+          1
+        ],
+        "accuracy": 0.5785319652722968,
+        "balanced_accuracy": 0.5,
+        "macro_f1": 0.3665,
+        "weighted_f1": 0.4240639305445935,
+        "macro_auroc": 0.5,
+        "confusion_matrix": [
+          [
+            0,
+            534
+          ],
+          [
+            0,
+            733
+          ]
+        ],
+        "classification_report": {
+          "0": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 534.0
+          },
+          "1": {
+            "precision": 0.5785319652722968,
+            "recall": 1.0,
+            "f1-score": 0.733,
+            "support": 733.0
+          },
+          "accuracy": 0.5785319652722968,
+          "macro avg": {
+            "precision": 0.2892659826361484,
+            "recall": 0.5,
+            "f1-score": 0.3665,
+            "support": 1267.0
+          },
+          "weighted avg": {
+            "precision": 0.33469923484182595,
+            "recall": 0.5785319652722968,
+            "f1-score": 0.4240639305445935,
+            "support": 1267.0
+          }
+        },
+        "false_negative_emergency_rate": 0.0,
+        "selection_score": 0.5
+      }
+    },
+    {
+      "name": "LogisticRegression",
+      "metrics": {
+        "model_name": "LogisticRegression",
+        "task": "ktas_emergency_binary",
+        "classes": [
+          0,
+          1
+        ],
+        "accuracy": 0.771112865035517,
+        "balanced_accuracy": 0.7757458701861417,
+        "macro_f1": 0.7691442573510933,
+        "weighted_f1": 0.772492572985284,
+        "macro_auroc": 0.8532427916673054,
+        "confusion_matrix": [
+          [
+            430,
+            104
+          ],
+          [
+            186,
+            547
+          ]
+        ],
+        "classification_report": {
+          "0": {
+            "precision": 0.698051948051948,
+            "recall": 0.8052434456928839,
+            "f1-score": 0.7478260869565218,
+            "support": 534.0
+          },
+          "1": {
+            "precision": 0.8402457757296466,
+            "recall": 0.7462482946793997,
+            "f1-score": 0.7904624277456648,
+            "support": 733.0
+          },
+          "accuracy": 0.771112865035517,
+          "macro avg": {
+            "precision": 0.7691488618907973,
+            "recall": 0.7757458701861417,
+            "f1-score": 0.7691442573510933,
+            "support": 1267.0
+          },
+          "weighted avg": {
+            "precision": 0.7803156226279173,
+            "recall": 0.771112865035517,
+            "f1-score": 0.772492572985284,
+            "support": 1267.0
+          }
+        },
+        "false_negative_emergency_rate": 0.25375170532060026,
+        "selection_score": 0.472615233686405
+      }
+    },
+    {
+      "name": "RandomForest",
+      "metrics": {
+        "model_name": "RandomForest",
+        "task": "ktas_emergency_binary",
+        "classes": [
+          0,
+          1
+        ],
+        "accuracy": 0.7932123125493291,
+        "balanced_accuracy": 0.788236225863646,
+        "macro_f1": 0.788089219141004,
+        "weighted_f1": 0.7932643236499212,
+        "macro_auroc": 0.8671255064866054,
+        "confusion_matrix": [
+          [
+            404,
+            130
+          ],
+          [
+            132,
+            601
+          ]
+        ],
+        "classification_report": {
+          "0": {
+            "precision": 0.753731343283582,
+            "recall": 0.7565543071161048,
+            "f1-score": 0.7551401869158878,
+            "support": 534.0
+          },
+          "1": {
+            "precision": 0.8221614227086184,
+            "recall": 0.819918144611187,
+            "f1-score": 0.8210382513661202,
+            "support": 733.0
+          },
+          "accuracy": 0.7932123125493291,
+          "macro avg": {
+            "precision": 0.7879463829961002,
+            "recall": 0.788236225863646,
+            "f1-score": 0.788089219141004,
+            "support": 1267.0
+          },
+          "weighted avg": {
+            "precision": 0.7933203316170877,
+            "recall": 0.7932123125493291,
+            "f1-score": 0.7932643236499212,
+            "support": 1267.0
+          }
+        },
+        "false_negative_emergency_rate": 0.1800818553888131,
+        "selection_score": 0.5970027234033857
+      }
+    },
+    {
+      "name": "GaussianNB",
+      "metrics": {
+        "model_name": "GaussianNB",
+        "task": "ktas_emergency_binary",
+        "classes": [
+          0,
+          1
+        ],
+        "accuracy": 0.6250986582478295,
+        "balanced_accuracy": 0.6650584279882071,
+        "macro_f1": 0.6164738600640203,
+        "weighted_f1": 0.6074405188083465,
+        "macro_auroc": 0.7814711487857094,
+        "confusion_matrix": [
+          [
+            491,
+            43
+          ],
+          [
+            432,
+            301
+          ]
+        ],
+        "classification_report": {
+          "0": {
+            "precision": 0.5319609967497292,
+            "recall": 0.9194756554307116,
+            "f1-score": 0.6739876458476322,
+            "support": 534.0
+          },
+          "1": {
+            "precision": 0.875,
+            "recall": 0.4106412005457026,
+            "f1-score": 0.5589600742804085,
+            "support": 733.0
+          },
+          "accuracy": 0.6250986582478295,
+          "macro avg": {
+            "precision": 0.7034804983748646,
+            "recall": 0.6650584279882071,
+            "f1-score": 0.6164738600640203,
+            "support": 1267.0
+          },
+          "weighted avg": {
+            "precision": 0.7304200254651582,
+            "recall": 0.6250986582478295,
+            "f1-score": 0.6074405188083465,
+            "support": 1267.0
+          }
+        },
+        "false_negative_emergency_rate": 0.5893587994542974,
+        "selection_score": -0.10256705039573666
+      }
+    }
+  ],
+  "governance_flags": [
+    "Not for clinical use.",
+    "KTAS is not Manchester Triage Scale.",
+    "No KTAS-to-Manchester mapping is implemented.",
+    "Models trained on public Kaggle data only; UHL validation not performed.",
+    "Do not use model outputs for autonomous patient triage.",
+    "Human clinical review is required for every case."
+  ]
+}

@@ -1,0 +1,112 @@
+{
+  "dataset": "Kaggle Emergency Service - KTAS Triage Application",
+  "source_file_shape": [
+    1267,
+    24
+  ],
+  "required_columns_present": true,
+  "columns": [
+    "Group",
+    "Sex",
+    "Age",
+    "Patients number per hour",
+    "Arrival mode",
+    "Injury",
+    "Chief_complain",
+    "Mental",
+    "Pain",
+    "NRS_pain",
+    "SBP",
+    "DBP",
+    "HR",
+    "RR",
+    "BT",
+    "Saturation",
+    "KTAS_RN",
+    "Diagnosis in ED",
+    "Disposition",
+    "KTAS_expert",
+    "Error_group",
+    "Length of stay_min",
+    "KTAS duration_min",
+    "mistriage"
+  ],
+  "delimiter": ";",
+  "encoding_used": "latin1",
+  "decimal_policy": "comma decimals parsed where present; dirty placeholders converted to null",
+  "numeric_quality": {
+    "NRS_pain": {
+      "missing_or_invalid_count": 556,
+      "missing_or_invalid_percent": 43.88,
+      "min": 1.0,
+      "max": 10.0
+    },
+    "SBP": {
+      "missing_or_invalid_count": 25,
+      "missing_or_invalid_percent": 1.97,
+      "min": 50.0,
+      "max": 275.0
+    },
+    "DBP": {
+      "missing_or_invalid_count": 29,
+      "missing_or_invalid_percent": 2.29,
+      "min": 31.0,
+      "max": 160.0
+    },
+    "HR": {
+      "missing_or_invalid_count": 20,
+      "missing_or_invalid_percent": 1.58,
+      "min": 32.0,
+      "max": 148.0
+    },
+    "RR": {
+      "missing_or_invalid_count": 22,
+      "missing_or_invalid_percent": 1.74,
+      "min": 14.0,
+      "max": 30.0
+    },
+    "BT": {
+      "missing_or_invalid_count": 18,
+      "missing_or_invalid_percent": 1.42,
+      "min": 35.0,
+      "max": 41.0
+    },
+    "Saturation": {
+      "missing_or_invalid_count": 697,
+      "missing_or_invalid_percent": 55.01,
+      "min": 20.0,
+      "max": 100.0
+    }
+  },
+  "ktas_expert_distribution": {
+    "4": 459,
+    "5": 75,
+    "3": 487,
+    "2": 220,
+    "1": 26
+  },
+  "ktas_rn_distribution": {
+    "2": 214,
+    "4": 501,
+    "3": 447,
+    "1": 18,
+    "5": 87
+  },
+  "mistriage_distribution": {
+    "over_triage": 55,
+    "under_triage": 131,
+    "correct": 1081
+  },
+  "leakage_columns_blocked_from_features": [
+    "KTAS_RN",
+    "KTAS_expert",
+    "mistriage",
+    "Error_group",
+    "Diagnosis in ED",
+    "Disposition",
+    "Length of stay_min",
+    "KTAS duration_min"
+  ],
+  "clinical_safety_note": "This dataset uses KTAS, not Manchester Triage Scale. No KTAS-to-Manchester mapping is implemented or assumed. All outputs remain not for clinical use.",
+  "cases_built": 1267
+}
