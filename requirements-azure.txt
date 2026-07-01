@@ -1,0 +1,7 @@
+# ── Azure deployment extras ─────────────────────────────────────────────────
+# Wired in the deployment image for the secured/patient-data profile:
+# Key Vault secrets via Managed Identity, and durable audit storage clients.
+# Not required for the public-data demo.
+azure-identity==1.17.1
+azure-keyvault-secrets==4.8.0
+azure-data-tables==12.5.0      # durable audit sink (Table Storage) — or use Blob/Cosmos

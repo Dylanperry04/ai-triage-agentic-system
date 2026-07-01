@@ -1,0 +1,10 @@
+# AutoGen app-runtime dependencies.
+# Install only in the app venv:
+#   pip install -r requirements.txt -r requirements-autogen.txt
+# Do not install training-only W&B/XGBoost/LightGBM/CatBoost dependencies into
+# this venv; use a separate training venv with requirements-ml.txt.
+autogen-agentchat==0.7.5
+autogen-core==0.7.5
+autogen-ext[openai,azure]==0.7.5
+requests>=2.32.0
+python-dotenv>=1.0.0

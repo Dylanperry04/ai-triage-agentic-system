@@ -1,0 +1,44 @@
+﻿# environments
+.venv/
+.venv*/
+venv/
+venv*/
+.venv-training/
+.venv-testing/
+.env
+.env.*
+!.env.example
+
+# caches
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# secrets
+*.pem
+*.key
+*.pfx
+*.p12
+secrets.*
+.streamlit/secrets.toml
+
+# restricted / large clinical data
+mimic_data/
+mimic-iv-ed*/
+**/mimic-iv-ed*/
+*.csv.gz
+*.parquet
+*.sqlite
+*.sqlite3
+*.db
+
+# model artefacts / generated outputs
+*.joblib
+ai_triage_full_mimic_outputs*/
+ai_triage_local_output*/
+
+# local runtime outputs
+data/processed/*.jsonl
+data/processed/*.csv

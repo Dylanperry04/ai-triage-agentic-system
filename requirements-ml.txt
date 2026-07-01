@@ -1,0 +1,12 @@
+# ── Full-MIMIC training-only dependencies ───────────────────────────────────
+# Used ONLY on the credentialed/approved environment for model comparison and
+# full-MIMIC training (ml_training/). Not required to run the app.
+# Install in a separate training venv:
+#   pip install -r requirements.txt -r requirements-ml.txt
+# Do not install requirements-autogen.txt here; keep AutoGen app runtime isolated
+# from W&B/training dependency resolution.
+scikit-learn==1.5.1            # pinned to match the runtime for artefact compatibility
+xgboost==2.1.0
+lightgbm==4.4.0
+catboost==1.2.5
+wandb==0.17.0                  # optional experiment tracking / governance logging

@@ -1,0 +1,39 @@
+# ── Application runtime (Streamlit frontend + FastAPI backend) ──────────────
+# App venv:      pip install -r requirements.txt -r requirements-autogen.txt
+# Training venv: pip install -r requirements.txt -r requirements-ml.txt
+# For tests:     pip install -r requirements-dev.txt
+# Full-MIMIC training must run in the training venv, not the app/AutoGen venv.
+# For Azure deployment extras:                pip install -r requirements-azure.txt
+
+# Core web framework (FastAPI backend)
+fastapi==0.111.0
+uvicorn==0.30.1
+gunicorn==23.0.0
+
+# Data
+pandas==2.2.2
+numpy==1.26.4
+
+# Validation
+pydantic==2.10.6
+
+# Azure OpenAI (LLM explanation layer)
+openai==2.41.0
+
+# Environment / serialisation / HTTP
+python-dotenv==1.0.1
+orjson==3.10.6
+requests==2.32.3
+httpx==0.27.2
+
+# UI
+streamlit==1.51.0
+
+# ML — core (full-MIMIC model artefact compatibility/runtime)
+# Pinned for model-artefact compatibility; see
+# ml_training/full_mimic/check_artifact_compatibility.py
+scikit-learn==1.5.1
+joblib==1.4.2
+
+# Utilities
+tqdm==4.66.4

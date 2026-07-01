@@ -1,0 +1,24 @@
+{
+  "created_at_utc": "2026-06-17T14:10:25.254357+00:00",
+  "version": "22.0.0",
+  "package_checkpoint": "codex_fixed_v17",
+  "registry_schema_version": "1.0.0",
+  "dataset": "MIMIC-IV-ED-Full-v2.2",
+  "research_note": "Full MIMIC-IV-ED is the only prediction/training dataset. The trained model artefact is produced on the credentialed/approved environment (ml_training/full_mimic/) and referenced at runtime via MIMIC_FULL_MODEL_PATH; it is never committed to this repository. The retired demo/KTAS models have been removed. Not clinically validated; clinician review required.",
+  "full_mimic_model": {
+    "name": "mimic_full_acuity_model",
+    "path_env": "MIMIC_FULL_MODEL_PATH",
+    "trained_where": "credentialed_environment_only",
+    "status": "not_present_in_repo"
+  },
+  "blocked_leakage_features": [
+    "acuity",
+    "disposition",
+    "outtime",
+    "hadm_id",
+    "diagnoses",
+    "medrecon",
+    "pyxis",
+    "vitals_timeseries"
+  ]
+}
