@@ -37,3 +37,7 @@ joblib==1.4.2
 
 # Utilities
 tqdm==4.66.4
+# AutoGen runtime dependencies for demo explanation layer
+autogen-agentchat==0.7.5
+autogen-core==0.7.5
+autogen-ext[openai,azure]==0.7.5
