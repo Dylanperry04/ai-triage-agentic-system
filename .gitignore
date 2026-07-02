@@ -42,3 +42,15 @@ ai_triage_local_output*/
 # local runtime outputs
 data/processed/*.jsonl
 data/processed/*.csv
+
+.env
+.env.*
+!.env.example
+*.joblib
+*.pkl
+*.csv.gz
+*.parquet
+*.sqlite
+*.sqlite3
+*.db
+
