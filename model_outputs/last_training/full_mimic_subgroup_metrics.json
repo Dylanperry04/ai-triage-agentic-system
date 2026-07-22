@@ -1,0 +1,20 @@
+{
+  "subgroups_by_sex": {
+    "F": {
+      "high_acuity_sensitivity": 0.9937301587301587,
+      "specificity": 0.12175494430552398,
+      "over_triage_rate": 0.878245055694476,
+      "predicted_urgent_rate": 0.9203064026593438
+    },
+    "M": {
+      "high_acuity_sensitivity": 0.9958986137314412,
+      "specificity": 0.11058365285131763,
+      "over_triage_rate": 0.8894163471486823,
+      "predicted_urgent_rate": 0.9347704562923626
+    }
+  },
+  "training_run_id": "1e058630-5a5b-481b-9fc9-a91866c85d8d",
+  "synthetic_data_used": false,
+  "demo_fixture_used": false,
+  "test_fixture_used": false
+}

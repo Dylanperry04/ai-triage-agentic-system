@@ -1,0 +1,31 @@
+{
+  "under_over_triage": {
+    "n": 63217,
+    "under_triage_count": 3970,
+    "severe_under_triage_count": 584,
+    "over_triage_count": 35147,
+    "exact_count": 24100,
+    "within_1_acuity_level_count": 59525,
+    "under_triage_rate": 0.0627995634085768,
+    "severe_under_triage_rate": 0.009238021418289385,
+    "over_triage_rate": 0.5559738677887277,
+    "exact_rate": 0.38122656880269545,
+    "within_1_acuity_level_accuracy": 0.9415979878830062
+  },
+  "ordinal_metrics": {
+    "n": 63217,
+    "mae": 0.6804024233987693,
+    "within_1_acuity_level_accuracy": 0.9415979878830062,
+    "quadratic_weighted_kappa": 0.3159339833720647
+  },
+  "over_triage_specificity": {
+    "high_acuity_sensitivity": 0.9947964987293776,
+    "specificity": 0.11697808775308385,
+    "over_triage_rate": 0.8830219122469162,
+    "predicted_urgent_rate": 0.9268551180853252
+  },
+  "training_run_id": "1e058630-5a5b-481b-9fc9-a91866c85d8d",
+  "synthetic_data_used": false,
+  "demo_fixture_used": false,
+  "test_fixture_used": false
+}

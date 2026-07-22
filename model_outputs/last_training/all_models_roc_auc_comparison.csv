@@ -1,0 +1,2 @@
+model_name,binary_target,auroc,pr_auc,source,limitation
+binary_raw_tfidf_word_char_logistic_high_acuity_detector,acuity_1_2_vs_3_4_5,0.8710992879812137,0.8287955748152063,full_mimic_high_acuity_detector_report.untouched_test_metrics.auroc_pr_auc,Last training run did not store AUROC/PR-AUC per multiclass candidate; selected binary detector metrics only.

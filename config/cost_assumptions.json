@@ -1,0 +1,50 @@
+{
+  "model_name": "ChatGPT 5.6 / latest frontier model assumption",
+  "input_token_rate_per_1m": null,
+  "output_token_rate_per_1m": null,
+  "hosting": {
+    "service": "Azure App Service Basic B1",
+    "region": "Sweden Central",
+    "instance_count": 1,
+    "vcpu": 1,
+    "memory_gb": 1.75,
+    "runtime": "Python 3.11",
+    "deployment": "GitHub Actions",
+    "monthly_rate": null,
+    "pricing_status": "pricing_pending_confirmation"
+  },
+  "storage": {
+    "tabular_data_gb": null,
+    "image_upload_gb": null,
+    "monthly_storage_rate_per_gb": null,
+    "pricing_status": "pricing_pending_confirmation"
+  },
+  "retraining": {
+    "monthly_retraining_runs": 1,
+    "gpu_hours_per_run": null,
+    "gpu_hour_rate": null,
+    "pricing_status": "pricing_pending_confirmation"
+  },
+  "scenarios": {
+    "demo_pilot": {
+      "calls_per_month": 500,
+      "input_tokens_per_call": 1500,
+      "output_tokens_per_call": 500
+    },
+    "low_usage": {
+      "calls_per_month": 2000,
+      "input_tokens_per_call": 1500,
+      "output_tokens_per_call": 500
+    },
+    "medium_usage": {
+      "calls_per_month": 20000,
+      "input_tokens_per_call": 1500,
+      "output_tokens_per_call": 500
+    },
+    "high_usage": {
+      "calls_per_month": 100000,
+      "input_tokens_per_call": 1500,
+      "output_tokens_per_call": 500
+    }
+  }
+}

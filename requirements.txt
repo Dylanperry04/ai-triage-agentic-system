@@ -1,0 +1,55 @@
+# ── Application runtime (Streamlit frontend + FastAPI backend) ──────────────
+# App venv:      pip install -r requirements.txt -r requirements-autogen.txt
+# Training venv: pip install -r requirements.txt -r requirements-ml.txt
+# For tests:     pip install -r requirements-dev.txt
+# Full-MIMIC training must run in the training venv, not the app/AutoGen venv.
+# For Azure deployment extras:                pip install -r requirements-azure.txt
+
+# Core web framework (FastAPI backend)
+fastapi==0.111.0
+python-multipart==0.0.9
+uvicorn==0.30.1
+gunicorn==23.0.0
+
+# Data
+pandas==2.2.2
+numpy==1.26.4
+
+# Validation
+pydantic==2.10.6
+
+# Azure OpenAI (LLM explanation layer)
+openai==2.41.0
+
+# AutoGen multi-agent explanation runtime.
+# Azure App Service / Oryx installs requirements.txt by default, so these must
+# be here as well as in requirements-autogen.txt.
+autogen-agentchat==0.7.5
+autogen-core==0.7.5
+autogen-ext[openai]==0.7.5
+
+# Environment / serialisation / HTTP
+python-dotenv==1.0.1
+orjson==3.10.6
+requests==2.32.3
+httpx==0.27.2
+
+# UI
+streamlit==1.51.0
+
+# ML — core (full-MIMIC model artefact compatibility/runtime)
+# Pinned for model-artefact compatibility; see
+# ml_training/full_mimic/check_artifact_compatibility.py
+scikit-learn==1.5.1
+joblib==1.4.2
+imbalanced-learn>=0.12.3,<0.14
+
+# Utilities
+tqdm==4.66.4
+
+# Optional governance evidence logging
+wandb>=0.17.0,<1.0
+protobuf==5.29.6
+xgboost==2.1.0
+lightgbm==4.4.0
+catboost==1.2.5

@@ -1,0 +1,135 @@
+﻿name: Deploy AI Triage to Azure
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-triage-production
+  cancel-in-progress: true
+
+env:
+  AZURE_WEBAPP_NAME: ai-triage-agentic-system
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-autogen.txt
+
+      - name: Validate deployment files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test -f requirements.txt
+          test -f startup-backend.sh
+          test -f app/main.py
+          test -f frontend-react/dist/index.html
+          test -f model_outputs/last_training/mimic_full_acuity_selected.joblib
+
+          echo "Required deployment files are present."
+
+      - name: Create deployment directory
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          rm -rf deployment
+          mkdir -p deployment
+
+          rsync -a ./ deployment/ \
+            --exclude '.git/' \
+            --exclude '.github/' \
+            --exclude '.venv/' \
+            --exclude '.venv*/' \
+            --exclude 'venv/' \
+            --exclude 'env/' \
+            --exclude 'antenv/' \
+            --exclude '__pycache__/' \
+            --exclude '.pytest_cache/' \
+            --exclude '.mypy_cache/' \
+            --exclude '.ruff_cache/' \
+            --exclude 'frontend-react/node_modules/' \
+            --exclude 'node_modules/' \
+            --exclude 'wandb/' \
+            --exclude 'wandb-offline/' \
+            --exclude 'wandb_logs/' \
+            --exclude 'mimic_data/' \
+            --exclude 'mimic-iv-ed*/' \
+            --exclude '.env' \
+            --exclude '.env.*' \
+            --exclude '*.csv.gz' \
+            --exclude '*.parquet' \
+            --exclude '*.sqlite' \
+            --exclude '*.sqlite3' \
+            --exclude '*.db'
+
+      - name: Build Azure Python environment
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python -m venv deployment/antenv
+
+          deployment/antenv/bin/python -m pip install \
+            --upgrade pip setuptools wheel
+
+          deployment/antenv/bin/python -m pip install \
+            --no-cache-dir \
+            -r deployment/requirements.txt
+
+          if [ -f deployment/requirements-autogen.txt ]; then
+            deployment/antenv/bin/python -m pip install \
+              --no-cache-dir \
+              -r deployment/requirements-autogen.txt
+          fi
+
+          deployment/antenv/bin/python -m pip check
+
+      - name: Verify deployment imports
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          export PYTHONPATH="$GITHUB_WORKSPACE/deployment"
+
+          deployment/antenv/bin/python -c \
+            "import fastapi, uvicorn, sklearn, joblib; import app.main; print('Deployment imports OK')"
+
+      - name: Create deployment ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cd deployment
+          zip -qr ../deployment.zip .
+          cd ..
+
+          echo "Deployment package:"
+          ls -lh deployment.zip
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: deployment.zip

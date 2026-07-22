@@ -1,0 +1,73 @@
+# Build the React frontend and deploy the whole app (FastAPI + built UI) to
+# Azure App Service. Uses the publish-profile flow — no cloud credentials in
+# the repo.
+#
+# One-time setup:
+#   1. In the Azure Portal, open your App Service -> Get publish profile, and
+#      save its contents as the repo secret AZURE_WEBAPP_PUBLISH_PROFILE.
+#   2. Set the repo/organisation Actions VARIABLE `AZURE_WEBAPP_NAME` to your
+#      App Service name (Settings -> Secrets and variables -> Actions ->
+#      Variables). The workflow reads it below; no tracked file needs editing.
+#   3. App Service configuration: Python 3.11, startup command
+#      `bash startup-backend.sh`, and the app settings listed in
+#      infrastructure/azure_deploy.md ("Single-service React UI" section).
+#
+# Note: frontend-react/dist is also committed, so Azure's own GitHub (Oryx)
+# deployment works without this workflow. This workflow simply rebuilds the UI
+# from source on every push so the committed dist can never go stale in what
+# actually ships.
+name: Deploy to Azure App Service
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install backend + AutoGen + dev dependencies
+        run: |
+          pip install -r requirements.txt -r requirements-autogen.txt -r requirements-dev.txt
+
+      - name: Run backend test suite
+        run: python -m pytest tests/ -q
+
+  build-and-deploy:
+    needs: backend-tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend-react/package-lock.json
+
+      - name: Build React frontend (unit tests gate the build)
+        working-directory: frontend-react
+        run: |
+          npm ci
+          npm test
+          npm run build
+
+      - name: Remove node_modules before upload
+        run: rm -rf frontend-react/node_modules
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          # App Service name comes from the AZURE_WEBAPP_NAME repo variable so
+          # this workflow is deployable without editing tracked code.
+          app-name: ${{ vars.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: .

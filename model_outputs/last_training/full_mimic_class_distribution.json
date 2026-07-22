@@ -1,0 +1,113 @@
+{
+  "training_run_id": "1e058630-5a5b-481b-9fc9-a91866c85d8d",
+  "dataset_source": "MIMIC-IV-ED-Full-v2.2",
+  "split_kind": "stratified_patient_grouped",
+  "patient_level_split": true,
+  "stratified_split": true,
+  "balance_before_split": false,
+  "validation_and_test_resampled": false,
+  "sampling_policy": "Any class balancing or SMOTE is applied inside training pipelines after the train/validation/test split. Validation and test retain the natural MIMIC-IV-ED class distribution.",
+  "labels": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+  ],
+  "overall": {
+    "total": 418100,
+    "class_counts": {
+      "1": 24019,
+      "2": 139411,
+      "3": 225066,
+      "4": 28504,
+      "5": 1100
+    },
+    "class_percentages": {
+      "1": 0.05744797895240373,
+      "2": 0.3334393685721119,
+      "3": 0.5383066252092801,
+      "4": 0.06817507773259986,
+      "5": 0.0026309495336044007
+    },
+    "high_acuity_1_2_count": 163430,
+    "high_acuity_1_2_percentage": 0.39088734752451565,
+    "non_high_acuity_3_5_count": 254670,
+    "non_high_acuity_3_5_percentage": 0.6091126524754843,
+    "minority_class_count": 1100,
+    "majority_class_count": 225066,
+    "minority_to_majority_ratio": 0.0048874552353531855
+  },
+  "train": {
+    "total": 291853,
+    "class_counts": {
+      "1": 16717,
+      "2": 97550,
+      "3": 157028,
+      "4": 19795,
+      "5": 763
+    },
+    "class_percentages": {
+      "1": 0.05727883557818491,
+      "2": 0.3342436089401171,
+      "3": 0.5380379848759478,
+      "4": 0.06782524078902735,
+      "5": 0.002614329816722802
+    },
+    "high_acuity_1_2_count": 114267,
+    "high_acuity_1_2_percentage": 0.39152244451830204,
+    "non_high_acuity_3_5_count": 177586,
+    "non_high_acuity_3_5_percentage": 0.608477555481698,
+    "minority_class_count": 763,
+    "majority_class_count": 157028,
+    "minority_to_majority_ratio": 0.0048590060371398736
+  },
+  "validation": {
+    "total": 63030,
+    "class_counts": {
+      "1": 3626,
+      "2": 20746,
+      "3": 34078,
+      "4": 4404,
+      "5": 176
+    },
+    "class_percentages": {
+      "1": 0.05752816119308266,
+      "2": 0.32914485165794066,
+      "3": 0.5406631762652705,
+      "4": 0.06987148976677772,
+      "5": 0.002792321116928447
+    },
+    "high_acuity_1_2_count": 24372,
+    "high_acuity_1_2_percentage": 0.38667301285102335,
+    "non_high_acuity_3_5_count": 38658,
+    "non_high_acuity_3_5_percentage": 0.6133269871489767,
+    "minority_class_count": 176,
+    "majority_class_count": 34078,
+    "minority_to_majority_ratio": 0.005164622336991607
+  },
+  "test": {
+    "total": 63217,
+    "class_counts": {
+      "1": 3676,
+      "2": 21115,
+      "3": 33960,
+      "4": 4305,
+      "5": 161
+    },
+    "class_percentages": {
+      "1": 0.05814891563978044,
+      "2": 0.3340082572725691,
+      "3": 0.537197272885458,
+      "4": 0.06809877090023253,
+      "5": 0.002546783301959916
+    },
+    "high_acuity_1_2_count": 24791,
+    "high_acuity_1_2_percentage": 0.3921571729123495,
+    "non_high_acuity_3_5_count": 38426,
+    "non_high_acuity_3_5_percentage": 0.6078428270876505,
+    "minority_class_count": 161,
+    "majority_class_count": 33960,
+    "minority_to_majority_ratio": 0.004740871613663133
+  }
+}

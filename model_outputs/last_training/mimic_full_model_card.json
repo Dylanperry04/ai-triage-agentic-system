@@ -1,0 +1,82 @@
+{
+  "model_name": "mimic_full_acuity_selected",
+  "model_kind": "raw_tfidf_word_char_sgd_logistic",
+  "selected_by": "triage_safety_metrics (high-acuity recall, then low severe under-triage, low under-triage, then F1/accuracy)",
+  "dataset": "MIMIC-IV-ED-Full-v2.2 (credentialed; read from MIMIC_FULL_ED_DIR)",
+  "dataset_source": "MIMIC-IV-ED-Full-v2.2",
+  "synthetic_data_used": false,
+  "demo_fixture_used": false,
+  "test_fixture_used": false,
+  "labels": [
+    "1.0",
+    "2.0",
+    "3.0",
+    "4.0",
+    "5.0"
+  ],
+  "headline_metrics": {
+    "split": "untouched_test",
+    "high_acuity_recall": 0.9947964987293776,
+    "severe_under_triage_rate": 0.009238021418289385,
+    "under_triage_rate": 0.0627995634085768,
+    "mae": 0.6804024233987693,
+    "quadratic_weighted_kappa": 0.3159339833720647,
+    "within_1_acuity_level_accuracy": 0.9415979878830062,
+    "accuracy": 0.38122656880269545,
+    "macro_f1": 0.3235386221878302,
+    "weighted_f1": 0.25048387737842637
+  },
+  "validation_selection_metrics": {
+    "high_acuity_recall": 0.9954866239947481,
+    "severe_under_triage_rate": 0.008773599873076313,
+    "under_triage_rate": 0.060812311597651915,
+    "mae": 0.6836268443598287,
+    "quadratic_weighted_kappa": 0.31834312842423373,
+    "within_1_acuity_level_accuracy": 0.9403617325083293,
+    "accuracy": 0.37913691892749485,
+    "macro_f1": 0.3282066920180836,
+    "weighted_f1": 0.24907287396483505
+  },
+  "selected_decision_rule": {
+    "type": "high_acuity_threshold",
+    "threshold": 0.05,
+    "labels": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "validation_tuned": true
+  },
+  "decision_rule_tuned_on": "validation",
+  "test_set_used_for_decision_rule_tuning": false,
+  "split_kind": "stratified_patient_grouped",
+  "patient_level_split": true,
+  "patient_overlap_train_test": 0,
+  "test_set_used_for_model_selection": false,
+  "final_test_evaluation_once": true,
+  "preprocessing_inside_pipeline": true,
+  "leakage_audit_passed": true,
+  "synthetic_audit_passed": true,
+  "n_train": 291853,
+  "n_val": 63030,
+  "n_test": 63217,
+  "intended_use": "Research decision-support only. Clinician review required on every output. Not clinically validated. UHL validation pending governance approval.",
+  "excluded_leakage_features": [
+    "acuity",
+    "disposition",
+    "outtime",
+    "hadm_id",
+    "subject_id",
+    "stay_id",
+    "diagnoses",
+    "medrecon",
+    "pyxis",
+    "vitals_timeseries"
+  ],
+  "generated": "2026-07-08",
+  "training_run_id": "1e058630-5a5b-481b-9fc9-a91866c85d8d",
+  "feature_schema_hash": "cda7e2a9f27a4de3b3e6a75ad507d9d8edbf6536e7c8f3b4f5342e814d134c35",
+  "model_artifact_sha256": "3278f566ee2b041f633accd8dd88834e6e33b0b5a1f98864335dd13d096681d8"
+}

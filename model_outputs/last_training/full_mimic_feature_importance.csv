@@ -1,0 +1,2 @@
+status,model_name,feature,importance,note
+not_available_for_last_training_run,raw_tfidf_word_char_sgd_logistic,,,Last training run did not generate a validated feature-importance report; no values fabricated.

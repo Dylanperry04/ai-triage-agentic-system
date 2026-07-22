@@ -1,0 +1,48 @@
+{
+  "training_run_id": "1e058630-5a5b-481b-9fc9-a91866c85d8d",
+  "model_name": "binary_raw_tfidf_word_char_logistic_high_acuity_detector",
+  "target": "acuity_1_2_high_acuity_vs_3_5_non_high_acuity",
+  "selected_threshold": 0.05,
+  "curve_source": "derived_from_full_mimic_high_acuity_detector_report.validation_threshold_curve",
+  "curve_limitation": "Existing last-training artefacts did not include raw probability scores. These ROC/PR CSV/PNG files are threshold-grid visualisations derived from validation threshold metrics, not recomputed from raw test probabilities.",
+  "validation_only_threshold_selection": true,
+  "test_set_used_for_threshold_selection": false,
+  "untouched_test_metrics": {
+    "precision_non_high_acuity": 0.985408890397014,
+    "precision_high_acuity": 0.41061888169902105,
+    "recall_non_high_acuity": 0.07557383021912246,
+    "recall_high_acuity": 0.9982654995764592,
+    "f1_non_high_acuity": 0.14038140816474512,
+    "f1_high_acuity": 0.5818882919316726,
+    "support_non_high_acuity": 38426,
+    "support_high_acuity": 24791,
+    "confusion_matrix_labels": [
+      "not_high_acuity",
+      "high_acuity"
+    ],
+    "confusion_matrix": [
+      [
+        2904,
+        35522
+      ],
+      [
+        43,
+        24748
+      ]
+    ],
+    "specificity_view": {
+      "high_acuity_sensitivity": 0.9982654995764592,
+      "specificity": 0.07557383021912246,
+      "over_triage_rate": 0.9244261697808775,
+      "predicted_urgent_rate": 0.9533827926032554
+    },
+    "auroc_pr_auc": {
+      "auroc": 0.8710992879812137,
+      "pr_auc": 0.8287955748152063
+    }
+  },
+  "roc_curve_csv": "selected_model_roc_curve.csv",
+  "pr_curve_csv": "selected_model_pr_curve.csv",
+  "roc_curve_png": "selected_model_roc_curve.png",
+  "pr_curve_png": "selected_model_pr_curve.png"
+}

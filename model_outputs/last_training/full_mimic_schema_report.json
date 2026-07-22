@@ -1,0 +1,178 @@
+{
+  "tables": {
+    "diagnosis": {
+      "status": "OK",
+      "row_count": 899050,
+      "expected_columns": [
+        "subject_id",
+        "stay_id",
+        "seq_num",
+        "icd_code",
+        "icd_version",
+        "icd_title"
+      ],
+      "actual_columns": [
+        "subject_id",
+        "stay_id",
+        "seq_num",
+        "icd_code",
+        "icd_version",
+        "icd_title"
+      ],
+      "missing_columns": [],
+      "extra_columns": [],
+      "required_missing": []
+    },
+    "edstays": {
+      "status": "OK",
+      "row_count": 425087,
+      "expected_columns": [
+        "subject_id",
+        "hadm_id",
+        "stay_id",
+        "intime",
+        "outtime",
+        "gender",
+        "race",
+        "arrival_transport",
+        "disposition"
+      ],
+      "actual_columns": [
+        "subject_id",
+        "hadm_id",
+        "stay_id",
+        "intime",
+        "outtime",
+        "gender",
+        "race",
+        "arrival_transport",
+        "disposition"
+      ],
+      "missing_columns": [],
+      "extra_columns": [],
+      "required_missing": []
+    },
+    "medrecon": {
+      "status": "OK",
+      "row_count": 2987342,
+      "expected_columns": [
+        "subject_id",
+        "stay_id",
+        "charttime",
+        "name",
+        "gsn",
+        "ndc",
+        "etc_rn",
+        "etccode",
+        "etcdescription"
+      ],
+      "actual_columns": [
+        "subject_id",
+        "stay_id",
+        "charttime",
+        "name",
+        "gsn",
+        "ndc",
+        "etc_rn",
+        "etccode",
+        "etcdescription"
+      ],
+      "missing_columns": [],
+      "extra_columns": [],
+      "required_missing": []
+    },
+    "pyxis": {
+      "status": "OK",
+      "row_count": 1586053,
+      "expected_columns": [
+        "subject_id",
+        "stay_id",
+        "charttime",
+        "med_rn",
+        "name",
+        "gsn_rn",
+        "gsn"
+      ],
+      "actual_columns": [
+        "subject_id",
+        "stay_id",
+        "charttime",
+        "med_rn",
+        "name",
+        "gsn_rn",
+        "gsn"
+      ],
+      "missing_columns": [],
+      "extra_columns": [],
+      "required_missing": []
+    },
+    "triage": {
+      "status": "OK",
+      "row_count": 425087,
+      "expected_columns": [
+        "subject_id",
+        "stay_id",
+        "temperature",
+        "heartrate",
+        "resprate",
+        "o2sat",
+        "sbp",
+        "dbp",
+        "pain",
+        "acuity",
+        "chiefcomplaint"
+      ],
+      "actual_columns": [
+        "subject_id",
+        "stay_id",
+        "temperature",
+        "heartrate",
+        "resprate",
+        "o2sat",
+        "sbp",
+        "dbp",
+        "pain",
+        "acuity",
+        "chiefcomplaint"
+      ],
+      "missing_columns": [],
+      "extra_columns": [],
+      "required_missing": []
+    },
+    "vitalsign": {
+      "status": "OK",
+      "row_count": 1564610,
+      "expected_columns": [
+        "subject_id",
+        "stay_id",
+        "charttime",
+        "temperature",
+        "heartrate",
+        "resprate",
+        "o2sat",
+        "sbp",
+        "dbp",
+        "rhythm",
+        "pain"
+      ],
+      "actual_columns": [
+        "subject_id",
+        "stay_id",
+        "charttime",
+        "temperature",
+        "heartrate",
+        "resprate",
+        "o2sat",
+        "sbp",
+        "dbp",
+        "rhythm",
+        "pain"
+      ],
+      "missing_columns": [],
+      "extra_columns": [],
+      "required_missing": []
+    }
+  },
+  "all_columns_match": true,
+  "all_required_present": true
+}

@@ -1,0 +1,17 @@
+{
+  "dataset": "MIMIC-IV-ED-Full-v2.2",
+  "dataset_source": "MIMIC-IV-ED-Full-v2.2",
+  "credentialed_data": true,
+  "synthetic_data_used": false,
+  "demo_fixture_used": false,
+  "test_fixture_used": false,
+  "split_kind": "stratified_patient_grouped",
+  "patient_level_split": true,
+  "patient_overlap_train_test": 0,
+  "n_train": 291853,
+  "n_val": 63030,
+  "n_test": 63217,
+  "generated": "2026-07-08",
+  "training_run_id": "1e058630-5a5b-481b-9fc9-a91866c85d8d",
+  "not_clinically_validated": true
+}

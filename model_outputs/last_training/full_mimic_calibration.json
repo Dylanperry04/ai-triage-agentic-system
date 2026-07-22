@@ -1,0 +1,17 @@
+{
+  "calibration": {
+    "brier_per_class": {
+      "1.0": 0.031887675033214026,
+      "2.0": 0.1590068884676913,
+      "3.0": 0.21547142709687822,
+      "4.0": 0.05561295472135274,
+      "5.0": 0.01538050439338811
+    },
+    "brier_mean": 0.09547188994250487,
+    "note": "Lower Brier = better calibrated. One-vs-rest mean."
+  },
+  "training_run_id": "1e058630-5a5b-481b-9fc9-a91866c85d8d",
+  "synthetic_data_used": false,
+  "demo_fixture_used": false,
+  "test_fixture_used": false
+}

@@ -1,0 +1,121 @@
+{
+  "triage_nurse": {
+    "roles": [
+      "triage_nurse"
+    ],
+    "permissions": [
+      "can_run_assessment",
+      "can_submit_review",
+      "can_view_case",
+      "can_view_clinical_content",
+      "can_view_workflow_queue"
+    ],
+    "visible_tabs": [
+      "explainability",
+      "maintainability",
+      "review_queue",
+      "triage_review"
+    ]
+  },
+  "ed_doctor": {
+    "roles": [
+      "ed_doctor"
+    ],
+    "permissions": [
+      "can_run_assessment",
+      "can_submit_review",
+      "can_view_case",
+      "can_view_clinical_content",
+      "can_view_model_performance",
+      "can_view_workflow_queue"
+    ],
+    "visible_tabs": [
+      "explainability",
+      "maintainability",
+      "review_queue",
+      "triage_review"
+    ]
+  },
+  "clinical_supervisor": {
+    "roles": [
+      "clinical_supervisor"
+    ],
+    "permissions": [
+      "can_run_assessment",
+      "can_submit_review",
+      "can_view_audit_log",
+      "can_view_case",
+      "can_view_clinical_content",
+      "can_view_model_performance",
+      "can_view_workflow_queue"
+    ],
+    "visible_tabs": [
+      "audit_dashboard",
+      "explainability",
+      "governance",
+      "maintainability",
+      "model_performance",
+      "review_queue",
+      "triage_review"
+    ]
+  },
+  "researcher": {
+    "roles": [
+      "researcher"
+    ],
+    "permissions": [
+      "can_export_deidentified",
+      "can_view_case",
+      "can_view_model_performance"
+    ],
+    "visible_tabs": [
+      "explainability",
+      "maintainability",
+      "model_performance"
+    ]
+  },
+  "security_admin": {
+    "roles": [
+      "security_admin"
+    ],
+    "permissions": [
+      "can_ask_chatbot",
+      "can_export_deidentified",
+      "can_export_identifiable",
+      "can_run_assessment",
+      "can_submit_review",
+      "can_view_audit_log",
+      "can_view_case",
+      "can_view_clinical_content",
+      "can_view_model_performance",
+      "can_view_security_status",
+      "can_view_workflow_queue"
+    ],
+    "visible_tabs": [
+      "audit_dashboard",
+      "explainability",
+      "governance",
+      "itd_ask_tools",
+      "maintainability",
+      "model_performance",
+      "review_queue",
+      "triage_review"
+    ]
+  },
+  "governance_auditor": {
+    "roles": [
+      "governance_auditor"
+    ],
+    "permissions": [
+      "can_view_audit_log",
+      "can_view_model_performance",
+      "can_view_workflow_queue"
+    ],
+    "visible_tabs": [
+      "audit_dashboard",
+      "governance",
+      "maintainability",
+      "model_performance"
+    ]
+  }
+}

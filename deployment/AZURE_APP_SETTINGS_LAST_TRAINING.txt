@@ -1,0 +1,16 @@
+# Azure App Service settings for the bundled last-trained model artefact.
+# Linux App Service deployment root is normally /home/site/wwwroot.
+
+MIMIC_FULL_MODEL_PATH=/home/site/wwwroot/model_outputs/last_training/mimic_full_acuity_selected.joblib
+MIMIC_FULL_MODEL_SHA256=3278f566ee2b041f633accd8dd88834e6e33b0b5a1f98864335dd13d096681d8
+MIMIC_FULL_MODEL_REPORT_DIR=/home/site/wwwroot/model_outputs/last_training
+MIMIC_FULL_OUTPUT_DIR=/home/site/wwwroot/model_outputs/last_training
+PRESENTATION_UI_MODE=true
+
+# Keep your existing dataset mount setting if using full MIMIC cases on Azure:
+# MIMIC_FULL_ED_DIR=/mnt/mimic/ed
+
+# Keep existing Azure OpenAI settings if explanations are enabled:
+# AZURE_OPENAI_ENDPOINT=...
+# AZURE_OPENAI_API_KEY=...
+# AZURE_OPENAI_DEPLOYMENT=...
