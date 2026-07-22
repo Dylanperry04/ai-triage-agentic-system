@@ -1,4 +1,4 @@
-﻿name: Deploy AI Triage to Azure
+name: Deploy AI Triage to Azure
 
 on:
   push:
@@ -18,7 +18,7 @@ env:
   PYTHON_VERSION: "3.11"
 
 jobs:
-  deploy:
+  test-and-deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
@@ -34,6 +34,24 @@ jobs:
           cache-dependency-path: |
             requirements.txt
             requirements-autogen.txt
+
+      - name: Install test dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install --no-cache-dir -r requirements.txt
+
+          if [ -f requirements-autogen.txt ]; then
+            python -m pip install --no-cache-dir -r requirements-autogen.txt
+          fi
+
+      - name: Run tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest tests/ -q
 
       - name: Validate deployment files
         shell: bash
@@ -53,7 +71,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          rm -rf deployment
+          rm -rf deployment deployment.zip
           mkdir -p deployment
 
           rsync -a ./ deployment/ \
@@ -64,6 +82,7 @@ jobs:
             --exclude 'venv/' \
             --exclude 'env/' \
             --exclude 'antenv/' \
+            --exclude '.python_packages/' \
             --exclude '__pycache__/' \
             --exclude '.pytest_cache/' \
             --exclude '.mypy_cache/' \
@@ -83,37 +102,40 @@ jobs:
             --exclude '*.sqlite3' \
             --exclude '*.db'
 
-      - name: Build Azure Python environment
+      - name: Install Azure deployment dependencies
         shell: bash
         run: |
           set -euo pipefail
 
-          python -m venv deployment/antenv
+          mkdir -p deployment/.python_packages/lib/site-packages
 
-          deployment/antenv/bin/python -m pip install \
-            --upgrade pip setuptools wheel
-
-          deployment/antenv/bin/python -m pip install \
+          python -m pip install \
             --no-cache-dir \
+            --target deployment/.python_packages/lib/site-packages \
             -r deployment/requirements.txt
 
           if [ -f deployment/requirements-autogen.txt ]; then
-            deployment/antenv/bin/python -m pip install \
+            python -m pip install \
               --no-cache-dir \
+              --target deployment/.python_packages/lib/site-packages \
               -r deployment/requirements-autogen.txt
           fi
 
-          deployment/antenv/bin/python -m pip check
-
-      - name: Verify deployment imports
+      - name: Verify packaged application
         shell: bash
         run: |
           set -euo pipefail
 
-          export PYTHONPATH="$GITHUB_WORKSPACE/deployment"
+          export PYTHONPATH="$GITHUB_WORKSPACE/deployment/.python_packages/lib/site-packages:$GITHUB_WORKSPACE/deployment"
 
-          deployment/antenv/bin/python -c \
-            "import fastapi, uvicorn, sklearn, joblib; import app.main; print('Deployment imports OK')"
+          python -c "
+          import fastapi
+          import uvicorn
+          import sklearn
+          import joblib
+          import app.main
+          print('Packaged application imports successfully')
+          "
 
       - name: Create deployment ZIP
         shell: bash
