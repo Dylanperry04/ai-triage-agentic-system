@@ -47,6 +47,10 @@ jobs:
             python -m pip install --no-cache-dir -r requirements-autogen.txt
           fi
 
+          python -m pip install --no-cache-dir -r requirements-dev.txt
+
+          python -m pytest --version
+
       - name: Run tests
         shell: bash
         run: |
