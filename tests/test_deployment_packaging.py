@@ -56,6 +56,23 @@ def test_runtime_audit_logs_are_ignored_for_clean_packaging():
         assert path in text
 
 
+def test_azure_deploy_workflow_excludes_runtime_data_and_cleans_generated_caches():
+    text = (REPO / ".github" / "workflows" / "deploy-azure.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "--exclude 'data/processed/'" in text
+    assert "Clean deployment package" in text
+    assert "find deployment -type f \\( -name '*.pyc' -o -name '*.pyo' \\) -print -delete" in text
+    assert "rm -rf deployment/data/processed" in text
+    assert (
+        text.index("Verify packaged application")
+        < text.index("Clean deployment package")
+        < text.index("Create deployment ZIP")
+        < text.index("Check deployment package hygiene")
+    )
+
+
 @pytest.mark.parametrize(
     "filename",
     [
@@ -111,6 +128,7 @@ def test_package_hygiene_allows_only_pinned_deployment_model_artifact(tmp_path):
         zf.writestr("model_outputs/other.joblib", b"forbidden")
         zf.writestr("19.91/model_outputs/other.joblib", b"forbidden")
         zf.writestr("model_outputs/last_training/other.pkl", b"forbidden")
+        zf.writestr("19.91/app/main.pyc", b"forbidden")
         zf.writestr("data/processed/supporting_uploads/case/file.png", b"forbidden")
         zf.writestr("19.91/.git/config", b"forbidden")
         zf.writestr("19.91/.venv/pyvenv.cfg", b"forbidden")
@@ -126,6 +144,7 @@ def test_package_hygiene_allows_only_pinned_deployment_model_artifact(tmp_path):
     assert "model_outputs/other.joblib" in bad
     assert "19.91/model_outputs/other.joblib" in bad
     assert "model_outputs/last_training/other.pkl" in bad
+    assert "19.91/app/main.pyc" in bad
     assert "data/processed/supporting_uploads/case/file.png" in bad
     assert "19.91/.git/config" in bad
     assert "19.91/.venv/pyvenv.cfg" in bad
