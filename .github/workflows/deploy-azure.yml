@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 concurrency:
   group: ai-triage-production
@@ -25,6 +26,17 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Remove local env file from CI checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if git ls-files --error-unmatch .env >/dev/null 2>&1; then
+            echo "::warning file=.env::.env is tracked in git. Remove it from the repository and rotate any exposed secrets."
+          fi
+
+          rm -f .env
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -67,10 +79,12 @@ jobs:
             echo "AZURE_OPENAI_API_VERSION="
             echo "AZURE_OPENAI_DEPLOYMENT="
             echo "AZURE_OPENAI_DEPLOYMENT_ID="
+            echo "AZURE_OPENAI_MODEL="
             echo "AZURE_OPENAI_RESOURCE_NAME="
+            echo "CORS_ALLOWED_ORIGINS="
           } >> "$GITHUB_ENV"
 
-          echo "Cloud LLM credentials cleared for deterministic test run."
+          echo "Cloud LLM and CORS variables cleared for deterministic test run."
 
       - name: Run tests
         shell: bash
@@ -174,9 +188,23 @@ jobs:
           echo "Deployment package:"
           ls -lh deployment.zip
 
+      - name: Check deployment package hygiene
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python scripts/check_package_hygiene.py deployment.zip
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_44BFC9371A134A889F5F1E44197A9487 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_52274CD9E9D646DC9AF08A57F6D5DF84 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_1D2096DBF7F74C8B980B96A14C448275 }}
+
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          slot-name: Production
           package: deployment.zip
