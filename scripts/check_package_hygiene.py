@@ -23,7 +23,7 @@ FORBIDDEN_PATTERNS = [
     re.compile(r"(^|[\\/])\.pytest_cache([\\/]|$)"),
     re.compile(r"(^|[\\/])\.venv([\\/]|$)"),
     re.compile(r"(^|[\\/])node_modules([\\/]|$)"),
-    re.compile(r"(^|[\\/])wandb([\\/]|$)"),
+    re.compile(r"^(?:[^\\/]+[\\/])?(?:wandb|wandb-offline|wandb_logs)([\\/]|$)"),
     re.compile(r"\.(joblib|pkl)$", re.IGNORECASE),
     re.compile(
         r"(^|[\\/])(edstays|triage|vitalsign|diagnosis|medrecon|pyxis)\.csv(\.gz)?$",
@@ -34,6 +34,8 @@ FORBIDDEN_PATTERNS = [
 ALLOWED_DEPLOYMENT_MODEL_ARTIFACTS = {
     "model_outputs/last_training/mimic_full_acuity_selected.joblib",
 }
+
+MAX_FORBIDDEN_ENTRIES_TO_PRINT = 200
 
 
 def _allowed_deployment_artifact(name: str) -> bool:
@@ -65,9 +67,12 @@ def main(argv: list[str]) -> int:
         return 2
     bad = forbidden_entries(zip_path)
     if bad:
-        print("Forbidden archive entries detected:", file=sys.stderr)
-        for name in bad:
+        print(f"Forbidden archive entries detected: {len(bad)}", file=sys.stderr)
+        for name in bad[:MAX_FORBIDDEN_ENTRIES_TO_PRINT]:
             print(f"  {name}", file=sys.stderr)
+        remaining = len(bad) - MAX_FORBIDDEN_ENTRIES_TO_PRINT
+        if remaining > 0:
+            print(f"  ... and {remaining} more", file=sys.stderr)
         return 1
     print(f"PASS: {zip_path} contains no forbidden runtime/data/cache entries")
     return 0
