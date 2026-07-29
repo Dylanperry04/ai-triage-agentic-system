@@ -11,7 +11,10 @@ class TestLoopbackBindEnforcement:  # Proof E
     def test_startup_backend_uses_checked_bind_host(self):
         from pathlib import Path
         text = (Path(__file__).resolve().parents[1] / "startup-backend.sh").read_text()
-        assert 'BACKEND_BIND_HOST="${BACKEND_BIND_HOST:-127.0.0.1}"' in text
+        assert 'IS_AZURE_APP_SERVICE=true' in text
+        assert 'export BACKEND_BIND_HOST="127.0.0.1"' in text
+        assert 'export BACKEND_BIND_HOST="0.0.0.0"' in text
+        assert "LOCAL_CREDENTIALED_RESEARCH=true is local-only" in text
         assert '--host "${BACKEND_BIND_HOST}"' in text
         assert "--host 0.0.0.0" not in text
 
