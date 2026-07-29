@@ -151,12 +151,14 @@ jobs:
 
           python -m pip install \
             --no-cache-dir \
+            --no-compile \
             --target deployment/.python_packages/lib/site-packages \
             -r deployment/requirements.txt
 
           if [ -f deployment/requirements-autogen.txt ]; then
             python -m pip install \
               --no-cache-dir \
+              --no-compile \
               --target deployment/.python_packages/lib/site-packages \
               -r deployment/requirements-autogen.txt
           fi
@@ -167,6 +169,7 @@ jobs:
           set -euo pipefail
 
           export PYTHONPATH="$GITHUB_WORKSPACE/deployment/.python_packages/lib/site-packages:$GITHUB_WORKSPACE/deployment"
+          export PYTHONDONTWRITEBYTECODE=1
 
           python -c "
           import fastapi
@@ -191,6 +194,24 @@ jobs:
             -name '.mypy_cache' -o \
             -name '.ruff_cache' \
           \) -print -exec rm -rf {} +
+
+          if [ -d deployment/.python_packages ]; then
+            find deployment/.python_packages -depth -type d \( \
+              -iname 'test' -o \
+              -iname 'tests' -o \
+              -iname 'testing' -o \
+              -iname 'doc' -o \
+              -iname 'docs' -o \
+              -iname 'example' -o \
+              -iname 'examples' \
+            \) -print -exec rm -rf {} +
+
+            find deployment/.python_packages -type f \( \
+              -iname '*.pkl' -o \
+              -iname '*.pickle' -o \
+              -iname '*.joblib' \
+            \) -print -delete
+          fi
 
           rm -rf deployment/data/processed
 
