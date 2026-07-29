@@ -229,6 +229,16 @@ jobs:
           echo "Deployment package:"
           ls -lh deployment.zip
 
+      - name: Verify deployment ZIP contains runtime dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          unzip -l deployment.zip | grep -q '.python_packages/lib/site-packages/uvicorn/__init__.py'
+          unzip -l deployment.zip | grep -q '.python_packages/lib/site-packages/fastapi/__init__.py'
+
+          echo "Deployment ZIP includes bundled runtime dependencies."
+
       - name: Check deployment package hygiene
         shell: bash
         run: |
