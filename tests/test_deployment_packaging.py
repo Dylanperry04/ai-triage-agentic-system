@@ -62,13 +62,27 @@ def test_azure_deploy_workflow_excludes_runtime_data_and_cleans_generated_caches
     )
 
     assert "--exclude 'data/processed/'" in text
+    assert 'echo "WANDB_MODE=disabled"' in text
+    assert "--no-compile" in text
+    assert "export PYTHONDONTWRITEBYTECODE=1" in text
+    assert "import traceback" in text
+    assert "traceback.print_exc()" in text
     assert "Clean deployment package" in text
     assert "find deployment -type f \\( -name '*.pyc' -o -name '*.pyo' \\) -print -delete" in text
+    assert "find deployment/.python_packages -depth -type d" in text
+    assert "-iname 'test'" in text
+    assert "-iname 'tests'" in text
+    assert "-iname '*.pkl'" in text
+    assert "-iname '*.joblib'" in text
+    assert "Verify deployment ZIP contains runtime dependencies" in text
+    assert ".python_packages/lib/site-packages/uvicorn/__init__.py" in text
+    assert ".python_packages/lib/site-packages/fastapi/__init__.py" in text
     assert "rm -rf deployment/data/processed" in text
     assert (
         text.index("Verify packaged application")
         < text.index("Clean deployment package")
         < text.index("Create deployment ZIP")
+        < text.index("Verify deployment ZIP contains runtime dependencies")
         < text.index("Check deployment package hygiene")
     )
 
@@ -134,6 +148,12 @@ def test_package_hygiene_allows_only_pinned_deployment_model_artifact(tmp_path):
         zf.writestr("19.91/.venv/pyvenv.cfg", b"forbidden")
         zf.writestr("19.91/frontend-react/node_modules/pkg/index.js", b"forbidden")
         zf.writestr("19.91/wandb/run.txt", b"forbidden")
+        zf.writestr("19.91/wandb-offline/run.txt", b"forbidden")
+        zf.writestr("19.91/wandb_logs/run.txt", b"forbidden")
+        zf.writestr(
+            "19.91/.python_packages/lib/site-packages/wandb/__init__.py",
+            b"allowed dependency package",
+        )
 
     bad = forbidden_entries(archive)
     assert "model_outputs/last_training/mimic_full_acuity_selected.joblib" not in bad
@@ -150,6 +170,9 @@ def test_package_hygiene_allows_only_pinned_deployment_model_artifact(tmp_path):
     assert "19.91/.venv/pyvenv.cfg" in bad
     assert "19.91/frontend-react/node_modules/pkg/index.js" in bad
     assert "19.91/wandb/run.txt" in bad
+    assert "19.91/wandb-offline/run.txt" in bad
+    assert "19.91/wandb_logs/run.txt" in bad
+    assert "19.91/.python_packages/lib/site-packages/wandb/__init__.py" not in bad
 
 
 def test_azure_supervisor_demo_fixture_is_packaged_source():
