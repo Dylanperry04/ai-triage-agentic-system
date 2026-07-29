@@ -51,6 +51,27 @@ jobs:
 
           python -m pytest --version
 
+      - name: Clear cloud credentials before tests
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          {
+            echo "OPENAI_API_KEY="
+            echo "OPENAI_API_BASE="
+            echo "OPENAI_API_TYPE="
+            echo "OPENAI_ORGANIZATION="
+            echo "AZURE_OPENAI_API_KEY="
+            echo "AZURE_OPENAI_KEY="
+            echo "AZURE_OPENAI_ENDPOINT="
+            echo "AZURE_OPENAI_API_VERSION="
+            echo "AZURE_OPENAI_DEPLOYMENT="
+            echo "AZURE_OPENAI_DEPLOYMENT_ID="
+            echo "AZURE_OPENAI_RESOURCE_NAME="
+          } >> "$GITHUB_ENV"
+
+          echo "Cloud LLM credentials cleared for deterministic test run."
+
       - name: Run tests
         shell: bash
         run: |
