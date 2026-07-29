@@ -105,6 +105,9 @@ def test_package_hygiene_allows_only_pinned_deployment_model_artifact(tmp_path):
             "19.91/model_outputs/last_training/mimic_full_acuity_selected.joblib",
             b"allowed pinned deployment artifact in versioned archive root",
         )
+        zf.writestr("19.91/.env.example", b"allowed template")
+        zf.writestr("19.91/.env", b"forbidden")
+        zf.writestr("19.91/.env.production", b"forbidden")
         zf.writestr("model_outputs/other.joblib", b"forbidden")
         zf.writestr("19.91/model_outputs/other.joblib", b"forbidden")
         zf.writestr("model_outputs/last_training/other.pkl", b"forbidden")
@@ -117,6 +120,9 @@ def test_package_hygiene_allows_only_pinned_deployment_model_artifact(tmp_path):
     bad = forbidden_entries(archive)
     assert "model_outputs/last_training/mimic_full_acuity_selected.joblib" not in bad
     assert "19.91/model_outputs/last_training/mimic_full_acuity_selected.joblib" not in bad
+    assert "19.91/.env.example" not in bad
+    assert "19.91/.env" in bad
+    assert "19.91/.env.production" in bad
     assert "model_outputs/other.joblib" in bad
     assert "19.91/model_outputs/other.joblib" in bad
     assert "model_outputs/last_training/other.pkl" in bad
