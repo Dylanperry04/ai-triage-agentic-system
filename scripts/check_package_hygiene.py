@@ -16,6 +16,8 @@ FORBIDDEN_PATTERNS = [
     re.compile(r"(^|[\\/])data[\\/]processed[\\/].+\.(json|jsonl)$"),
     re.compile(r"(^|[\\/])data[\\/]processed[\\/]supporting_uploads([\\/]|$)"),
     re.compile(r"(^|[\\/])__pycache__([\\/]|$)"),
+    re.compile(r"(^|[\\/])\.env$"),
+    re.compile(r"(^|[\\/])\.env\.(?!example(?:[\\/]|$)).+"),
     re.compile(r"(^|[\\/])\.git([\\/]|$)"),
     re.compile(r"(^|[\\/])\.pytest_cache([\\/]|$)"),
     re.compile(r"(^|[\\/])\.venv([\\/]|$)"),
