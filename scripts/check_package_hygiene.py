@@ -16,7 +16,11 @@ FORBIDDEN_PATTERNS = [
     re.compile(r"(^|[\\/])data[\\/]processed[\\/].+\.(json|jsonl)$"),
     re.compile(r"(^|[\\/])data[\\/]processed[\\/]supporting_uploads([\\/]|$)"),
     re.compile(r"(^|[\\/])__pycache__([\\/]|$)"),
+    re.compile(r"(^|[\\/])\.git([\\/]|$)"),
     re.compile(r"(^|[\\/])\.pytest_cache([\\/]|$)"),
+    re.compile(r"(^|[\\/])\.venv([\\/]|$)"),
+    re.compile(r"(^|[\\/])node_modules([\\/]|$)"),
+    re.compile(r"(^|[\\/])wandb([\\/]|$)"),
     re.compile(r"\.(joblib|pkl)$", re.IGNORECASE),
     re.compile(
         r"(^|[\\/])(edstays|triage|vitalsign|diagnosis|medrecon|pyxis)\.csv(\.gz)?$",
