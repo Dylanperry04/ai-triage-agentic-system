@@ -261,6 +261,47 @@ class TestDemoModeStillEnforcesRbac:
         assert "system_status" not in payload["visible_tabs"]
         assert payload["demo_role_switcher_available"] is True
 
+    def test_triage_link_endpoint_is_rbac_protected(self, monkeypatch):
+        for v in [
+            "PATIENT_DATA_MODE",
+            "AUTH_REQUIRED",
+            "TRUSTED_AUTH_PROXY",
+            "LOCAL_CREDENTIALED_RESEARCH",
+        ]:
+            monkeypatch.delenv(v, raising=False)
+        allowed = client.get("/auth/triage-link", headers={"X-Demo-Role": "triage_nurse"})
+        assert allowed.status_code == 200
+        payload = allowed.json()
+        assert payload["triage_url"].endswith("/")
+        assert payload["triage_queue_endpoint"].endswith("/workflow/queue")
+        assert payload["required_permission"] == "can_view_workflow_queue"
+        assert payload["tenant_locked"] is False
+
+        denied = client.get("/auth/triage-link", headers={"X-Demo-Role": "researcher"})
+        assert denied.status_code == 403
+
+    def test_triage_link_reports_tenant_locked_when_behind_entra(self, monkeypatch):
+        for v in ["PATIENT_DATA_MODE", "LOCAL_CREDENTIALED_RESEARCH"]:
+            monkeypatch.delenv(v, raising=False)
+        monkeypatch.setenv("AUTH_REQUIRED", "true")
+        monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
+        monkeypatch.setenv("AUTH_PROVIDER", "azure")
+
+        unauthenticated = client.get("/auth/triage-link")
+        assert unauthenticated.status_code == 401
+
+        r = client.get(
+            "/auth/triage-link",
+            headers={"X-MS-CLIENT-PRINCIPAL": _principal(["triage-nurses"])},
+        )
+        assert r.status_code == 200
+        payload = r.json()
+        assert payload["tenant_locked"] is True
+        assert payload["trusted_auth_proxy"] is True
+        assert payload["auth_required"] is True
+        assert payload["access_model"] == "Microsoft Entra / App Service Authentication"
+        assert payload["is_demo_identity"] is False
+
     def test_local_credentialed_ignores_demo_role_header(self, monkeypatch, tmp_path):
         for v in ["PATIENT_DATA_MODE", "AUTH_REQUIRED", "TRUSTED_AUTH_PROXY"]:
             monkeypatch.delenv(v, raising=False)
