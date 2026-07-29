@@ -9,10 +9,10 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 
-from app.api.auth_dependencies import get_auth_context
+from app.api.auth_dependencies import get_auth_context, requires
 from app.security import authz
 from app.security.access_audit import record_access
 from app.security.identity import (
@@ -104,6 +104,53 @@ def auth_session(ctx: AuthContext = Depends(get_auth_context)) -> Dict[str, Any]
             else "azure_supervisor_demo"
             if azure_demo
             else "public_demo"
+        ),
+    }
+
+
+@router.get("/auth/triage-link")
+def tenant_gated_triage_link(
+    request: Request,
+    ctx: AuthContext = Depends(
+        requires(authz.PERM_VIEW_WORKFLOW_QUEUE, "tenant_triage_link")
+    ),
+) -> Dict[str, Any]:
+    """Tenant/auth-aware entry point for the triage UI.
+
+    Azure App Service Authentication should enforce Microsoft Entra sign-in
+    before this request reaches FastAPI. The backend still performs its own RBAC
+    check, audits the request, and returns the canonical UI/API endpoints without
+    exposing secrets or raw patient identifiers.
+    """
+    import os
+
+    base_url = str(request.base_url).rstrip("/")
+    trusted_proxy = os.environ.get("TRUSTED_AUTH_PROXY", "").lower() == "true"
+    auth_required = (
+        os.environ.get("AUTH_REQUIRED", "").lower() == "true"
+        or os.environ.get("PATIENT_DATA_MODE", "").lower() == "true"
+    )
+    tenant_locked = trusted_proxy and auth_required and not bool(ctx.is_demo_stub)
+    return {
+        "status": "ok",
+        "triage_url": f"{base_url}/",
+        "triage_queue_endpoint": f"{base_url}/workflow/queue",
+        "session_endpoint": f"{base_url}/auth/session",
+        "authenticated": bool(ctx.authenticated),
+        "tenant_locked": tenant_locked,
+        "trusted_auth_proxy": trusted_proxy,
+        "auth_required": auth_required,
+        "auth_source": ctx.source,
+        "is_demo_identity": bool(ctx.is_demo_stub),
+        "user_id": ctx.user_id,
+        "display_name": ctx.display_name,
+        "roles": list(ctx.roles or []),
+        "display_roles": authz.display_roles_for(ctx),
+        "required_permission": authz.PERM_VIEW_WORKFLOW_QUEUE,
+        "access_model": (
+            "Microsoft Entra / App Service Authentication"
+            if tenant_locked
+            else "demo_or_unlocked_profile"
         ),
     }
 
