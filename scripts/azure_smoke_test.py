@@ -15,6 +15,7 @@ import requests
 
 BASE_ENDPOINTS = (
     ("GET", "/health", None),
+    ("GET", "/auth/triage-link", None),
     ("GET", "/runtime/status", None),
     ("GET", "/status/full-mimic", None),
     ("GET", "/status/llm", None),
