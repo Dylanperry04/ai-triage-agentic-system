@@ -82,6 +82,7 @@ jobs:
             echo "AZURE_OPENAI_MODEL="
             echo "AZURE_OPENAI_RESOURCE_NAME="
             echo "CORS_ALLOWED_ORIGINS="
+            echo "WANDB_MODE=disabled"
           } >> "$GITHUB_ENV"
 
           echo "Cloud LLM and CORS variables cleared for deterministic test run."
@@ -171,14 +172,20 @@ jobs:
           export PYTHONPATH="$GITHUB_WORKSPACE/deployment/.python_packages/lib/site-packages:$GITHUB_WORKSPACE/deployment"
           export PYTHONDONTWRITEBYTECODE=1
 
-          python -c "
-          import fastapi
-          import uvicorn
-          import sklearn
-          import joblib
-          import app.main
-          print('Packaged application imports successfully')
-          "
+          python - <<'PY'
+          import sys
+          import traceback
+          try:
+              import fastapi
+              import uvicorn
+              import sklearn
+              import joblib
+              import app.main
+              print("Packaged application imports successfully")
+          except Exception:
+              traceback.print_exc()
+              sys.exit(1)
+          PY
 
       - name: Clean deployment package
         shell: bash
@@ -196,16 +203,10 @@ jobs:
           \) -print -exec rm -rf {} +
 
           if [ -d deployment/.python_packages ]; then
-            find deployment/.python_packages -depth -type d \( \
-              -iname 'test' -o \
-              -iname 'tests' -o \
-              -iname 'testing' -o \
-              -iname 'doc' -o \
-              -iname 'docs' -o \
-              -iname 'example' -o \
-              -iname 'examples' \
-            \) -print -exec rm -rf {} +
-
+            # Do NOT prune directories by name. numpy/testing/ is a runtime-required
+            # public submodule (scipy's array_api_compat imports it when sklearn is
+            # imported); deleting dirs named 'testing' breaks `import sklearn` on
+            # Azure with "No module named 'numpy.testing'".
             find deployment/.python_packages -type f \( \
               -iname '*.pkl' -o \
               -iname '*.pickle' -o \
