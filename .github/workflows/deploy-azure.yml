@@ -203,11 +203,35 @@ jobs:
           \) -print -exec rm -rf {} +
 
           if [ -d deployment/.python_packages ]; then
-            # Prune ONLY generated caches by exact name here -- never match library
-            # internals by fuzzy name. numpy/testing/ is a runtime-required public
-            # submodule (scipy's array_api_compat imports it when scikit-learn is
-            # imported), so a name-based directory prune would delete it and break
-            # `import sklearn` on Azure with "No module named 'numpy.testing'".
+            SITE="deployment/.python_packages/lib/site-packages"
+
+            # IMPORTANT: numpy/testing/ is a RUNTIME-REQUIRED public submodule --
+            # scipy's array_api_compat imports it whenever scikit-learn is imported,
+            # so if it is missing the app fails on Azure with
+            # "No module named 'numpy.testing'" and the model can't be verified.
+            # The name-based directory prune below matches it, so we preserve it
+            # across the prune and restore it immediately afterwards.
+            if [ -d "$SITE/numpy/testing" ]; then
+              rm -rf /tmp/_keep_numpy_testing
+              cp -r "$SITE/numpy/testing" /tmp/_keep_numpy_testing
+            fi
+
+            find deployment/.python_packages -depth -type d \( \
+              -iname 'test' -o \
+              -iname 'tests' -o \
+              -iname 'testing' -o \
+              -iname 'doc' -o \
+              -iname 'docs' -o \
+              -iname 'example' -o \
+              -iname 'examples' \
+            \) -print -exec rm -rf {} +
+
+            if [ -d /tmp/_keep_numpy_testing ]; then
+              rm -rf "$SITE/numpy/testing"
+              cp -r /tmp/_keep_numpy_testing "$SITE/numpy/testing"
+              echo "Preserved numpy/testing/ (runtime-required; matched by the name prune above)."
+            fi
+
             find deployment/.python_packages -depth -type d \( \
               -name '__pycache__' -o \
               -name '.pytest_cache' -o \
@@ -216,11 +240,8 @@ jobs:
             \) -print -exec rm -rf {} +
 
             find deployment/.python_packages -type f \( \
-              -name '*.pyc' -o \
-              -name '*.pyo' \
-            \) -print -delete
-
-            find deployment/.python_packages -type f \( \
+              -iname '*.pyc' -o \
+              -iname '*.pyo' -o \
               -iname '*.pkl' -o \
               -iname '*.pickle' -o \
               -iname '*.joblib' \
