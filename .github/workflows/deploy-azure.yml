@@ -203,10 +203,23 @@ jobs:
           \) -print -exec rm -rf {} +
 
           if [ -d deployment/.python_packages ]; then
-            # Do NOT prune directories by name. numpy/testing/ is a runtime-required
-            # public submodule (scipy's array_api_compat imports it when sklearn is
-            # imported); deleting dirs named 'testing' breaks `import sklearn` on
-            # Azure with "No module named 'numpy.testing'".
+            # Prune ONLY generated caches by exact name here -- never match library
+            # internals by fuzzy name. numpy/testing/ is a runtime-required public
+            # submodule (scipy's array_api_compat imports it when scikit-learn is
+            # imported), so a name-based directory prune would delete it and break
+            # `import sklearn` on Azure with "No module named 'numpy.testing'".
+            find deployment/.python_packages -depth -type d \( \
+              -name '__pycache__' -o \
+              -name '.pytest_cache' -o \
+              -name '.mypy_cache' -o \
+              -name '.ruff_cache' \
+            \) -print -exec rm -rf {} +
+
+            find deployment/.python_packages -type f \( \
+              -name '*.pyc' -o \
+              -name '*.pyo' \
+            \) -print -delete
+
             find deployment/.python_packages -type f \( \
               -iname '*.pkl' -o \
               -iname '*.pickle' -o \
