@@ -47,11 +47,6 @@ backend itself, so ONE Azure App Service runs the whole system:
 
 ### Azure App Service checklist (supervisor demo)
 
-For the tenant-restricted UHL visit configuration, use the canonical `/triage`
-entry point and follow `docs/TENANT_ENDPOINT_SETUP.md`. It keeps this synthetic
-data/UI profile but replaces the fake role selector with single-tenant Microsoft
-Entra authentication and app-role authorization.
-
 1. App Service: Linux, Python 3.11 (matches `runtime.txt`), startup command
    `bash startup-backend.sh`.
 2. Deployment: connect the GitHub repo (Deployment Center) or add the
@@ -85,18 +80,15 @@ Entra authentication and app-role authorization.
 ## Profiles
 
 - **public_demo** (default): no credentialed data; the app fails closed.
-- **azure_supervisor_demo** (`AZURE_SUPERVISOR_DEMO_MODE=true`): Azure-hosted,
-  synthetic/no-real-patient-data walkthrough. It can use either a clearly
-  labelled simulated role selector (`ALLOW_DEMO_ROLE_SWITCHER=true`) or the
-  tenant-restricted Entra endpoint described in
-  `docs/TENANT_ENDPOINT_SETUP.md` (`ALLOW_DEMO_ROLE_SWITCHER=false`).
+- **azure_supervisor_demo** (`AZURE_SUPERVISOR_DEMO_MODE=true` and
+  `ALLOW_DEMO_ROLE_SWITCHER=true`): Azure-hosted, synthetic/no-real-patient-data
+  walkthrough with a clearly labelled simulated role selector in the sidebar.
   The package includes a tiny synthetic MIMIC-shaped supervisor-demo case source
   for this profile so the demo does not need credentialed MIMIC. This is not real
-  authentication when the selector is enabled. That fake-auth variant must not
-  be combined with `PATIENT_DATA_MODE`, `LOCAL_CREDENTIALED_RESEARCH`,
-  `TRUSTED_AUTH_PROXY`, `AUTH_REQUIRED`, or `REAL_PATIENT_DATA`. Real full-MIMIC
-  data additionally requires valid single-tenant Entra settings and both explicit
-  governed-demo acknowledgement flags.
+  authentication. It must not be combined with
+  `PATIENT_DATA_MODE`, `LOCAL_CREDENTIALED_RESEARCH`, `TRUSTED_AUTH_PROXY`,
+  `AUTH_REQUIRED`, `REAL_PATIENT_DATA`, or real full-MIMIC data unless a separate
+  governed non-public demo explicitly sets `ALLOW_FULL_MIMIC_IN_AZURE_DEMO=true`.
 - **local_credentialed_research** (`LOCAL_CREDENTIALED_RESEARCH=true`): an
   approved local research machine. Loads the researcher's own credentialed MIMIC
   WITHOUT asserting the full production security posture. Hardened: the backend

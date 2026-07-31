@@ -10,21 +10,16 @@ identity team; **Both** = app integrates with an IT-provided capability.
 
 ## A. Identity & access
 - [ ] **IT** — Microsoft Entra ID (Azure AD) app registration created for the app.
-- [ ] **IT** — Concrete target-tenant UUID confirmed; issuer is tenant-specific
-      (never `common` or `organizations`).
 - [ ] **IT** — Entra authentication enabled in front of the app (Container Apps /
       App Service built-in auth), injecting `X-MS-CLIENT-PRINCIPAL`.
 - [ ] **IT** — MFA enforced for all users of the app.
 - [ ] **IT** — Conditional Access policy (managed/compliant device, location).
-- [ ] **IT** — Entra app roles from `infrastructure/entra_app_roles.json` added
-      and assigned to approved users/groups (preferred), or immutable group
-      object IDs supplied for an explicit `ENTRA_GROUP_ROLE_MAP`.
-- [ ] **App** — `ENTRA_TENANT_ID` and any `ENTRA_GROUP_ROLE_MAP` configured and
-      the `/auth/triage-link` response confirms `tenant_validated=true`.
+- [ ] **IT** — Entra groups created and mapped to roles: `triage-nurses`,
+      `ed-doctors`, `clinical-supervisors`, `researchers`, `security-admins`,
+      `governance-auditors`.
+- [ ] **App** — `DEFAULT_GROUP_ROLE_MAP` matches the agreed Entra group names.
 - [ ] **App** — `TRUSTED_AUTH_PROXY=true` set (only after Entra auth confirmed in front).
 - [ ] **App** — `AUTH_PROVIDER` set to a non-demo value; demo role-switcher disabled.
-- [ ] **Both** — `/triage` tested with assigned, unassigned and wrong-tenant
-      accounts using `docs/TENANT_ENDPOINT_SETUP.md`.
 
 ## B. Network
 - [ ] **IT** — Azure Container Apps **internal ingress** (not external) configured.

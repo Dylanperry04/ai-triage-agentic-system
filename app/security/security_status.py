@@ -120,36 +120,11 @@ def unsafe_combinations(*, run_probes: bool = True) -> List[str]:
     patient = _is_true("PATIENT_DATA_MODE")
     local_research = _is_true("LOCAL_CREDENTIALED_RESEARCH") and not patient
     azure_demo = _is_true("AZURE_SUPERVISOR_DEMO_MODE")
-    auth_provider = _b("AUTH_PROVIDER", "demo").strip().lower()
-    tenant_auth_requested = _is_true("AUTH_REQUIRED") and auth_provider == "azure"
     cors = _b("CORS_ALLOWED_ORIGINS")
     # Parse the comma-separated origin list; reject if ANY entry is a wildcard.
     cors_origins = [o.strip() for o in cors.split(",") if o.strip()]
     if "*" in cors_origins:
         problems.append("CORS_ALLOWED_ORIGINS contains '*' (wildcard origin is never allowed)")
-
-    # The UHL presentation endpoint is deliberately single tenant. Never accept
-    # the multi-tenant aliases (common/organizations/consumers), and fail startup
-    # if the optional group-object-ID mapping is malformed.
-    if tenant_auth_requested:
-        from app.security.identity import (
-            group_role_map_config_error,
-            tenant_id_is_valid,
-        )
-
-        if not _is_true("TRUSTED_AUTH_PROXY"):
-            problems.append(
-                "AUTH_PROVIDER=azure with AUTH_REQUIRED=true requires "
-                "TRUSTED_AUTH_PROXY=true"
-            )
-        if not tenant_id_is_valid():
-            problems.append(
-                "Single-tenant Entra authentication requires ENTRA_TENANT_ID "
-                "to be a concrete tenant UUID"
-            )
-        mapping_error = group_role_map_config_error()
-        if mapping_error:
-            problems.append(mapping_error)
     if patient:
         if not _is_true("AUTH_REQUIRED"):
             problems.append("PATIENT_DATA_MODE=true requires AUTH_REQUIRED=true")
@@ -224,6 +199,11 @@ def unsafe_combinations(*, run_probes: bool = True) -> List[str]:
                 "combined with PATIENT_DATA_MODE, LOCAL_CREDENTIALED_RESEARCH, "
                 "or REAL_PATIENT_DATA"
             )
+        if _is_true("TRUSTED_AUTH_PROXY") or _is_true("AUTH_REQUIRED"):
+            problems.append(
+                "AZURE_SUPERVISOR_DEMO_MODE=true uses simulated roles and cannot "
+                "be combined with AUTH_REQUIRED or TRUSTED_AUTH_PROXY"
+            )
         if _is_true("ALLOW_FULL_MIMIC_IN_AZURE_DEMO") and not _is_true("REAL_MIMIC_DEMO_ACKNOWLEDGED"):
             problems.append(
                 "ALLOW_FULL_MIMIC_IN_AZURE_DEMO=true requires "
@@ -231,18 +211,6 @@ def unsafe_combinations(*, run_probes: bool = True) -> List[str]:
                 "environment is approved for credentialed MIMIC and prevents "
                 "accidental real-data demos."
             )
-        if (
-            _is_true("ALLOW_FULL_MIMIC_IN_AZURE_DEMO")
-            and _is_true("REAL_MIMIC_DEMO_ACKNOWLEDGED")
-        ):
-            from app.security.identity import tenant_authentication_configured
-
-            if not tenant_authentication_configured():
-                problems.append(
-                    "Credentialed MIMIC on Azure requires single-tenant Entra: "
-                    "AUTH_REQUIRED=true, AUTH_PROVIDER=azure, "
-                    "TRUSTED_AUTH_PROXY=true, and a concrete ENTRA_TENANT_ID"
-                )
         if _b("MIMIC_FULL_ED_DIR") and not _is_true("ALLOW_FULL_MIMIC_IN_AZURE_DEMO"):
             problems.append(
                 "AZURE_SUPERVISOR_DEMO_MODE=true must not configure "
@@ -267,15 +235,14 @@ def build_security_status() -> Dict[str, Any]:
     local_research = _is_true("LOCAL_CREDENTIALED_RESEARCH") and not patient
     azure_demo = _is_true("AZURE_SUPERVISOR_DEMO_MODE") and not patient and not local_research
     auth_provider = _b("AUTH_PROVIDER", "demo")
-    from app.security.identity import (
-        demo_role_switcher_allowed,
-        group_role_map_config_error,
-        tenant_authentication_configured,
-        tenant_id_is_valid,
+    demo_switcher = (
+        (auth_provider.lower() == "demo" or azure_demo)
+        and not patient
+        and not local_research
+        and not _is_true("TRUSTED_AUTH_PROXY")
+        and not _is_true("AUTH_REQUIRED")
+        and not _is_true("REAL_PATIENT_DATA")
     )
-    demo_switcher = demo_role_switcher_allowed()
-    tenant_auth = tenant_authentication_configured()
-    mapping_error = group_role_map_config_error()
     problems = unsafe_combinations(run_probes=False)
     durable_probe = durable_audit_probe_status()
     env_secret_set = bool(_b("PSEUDONYM_SECRET"))
@@ -291,9 +258,7 @@ def build_security_status() -> Dict[str, Any]:
     current_mode = (
         "secured_research" if patient
         else "local_credentialed_research" if local_research
-        else "azure_tenant_supervisor_demo" if azure_demo and tenant_auth
         else "azure_supervisor_demo" if azure_demo
-        else "tenant_restricted" if tenant_auth
         else "public_demo"
     )
     return {
@@ -303,11 +268,6 @@ def build_security_status() -> Dict[str, Any]:
         "auth_required": _is_true("AUTH_REQUIRED"),
         "auth_provider": auth_provider,
         "trusted_auth_proxy": _is_true("TRUSTED_AUTH_PROXY"),
-        "tenant_authentication_configured": tenant_auth,
-        "entra_tenant_id_configured": bool(_b("ENTRA_TENANT_ID")),
-        "entra_tenant_id_valid": tenant_id_is_valid(),
-        "entra_group_role_map_configured": bool(_b("ENTRA_GROUP_ROLE_MAP")),
-        "entra_group_role_map_valid": mapping_error is None,
         "secrets_provider": _b("SECRETS_PROVIDER", "env"),
         "audit_sink": _b("AUDIT_SINK", "local"),
         "cors_allowed_origins_set": bool(_b("CORS_ALLOWED_ORIGINS")),

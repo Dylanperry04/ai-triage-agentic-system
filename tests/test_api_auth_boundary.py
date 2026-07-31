@@ -10,7 +10,6 @@ from fastapi.testclient import TestClient
 from app.main import app
 
 client = TestClient(app)
-TEST_TENANT_ID = "11111111-2222-4333-8444-555555555555"
 
 
 @pytest.fixture(autouse=True)
@@ -62,11 +61,15 @@ def _seed_mimic_full_case(monkeypatch, tmp_path):
     yield
 
 
-def _principal(groups, tenant_id=TEST_TENANT_ID):
+def _principal(groups):
     claims = [
         {"typ": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier", "val": "u1"},
         {"typ": "name", "val": "Test User"},
-        {"typ": "tid", "val": tenant_id},
+    ] + [{"typ": "groups", "val": g} for g in groups]
+    return base64.b64encode(json.dumps({"claims": claims}).encode()).decode()
+    claims = [
+        {"typ": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier", "val": "u1"},
+        {"typ": "name", "val": "Test User"},
     ] + [{"typ": "groups", "val": g} for g in groups]
     return base64.b64encode(json.dumps({"claims": claims}).encode()).decode()
 
@@ -269,7 +272,7 @@ class TestDemoModeStillEnforcesRbac:
         allowed = client.get("/auth/triage-link", headers={"X-Demo-Role": "triage_nurse"})
         assert allowed.status_code == 200
         payload = allowed.json()
-        assert payload["triage_url"].endswith("/triage")
+        assert payload["triage_url"].endswith("/")
         assert payload["triage_queue_endpoint"].endswith("/workflow/queue")
         assert payload["required_permission"] == "can_view_workflow_queue"
         assert payload["tenant_locked"] is False
@@ -283,7 +286,6 @@ class TestDemoModeStillEnforcesRbac:
         monkeypatch.setenv("AUTH_REQUIRED", "true")
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
         monkeypatch.setenv("AUTH_PROVIDER", "azure")
-        monkeypatch.setenv("ENTRA_TENANT_ID", TEST_TENANT_ID)
 
         unauthenticated = client.get("/auth/triage-link")
         assert unauthenticated.status_code == 401
@@ -295,38 +297,10 @@ class TestDemoModeStillEnforcesRbac:
         assert r.status_code == 200
         payload = r.json()
         assert payload["tenant_locked"] is True
-        assert payload["tenant_validated"] is True
         assert payload["trusted_auth_proxy"] is True
         assert payload["auth_required"] is True
         assert payload["access_model"] == "Microsoft Entra / App Service Authentication"
         assert payload["is_demo_identity"] is False
-
-        entry = client.get(
-            "/triage",
-            headers={"X-MS-CLIENT-PRINCIPAL": _principal(["triage-nurses"])},
-            follow_redirects=False,
-        )
-        assert entry.status_code == 303
-        assert entry.headers["location"] == "/"
-
-        session = client.get(
-            "/auth/session",
-            headers={"X-MS-CLIENT-PRINCIPAL": _principal(["triage-nurses"])},
-        )
-        assert session.status_code == 200
-        assert session.json()["real_authentication"] is True
-        assert session.json()["platform_logout_path"].startswith("/.auth/logout")
-
-        wrong_tenant = client.get(
-            "/auth/triage-link",
-            headers={
-                "X-MS-CLIENT-PRINCIPAL": _principal(
-                    ["triage-nurses"],
-                    tenant_id="aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
-                )
-            },
-        )
-        assert wrong_tenant.status_code == 401
 
     def test_local_credentialed_ignores_demo_role_header(self, monkeypatch, tmp_path):
         for v in ["PATIENT_DATA_MODE", "AUTH_REQUIRED", "TRUSTED_AUTH_PROXY"]:
@@ -512,11 +486,8 @@ class TestStatusRoutes:
         ]:
             monkeypatch.delenv(v, raising=False)
         monkeypatch.setenv("AZURE_SUPERVISOR_DEMO_MODE", "true")
-        monkeypatch.setenv("ALLOW_DEMO_ROLE_SWITCHER", "false")
-        monkeypatch.setenv("AUTH_PROVIDER", "azure")
-        monkeypatch.setenv("AUTH_REQUIRED", "true")
-        monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
-        monkeypatch.setenv("ENTRA_TENANT_ID", TEST_TENANT_ID)
+        monkeypatch.setenv("ALLOW_DEMO_ROLE_SWITCHER", "true")
+        monkeypatch.setenv("AUTH_PROVIDER", "demo")
         monkeypatch.setenv("ALLOW_FULL_MIMIC_IN_AZURE_DEMO", "true")
         monkeypatch.setenv("REAL_MIMIC_DEMO_ACKNOWLEDGED", "true")
         monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", "https://example.openai.azure.com/")
