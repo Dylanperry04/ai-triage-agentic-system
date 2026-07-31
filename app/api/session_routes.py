@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, Request
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
 from app.api.auth_dependencies import get_auth_context, requires
@@ -133,7 +134,7 @@ def tenant_gated_triage_link(
     tenant_locked = trusted_proxy and auth_required and not bool(ctx.is_demo_stub)
     return {
         "status": "ok",
-        "triage_url": f"{base_url}/",
+        "triage_url": f"{base_url}/triage",
         "triage_queue_endpoint": f"{base_url}/workflow/queue",
         "session_endpoint": f"{base_url}/auth/session",
         "authenticated": bool(ctx.authenticated),
@@ -154,6 +155,20 @@ def tenant_gated_triage_link(
         ),
     }
 
+
+@router.get("/triage", include_in_schema=False)
+def tenant_gated_triage_entry(
+    ctx: AuthContext = Depends(
+        requires(authz.PERM_VIEW_WORKFLOW_QUEUE, "tenant_triage_entry")
+    ),
+) -> RedirectResponse:
+    """Canonical human-facing entry point for the triage application."""
+    del ctx
+    return RedirectResponse(
+        url="/",
+        status_code=303,
+        headers={"Cache-Control": "no-store"},
+    )
 
 class UiAccessCheck(BaseModel):
     permission: Optional[str] = None
