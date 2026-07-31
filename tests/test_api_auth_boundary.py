@@ -272,12 +272,38 @@ class TestDemoModeStillEnforcesRbac:
         allowed = client.get("/auth/triage-link", headers={"X-Demo-Role": "triage_nurse"})
         assert allowed.status_code == 200
         payload = allowed.json()
-        assert payload["triage_url"].endswith("/")
+        assert payload["triage_url"].endswith("/triage")
         assert payload["triage_queue_endpoint"].endswith("/workflow/queue")
         assert payload["required_permission"] == "can_view_workflow_queue"
         assert payload["tenant_locked"] is False
 
         denied = client.get("/auth/triage-link", headers={"X-Demo-Role": "researcher"})
+        assert denied.status_code == 403
+
+    def test_triage_entry_redirects_only_for_workflow_roles(self, monkeypatch):
+        for v in [
+            "PATIENT_DATA_MODE",
+            "AUTH_REQUIRED",
+            "TRUSTED_AUTH_PROXY",
+            "LOCAL_CREDENTIALED_RESEARCH",
+            "DEMO_ROLE",
+        ]:
+            monkeypatch.delenv(v, raising=False)
+
+        allowed = client.get(
+            "/triage",
+            headers={"X-Demo-Role": "triage_nurse"},
+            follow_redirects=False,
+        )
+        assert allowed.status_code == 303
+        assert allowed.headers["location"] == "/"
+        assert allowed.headers["cache-control"] == "no-store"
+
+        denied = client.get(
+            "/triage",
+            headers={"X-Demo-Role": "researcher"},
+            follow_redirects=False,
+        )
         assert denied.status_code == 403
 
     def test_triage_link_reports_tenant_locked_when_behind_entra(self, monkeypatch):
