@@ -68,7 +68,19 @@ class Settings(BaseModel):
     model_config = {"protected_namespaces": ()}
 
     project_root: Path = Path(__file__).resolve().parents[1]
-    data_root: Path = project_root / "data"
+
+    # Runtime-writable data root. On Azure App Service the app is deployed with
+    # WEBSITE_RUN_FROM_PACKAGE, which mounts /home/site/wwwroot READ-ONLY, so the
+    # app cannot create data/processed under the project and every workflow-state
+    # write (accept/escalate/override/review) fails with a read-only-filesystem
+    # OSError. Point ALTER_DATA_ROOT at a writable location to redirect all runtime
+    # writes there. On Azure use /home/data (writable AND persisted across restarts);
+    # /tmp works too but is ephemeral. Unset => original in-repo default (local dev).
+    data_root: Path = (
+        Path(os.environ["ALTER_DATA_ROOT"]).expanduser()
+        if os.environ.get("ALTER_DATA_ROOT")
+        else project_root / "data"
+    )
 
     # Conventional local full-MIMIC path for schema utility scripts. Runtime
     # full-MIMIC serving uses mimic_full_ed_dir from MIMIC_FULL_ED_DIR instead.
