@@ -5,9 +5,14 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      git_ref:
+        description: "Tag or commit SHA to (re)deploy. Leave blank for a normal deploy of the current branch; set it to a previous release-* tag (or any commit SHA) to ROLL BACK to that exact version."
+        required: false
+        default: ""
 
 permissions:
-  contents: read
+  contents: write   # needed to push the release-* rollback tag after a successful prod deploy
   id-token: write
 
 concurrency:
@@ -26,6 +31,21 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.git_ref || github.ref }}
+          fetch-depth: 0
+
+      - name: Record the version being deployed
+        shell: bash
+        run: |
+          set -euo pipefail
+          DEPLOY_SHA="$(git rev-parse HEAD)"
+          echo "DEPLOY_SHA=$DEPLOY_SHA" >> "$GITHUB_ENV"
+          if [ -n "${{ github.event.inputs.git_ref }}" ]; then
+            echo "::notice::ROLLBACK/redeploy requested -> ${{ github.event.inputs.git_ref }} (resolved to $DEPLOY_SHA)"
+          else
+            echo "::notice::Deploying $DEPLOY_SHA"
+          fi
 
       - name: Remove local env file from CI checkout
         shell: bash
@@ -294,3 +314,19 @@ jobs:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
           slot-name: Production
           package: deployment.zip
+
+      - name: Tag this deploy as a rollback point
+        # Only auto-tag real pushes to main (not manual rollbacks, which already point at a tag).
+        if: ${{ github.event_name == 'push' && github.event.inputs.git_ref == '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="release-${{ github.run_number }}"
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Deployed to Azure (run ${{ github.run_number }}, sha ${DEPLOY_SHA})"
+          if git push origin "$TAG"; then
+            echo "::notice::Tagged this deploy as $TAG. To roll back later: run this workflow with git_ref=$TAG."
+          else
+            echo "::warning::Could not push tag $TAG (branch protection / permissions). Deploy still succeeded; you can roll back by commit SHA instead."
+          fi
