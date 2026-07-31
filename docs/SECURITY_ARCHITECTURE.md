@@ -49,13 +49,17 @@ the app is configured to refuse (fail closed) in patient-data mode.
 - A pluggable `AuthContextProvider` interface. The production implementation,
   `AzureTrustedHeaderProvider`, reads the authenticated principal injected by
   Azure Container Apps / App Service auth via the `X-MS-CLIENT-PRINCIPAL` header
-  (Base64 claims JSON), extracts user id / email / name / groups, and maps Entra
-  groups (or app roles) to internal roles.
+  (Base64 claims JSON), extracts user id / email / name / groups, verifies its
+  `tid` claim equals the concrete `ENTRA_TENANT_ID`, and maps Entra app roles (or
+  explicitly configured immutable group object IDs) to internal roles.
 - **Trust is conditional.** Incoming `X-MS-*` headers are trusted **only** when
   `TRUSTED_AUTH_PROXY=true`, which the deployment sets **only** when platform auth
   genuinely fronts the app. Without it, forged headers are ignored.
 - **Fail-closed.** When `PATIENT_DATA_MODE=true` or `AUTH_REQUIRED=true`, no demo
   stub identity is permitted; if no verified identity exists, access is refused.
+- The canonical human entry point is `/triage`. It requires the operational
+  workflow-queue permission and records an access decision before serving the UI.
+  Deployment steps are in `docs/TENANT_ENDPOINT_SETUP.md`.
 - A clearly-labelled **demo stub** identity exists for local public-data demos
   only (`AUTH_PROVIDER=demo`), and is disabled in patient-data mode.
 
@@ -125,7 +129,8 @@ with them but cannot implement them, and must not be described as providing them
 
 1. **Microsoft Entra ID (Azure AD) authentication** in front of the app
    (Container Apps / App Service built-in auth), issuing the trusted principal
-   header the app reads. Set `TRUSTED_AUTH_PROXY=true` only once this is in place.
+   header the app reads. Configure a single-tenant issuer matching
+   `ENTRA_TENANT_ID`; set `TRUSTED_AUTH_PROXY=true` only once this is in place.
 2. **MFA and Conditional Access** — enforced at Entra, not in the app.
 3. **Hospital-managed device** posture (Intune / compliant endpoint).
 4. **Secure network** — hospital VPN / private network; **Azure Container Apps
@@ -156,13 +161,16 @@ with them but cannot implement them, and must not be described as providing them
 | `PATIENT_DATA_MODE` | `false` | `true` ⇒ fail closed; no demo identity; real auth required. |
 | `AUTH_REQUIRED` | `false` | `true` ⇒ refuse unauthenticated access even for non-patient data. |
 | `TRUSTED_AUTH_PROXY` | unset | `true` only when platform auth genuinely fronts the app. |
+| `ENTRA_TENANT_ID` | unset | Required concrete tenant UUID for Azure real-auth profiles; independently validates `tid`. |
+| `ENTRA_GROUP_ROLE_MAP` | unset | Optional JSON object-ID → internal-role map; Entra app roles are preferred. |
 | `SECRETS_PROVIDER` | `env` | `keyvault` to use Key Vault (deployment injects client). |
 | `AUDIT_SINK` | `local` | `durable` to use encrypted durable storage. |
 | `PSEUDONYM_SECRET` | dev salt | Local research env secret only. In `PATIENT_DATA_MODE` with `SECRETS_PROVIDER=keyvault`, the runtime secret must come from Key Vault; a plain env `PSEUDONYM_SECRET` is refused unless an explicit dev-test override is set. |
 
 **Production patient-data profile (all required):**
 `PATIENT_DATA_MODE=true`, `AUTH_REQUIRED=true`, `TRUSTED_AUTH_PROXY=true`,
-`AUTH_PROVIDER` ≠ `demo`, `SECRETS_PROVIDER=keyvault`, `AUDIT_SINK=durable`,
+`AUTH_PROVIDER=azure`, `ENTRA_TENANT_ID=<target-tenant-uuid>`,
+`SECRETS_PROVIDER=keyvault`, `AUDIT_SINK=durable`,
 behind Entra auth + private ingress + VPN.
 
 ---

@@ -114,6 +114,10 @@ export default function App() {
     setEntered(true);
   };
   const signOut = () => {
+    if (session?.platform_logout_path) {
+      window.location.assign(session.platform_logout_path);
+      return;
+    }
     setDemoIdentity(null, null); setEntered(false); setPersona(null); setTab(null);
     setCases(null); setDecisionMap({}); setNotifs([]); seenNotifs.current = new Set(); setSelectedUid(null);
     api.authSession().then(setSession).catch(() => {});

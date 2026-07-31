@@ -23,8 +23,9 @@ import base64
 import re
 import json
 import os
+import uuid
 from dataclasses import dataclass, field, replace
-from typing import List, Optional, Protocol
+from typing import Dict, List, Optional, Protocol, Tuple
 
 
 # ── Internal role model ─────────────────────────────────────────────────────
@@ -54,6 +55,7 @@ class AuthContext:
     source: str = "none"          # which provider established this identity
     is_demo_stub: bool = False    # True only for the local public-data stub
     raw_groups: List[str] = field(default_factory=list)
+    tenant_validated: bool = False
 
     def has_role(self, role: str) -> bool:
         return role in self.roles
@@ -82,8 +84,58 @@ DEFAULT_GROUP_ROLE_MAP = {
 }
 
 
+def configured_tenant_id() -> str:
+    """Return the configured single-tenant boundary, normalised for comparison."""
+    return os.environ.get("ENTRA_TENANT_ID", "").strip().lower()
+
+
+def tenant_id_is_valid(value: str | None = None) -> bool:
+    """Tenant IDs used for this deployment must be concrete UUIDs, never
+    ``common``, ``organizations`` or another multi-tenant alias."""
+    raw = (value if value is not None else configured_tenant_id()).strip()
+    try:
+        uuid.UUID(raw)
+        return True
+    except (AttributeError, TypeError, ValueError):
+        return False
+
+
+def configured_group_role_map() -> Tuple[Dict[str, str], Optional[str]]:
+    """Load optional Entra group-object-ID mappings from JSON.
+
+    App-role values matching the internal role names work without this setting.
+    ``ENTRA_GROUP_ROLE_MAP`` is for deployments that use Entra security-group
+    claims instead, whose values are normally immutable object IDs rather than
+    human-readable group names. Invalid configuration grants no extra role and
+    is surfaced by the security preflight/startup guard.
+    """
+    mapping = dict(DEFAULT_GROUP_ROLE_MAP)
+    raw = os.environ.get("ENTRA_GROUP_ROLE_MAP", "").strip()
+    if not raw:
+        return mapping, None
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        return mapping, f"ENTRA_GROUP_ROLE_MAP is not valid JSON: {exc.msg}"
+    if not isinstance(parsed, dict):
+        return mapping, "ENTRA_GROUP_ROLE_MAP must be a JSON object"
+    for group_id, role in parsed.items():
+        key = str(group_id).strip().lower()
+        role_name = str(role).strip().lower()
+        if not key:
+            return mapping, "ENTRA_GROUP_ROLE_MAP contains an empty group key"
+        if role_name not in ALL_ROLES:
+            return mapping, f"ENTRA_GROUP_ROLE_MAP contains unknown role '{role_name}'"
+        mapping[key] = role_name
+    return mapping, None
+
+
+def group_role_map_config_error() -> Optional[str]:
+    return configured_group_role_map()[1]
+
+
 def map_groups_to_roles(groups: List[str], group_role_map: Optional[dict] = None) -> List[str]:
-    m = group_role_map or DEFAULT_GROUP_ROLE_MAP
+    m = group_role_map if group_role_map is not None else DEFAULT_GROUP_ROLE_MAP
     roles = []
     for g in groups or []:
         key = str(g).strip().lower()
@@ -111,7 +163,9 @@ class AzureTrustedHeaderProvider:
     ID_HEADER = "X-MS-CLIENT-PRINCIPAL-ID"
 
     def __init__(self, group_role_map: Optional[dict] = None):
-        self.group_role_map = group_role_map or DEFAULT_GROUP_ROLE_MAP
+        if group_role_map is None:
+            group_role_map, _ = configured_group_role_map()
+        self.group_role_map = group_role_map
 
     def get_context(self, request_headers: Optional[dict] = None) -> AuthContext:
         headers = {k.lower(): v for k, v in (request_headers or {}).items()}
@@ -146,6 +200,33 @@ class AzureTrustedHeaderProvider:
                 or _claim("name", "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name")
                 or email)
 
+        # Defence in depth: App Service Authentication is configured with the
+        # same tenant-specific issuer, and the application independently checks
+        # the token's tenant claim before accepting the injected identity.
+        tenant_id = _claim(
+            "tid",
+            "http://schemas.microsoft.com/identity/claims/tenantid",
+        )
+        expected_tenant_id = configured_tenant_id()
+        tenant_validated = False
+        if expected_tenant_id:
+            if not tenant_id:
+                return AuthContext(
+                    authenticated=False,
+                    source="azure_header_tenant_missing",
+                )
+            if str(tenant_id).strip().lower() != expected_tenant_id:
+                return AuthContext(
+                    authenticated=False,
+                    source="azure_header_tenant_mismatch",
+                )
+            tenant_validated = tenant_id_is_valid(expected_tenant_id)
+            if not tenant_validated:
+                return AuthContext(
+                    authenticated=False,
+                    source="azure_header_tenant_config_invalid",
+                )
+
         # Groups / roles may appear under several claim types.
         groups = [c.get("val") for c in claims
                   if c.get("typ") in ("groups", "roles",
@@ -159,6 +240,7 @@ class AzureTrustedHeaderProvider:
             authenticated=True, user_id=user_id, display_name=name, email=email,
             roles=roles, source="azure_trusted_header", is_demo_stub=False,
             raw_groups=[g for g in groups if g],
+            tenant_validated=tenant_validated,
         )
 
 
@@ -233,36 +315,47 @@ def local_credentialed_research_mode() -> bool:
 
 
 def azure_supervisor_demo_mode() -> bool:
-    """Explicit Azure-hosted demo profile for supervisor walkthroughs.
+    """Explicit Azure-hosted data/UI profile for supervisor walkthroughs.
 
-    This is not real authentication and is only allowed when real-data/security
-    flags are off. It exists so an Azure demo can show RBAC from the sidebar
-    without accidentally weakening patient-data or credentialed-MIMIC modes.
+    Authentication is independent: the profile can use the labelled local demo
+    persona selector for a synthetic public demo, or real single-tenant Entra
+    authentication. Real authentication always disables demo-role headers.
     """
     if patient_data_mode() or local_credentialed_research_mode():
         return False
-    if _env_true("TRUSTED_AUTH_PROXY") or _env_true("AUTH_REQUIRED"):
-        return False
     if _env_true("REAL_PATIENT_DATA"):
         return False
+    return _env_true("AZURE_SUPERVISOR_DEMO_MODE")
+
+
+def tenant_authentication_configured() -> bool:
+    """Whether configuration declares a concrete, single-tenant Entra boundary.
+
+    This is a deployment invariant, not proof of a live Azure resource. The live
+    proof is an authenticated request whose tenant claim sets
+    ``AuthContext.tenant_validated``.
+    """
     return (
-        _env_true("AZURE_SUPERVISOR_DEMO_MODE")
-        and _env_true("ALLOW_DEMO_ROLE_SWITCHER")
+        _env_true("AUTH_REQUIRED")
+        and _env_true("TRUSTED_AUTH_PROXY")
+        and os.environ.get("AUTH_PROVIDER", "demo").strip().lower() == "azure"
+        and tenant_id_is_valid()
     )
 
 
 def real_mimic_azure_demo_mode() -> bool:
     """Explicit, governed Azure supervisor demo that loads credentialed MIMIC.
 
-    This remains a demo-auth mode (not hospital SSO, not patient-data readiness),
-    but it may access credentialed full MIMIC only when the operator sets both a
-    technical allow flag and a separate acknowledgement flag. Without both, the
-    full-MIMIC loader refuses access and synthetic fallback must not mask it.
+    Credentialed full MIMIC on Azure is permitted only behind the concrete
+    single-tenant Entra boundary in addition to the technical allow flag and a
+    separate data-governance acknowledgement. Without all three, the loader
+    refuses access and synthetic fallback must not mask it.
     """
     return (
         azure_supervisor_demo_mode()
         and _env_true("ALLOW_FULL_MIMIC_IN_AZURE_DEMO")
         and _env_true("REAL_MIMIC_DEMO_ACKNOWLEDGED")
+        and tenant_authentication_configured()
     )
 
 
@@ -283,7 +376,7 @@ def demo_role_switcher_allowed() -> bool:
         return False
     auth_provider = os.environ.get("AUTH_PROVIDER", "demo").lower()
     if azure_supervisor_demo_mode():
-        return True
+        return _env_true("ALLOW_DEMO_ROLE_SWITCHER")
     return auth_provider == "demo"
 
 
