@@ -1,0 +1,52 @@
+{
+  "appRoles": [
+    {
+      "allowedMemberTypes": ["User"],
+      "description": "Run triage assessments and submit first-line reviews.",
+      "displayName": "Triage Nurse",
+      "id": "90b3531d-1eef-4f96-a72c-72c3290ee7ed",
+      "isEnabled": true,
+      "value": "triage_nurse"
+    },
+    {
+      "allowedMemberTypes": ["User"],
+      "description": "Review triage cases, escalations and follow-up assessments.",
+      "displayName": "ED Doctor",
+      "id": "f5b0cabf-b045-4d50-a6ed-c9bc77c6ab55",
+      "isEnabled": true,
+      "value": "ed_doctor"
+    },
+    {
+      "allowedMemberTypes": ["User"],
+      "description": "Clinical oversight, audit review and model evidence access.",
+      "displayName": "Clinical Supervisor",
+      "id": "0f07f0df-c466-49a7-8a35-924862341ce8",
+      "isEnabled": true,
+      "value": "clinical_supervisor"
+    },
+    {
+      "allowedMemberTypes": ["User"],
+      "description": "Read aggregate research and model evidence without clinical workflow access.",
+      "displayName": "Researcher",
+      "id": "d4331879-89ef-410c-9cd6-ce67fc32e57f",
+      "isEnabled": true,
+      "value": "researcher"
+    },
+    {
+      "allowedMemberTypes": ["User"],
+      "description": "Operate security, system status and ITD administration functions.",
+      "displayName": "ITD Security Administrator",
+      "id": "2ddf1972-62cf-49a3-916f-3cecc5db3605",
+      "isEnabled": true,
+      "value": "security_admin"
+    },
+    {
+      "allowedMemberTypes": ["User"],
+      "description": "Read governance and audit evidence without changing clinical workflow state.",
+      "displayName": "Governance Auditor",
+      "id": "06eaa012-7af4-48c2-ae05-8d72861fc469",
+      "isEnabled": true,
+      "value": "governance_auditor"
+    }
+  ]
+}

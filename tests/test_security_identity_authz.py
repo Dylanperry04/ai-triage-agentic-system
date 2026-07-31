@@ -19,6 +19,9 @@ def _principal_header(claims):
     return base64.b64encode(json.dumps({"auth_typ": "aad", "claims": claims}).encode()).decode()
 
 
+TEST_TENANT_ID = "11111111-2222-4333-8444-555555555555"
+
+
 # ── Fail-closed semantics (the safety-critical part) ────────────────────────
 class TestFailClosed:
     def test_patient_data_mode_refuses_stub(self, monkeypatch):
@@ -36,6 +39,26 @@ class TestFailClosed:
         monkeypatch.delenv("TRUSTED_AUTH_PROXY", raising=False)
         ctx = resolve_auth_context(request_headers={})
         assert ctx.authenticated is False
+
+    def test_azure_auth_preflight_rejects_multitenant_alias(self, monkeypatch):
+        from app.security.security_status import unsafe_combinations
+
+        monkeypatch.setenv("AUTH_REQUIRED", "true")
+        monkeypatch.setenv("AUTH_PROVIDER", "azure")
+        monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
+        monkeypatch.setenv("ENTRA_TENANT_ID", "organizations")
+        problems = unsafe_combinations(run_probes=False)
+        assert any("concrete tenant UUID" in problem for problem in problems)
+
+    def test_azure_auth_preflight_accepts_concrete_tenant(self, monkeypatch):
+        from app.security.security_status import unsafe_combinations
+
+        monkeypatch.setenv("AUTH_REQUIRED", "true")
+        monkeypatch.setenv("AUTH_PROVIDER", "azure")
+        monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
+        monkeypatch.setenv("ENTRA_TENANT_ID", TEST_TENANT_ID)
+        problems = unsafe_combinations(run_probes=False)
+        assert not any("tenant" in problem.lower() for problem in problems)
 
     def test_local_demo_mode_allows_stub(self, monkeypatch):
         monkeypatch.delenv("PATIENT_DATA_MODE", raising=False)
@@ -87,6 +110,60 @@ class TestAzureHeaderProvider:
     def test_unknown_group_grants_no_role(self):
         assert map_groups_to_roles(["not-a-real-group"]) == []
         assert map_groups_to_roles(["ed-doctors", "triage-nurses"]) == [ROLE_ED_DOCTOR, ROLE_TRIAGE_NURSE]
+
+    def test_single_tenant_claim_is_required_and_validated(self, monkeypatch):
+        monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
+        monkeypatch.setenv("ENTRA_TENANT_ID", TEST_TENANT_ID)
+        base_claims = [
+            {
+                "typ": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier",
+                "val": "user-123",
+            },
+            {"typ": "roles", "val": "triage_nurse"},
+        ]
+
+        missing = AzureTrustedHeaderProvider().get_context(
+            {"X-MS-CLIENT-PRINCIPAL": _principal_header(base_claims)}
+        )
+        assert missing.authenticated is False
+        assert missing.source == "azure_header_tenant_missing"
+
+        mismatch = AzureTrustedHeaderProvider().get_context(
+            {
+                "X-MS-CLIENT-PRINCIPAL": _principal_header(
+                    base_claims
+                    + [{"typ": "tid", "val": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"}]
+                )
+            }
+        )
+        assert mismatch.authenticated is False
+        assert mismatch.source == "azure_header_tenant_mismatch"
+
+        valid = AzureTrustedHeaderProvider().get_context(
+            {
+                "X-MS-CLIENT-PRINCIPAL": _principal_header(
+                    base_claims + [{"typ": "tid", "val": TEST_TENANT_ID}]
+                )
+            }
+        )
+        assert valid.authenticated is True
+        assert valid.tenant_validated is True
+        assert valid.roles == [ROLE_TRIAGE_NURSE]
+
+    def test_group_object_id_mapping_from_environment(self, monkeypatch):
+        group_id = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+        monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
+        monkeypatch.setenv("ENTRA_GROUP_ROLE_MAP", json.dumps({group_id: "ed_doctor"}))
+        hdr = _principal_header([
+            {
+                "typ": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier",
+                "val": "user-123",
+            },
+            {"typ": "groups", "val": group_id},
+        ])
+        ctx = AzureTrustedHeaderProvider().get_context({"X-MS-CLIENT-PRINCIPAL": hdr})
+        assert ctx.authenticated is True
+        assert ctx.roles == [ROLE_ED_DOCTOR]
 
 
 # ── RBAC matrix ─────────────────────────────────────────────────────────────

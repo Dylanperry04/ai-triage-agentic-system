@@ -51,19 +51,22 @@ not clinically approved). Every output requires clinician review.
 ## Profiles
 
 - **public_demo** (default): no credentialed data; fails closed.
-- **azure_supervisor_demo** (`AZURE_SUPERVISOR_DEMO_MODE=true` and
-  `ALLOW_DEMO_ROLE_SWITCHER=true`): synthetic/no-real-patient supervisor demo.
-  The demo role switcher is allowed only in this fake-auth mode and must remain
-  disabled for patient-data, local credentialed research, trusted-proxy, and
-  real-auth modes.
+- **azure_supervisor_demo** (`AZURE_SUPERVISOR_DEMO_MODE=true`):
+  synthetic/no-real-patient supervisor data and UI. It can use either the
+  labelled fake-auth role selector (`ALLOW_DEMO_ROLE_SWITCHER=true`) or the
+  tenant-restricted Entra endpoint (`AUTH_PROVIDER=azure`,
+  `AUTH_REQUIRED=true`, `TRUSTED_AUTH_PROXY=true`, `ENTRA_TENANT_ID=<uuid>`),
+  where the role selector is disabled. See
+  `docs/TENANT_ENDPOINT_SETUP.md` for the UHL visit setup.
 - **azure_supervisor_demo with governed full-MIMIC access**: optional, explicit,
   non-public supervisor demo mode for credentialed full MIMIC. Requires all of:
-  `AZURE_SUPERVISOR_DEMO_MODE=true`, `ALLOW_DEMO_ROLE_SWITCHER=true`,
+  `AZURE_SUPERVISOR_DEMO_MODE=true`, valid single-tenant Entra settings,
+  `ALLOW_DEMO_ROLE_SWITCHER=false`,
   `ALLOW_FULL_MIMIC_IN_AZURE_DEMO=true`, `REAL_MIMIC_DEMO_ACKNOWLEDGED=true`,
   and a backend-readable `MIMIC_FULL_ED_DIR`. If full MIMIC is requested but the
   directory is missing or unreadable, the app must fail closed and must not fall
-  back to synthetic demo cases. This is still not hospital SSO, not real UHL/HSE
-  patient data, not patient-data deployment readiness, and not clinical use.
+  back to synthetic demo cases. Entra protects access but does not make this real
+  UHL/HSE patient-data ready or clinically approved.
 - **local_credentialed_research** (`LOCAL_CREDENTIALED_RESEARCH=true`): an
   approved local machine. Loads the researcher's own credentialed MIMIC without
   the full production security posture. Hardened: backend must bind loopback
