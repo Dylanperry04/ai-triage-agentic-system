@@ -1,0 +1,35 @@
+{
+  "status": "PASS",
+  "scope": "validation_only_five_seed_stability",
+  "seeds": [
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "model_seed_rows": 115,
+  "candidate_count": 23,
+  "dataset_sha256": "f3a6b4b8c7ee081fc02c924978ee1c5ecb5d7ebffbd32a2058d10cbd1bf1cd5c",
+  "split_seed": 42,
+  "split_assignment_sha256": "498990bd6b0246b4842ccbc4c014d4b021de94c56ddd077c65b457d8c5a079d5",
+  "candidate_manifest_sha256": "125fb8eac2f5de31ac48b6906dc4d4b790b88f4018638446fee358ba040b830a",
+  "formal_contract_sha256_by_seed": {
+    "42": "9d5ac8b26c79a7217ecbc466b45cc799e781604c876bdfdd3689d44c04204b2b",
+    "43": "d9fa8f489c86786a574832b45f78568343e2675eafc84de919d91c9813daaba6",
+    "44": "d9fa8f489c86786a574832b45f78568343e2675eafc84de919d91c9813daaba6",
+    "45": "d9fa8f489c86786a574832b45f78568343e2675eafc84de919d91c9813daaba6",
+    "46": "d9fa8f489c86786a574832b45f78568343e2675eafc84de919d91c9813daaba6"
+  },
+  "test_evaluated": false,
+  "test_access_count": 0,
+  "ranking_is_advisory": true,
+  "best_model_by_validation_safety_rank": "catboost",
+  "input_report_sha256": {
+    "42": "d06571e2e9f4041ddc6a5c7365abb11c70ccfe5d72167204715d519941b9123a",
+    "43": "7fd1d56a483be32ce09d2a069c7cde01320e27f6c39e521bcb142b4910902f99",
+    "44": "d23a087b716f9c1ef6daff29e7a08065ee0cb29711f624032cbb85ba15af6ad3",
+    "45": "3f37a0fb7fac4c3f9d5e97083d55bc7df772ba8433c3626dcfc99a28056e9708",
+    "46": "3e79ec5f48db80bdcc333a601a007db36f25e932bc814193ebfcbed6a64cd939"
+  }
+}

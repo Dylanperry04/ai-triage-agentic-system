@@ -1,0 +1,14 @@
+{
+  "run_mode": "single_seed_preliminary",
+  "status": "TRAINING_COMPLETE",
+  "completed_count": 23,
+  "failed_count": 0,
+  "current_candidate": null,
+  "current_candidate_index": 23,
+  "candidate_count": 23,
+  "last_heartbeat_utc": "2026-08-10T21:55:22.309532+00:00",
+  "elapsed_seconds": null,
+  "artifact_count": 23,
+  "updated_at_utc": "2026-08-10T21:55:22.311528+00:00",
+  "contains_raw_patient_rows": false
+}

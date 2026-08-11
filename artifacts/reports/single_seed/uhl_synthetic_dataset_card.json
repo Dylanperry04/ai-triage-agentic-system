@@ -1,0 +1,44 @@
+{
+  "dataset_source": "UHL_SYNTHETIC_TRIAGE_VITALS_ACUITY_FINAL_20260402",
+  "dataset_sha256": "f3a6b4b8c7ee081fc02c924978ee1c5ecb5d7ebffbd32a2058d10cbd1bf1cd5c",
+  "rows_after_eligibility_filter": 777176,
+  "rows_removed_invalid_synthetic_vitals": 0,
+  "invalid_synthetic_vital_counts": null,
+  "rows_after_synthetic_vital_filter": null,
+  "target_column": "master_estimated_acuity",
+  "approved_model_inputs": [
+    "Age",
+    "month",
+    "hour",
+    "time_bin",
+    "season",
+    "PresentingComplaint_base",
+    "temperature",
+    "heartrate",
+    "resprate",
+    "o2sat",
+    "sbp",
+    "dbp",
+    "pain"
+  ],
+  "excluded_columns_note": "Outcome/timing fields, location tokens, complaint tokens, labels, and identifiers are not model features.",
+  "label_status": "SYNTHETIC_RESEARCH_GOSPEL_LABEL_NOT_CLINICAL_GROUND_TRUTH",
+  "label_limitations": {
+    "status": "PROVISIONAL_NOT_CLINICAL_GROUND_TRUTH",
+    "clinical_validation_required": true,
+    "synthetic_label_source": "master_estimated_acuity",
+    "model_may_relearn_research_labelling_rules": true,
+    "modal_baseline_report": "uhl_synthetic_modal_baseline_report.json"
+  },
+  "synthetic_triage_vitals_policy": {
+    "synthetic_triage_vitals_used": true,
+    "reason": "The final synthetic design includes temperature, heartrate, resprate, o2sat, sbp, dbp, and pain as triage-time predictors."
+  },
+  "synthetic_data_used": true,
+  "not_clinically_validated": true,
+  "class_distribution_report": "uhl_synthetic_class_distribution.json",
+  "split_kind": null,
+  "model_seed": 42,
+  "split_seed": 42,
+  "generated": null
+}

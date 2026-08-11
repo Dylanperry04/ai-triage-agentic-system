@@ -1,0 +1,16 @@
+# ── Full-MIMIC training-only dependencies ───────────────────────────────────
+# Used on the credentialed/approved environment for model comparison and
+# full-MIMIC training (ml_training/). Some compatibility/runtime packages are
+# also present in requirements.txt so selected artefacts can load in the app.
+# Install in a separate training venv:
+#   pip install -r requirements.txt -r requirements-ml.txt
+# requirements.txt intentionally includes AutoGen and W&B for Azure/Oryx
+# runtime deployment; heavy tree/plotting/sweep libraries stay here or in
+# requirements-ml-gpu.txt.
+scikit-learn==1.5.1            # pinned to match the runtime for artefact compatibility
+xgboost==2.1.0
+lightgbm==4.4.0
+catboost==1.2.5
+imbalanced-learn>=0.12.3,<0.14 # SMOTE / training-only imbalance experiments; keep with sklearn 1.5.x
+matplotlib==3.8.4              # aggregate ROC/PR curve artifacts
+wandb>=0.28.1,<1.0

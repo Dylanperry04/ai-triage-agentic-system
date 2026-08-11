@@ -1,0 +1,12 @@
+# AutoGen app-runtime dependencies.
+# Azure/Oryx installs requirements.txt by default, and requirements.txt already
+# includes these packages so the deployed app can run multi-agent explanations.
+# This file is kept for Docker/local explicit installs:
+#   pip install -r requirements.txt -r requirements-autogen.txt
+# Training-only tree/plotting dependencies (XGBoost/LightGBM/CatBoost/
+# matplotlib/Optuna) stay in requirements-ml*.txt.
+autogen-agentchat==0.7.5
+autogen-core==0.7.5
+autogen-ext[openai]==0.7.5
+requests>=2.32.0
+python-dotenv>=1.0.0

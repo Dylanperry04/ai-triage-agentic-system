@@ -1,0 +1,623 @@
+{
+  "human_summary": "PRELIMINARY \u2014 ONE MODEL SEED",
+  "run_mode": "single_seed_preliminary",
+  "training_run_id": "68827117-f043-437f-96c8-7f02e322e40c",
+  "selection_complete": true,
+  "test_evaluated": true,
+  "promotion_complete": true,
+  "operator": "dylan.perry",
+  "reason": "Frozen before TEST based on five-seed validation stability: CatBoost was the only candidate to pass the predefined balanced_safety gate in all five model seeds (42-46).",
+  "selected_at_utc": "2026-08-11T09:16:18.512105+00:00",
+  "candidate": "catboost",
+  "candidate_artifact_relative_path": "candidate_models/catboost.joblib",
+  "candidate_artifact_sha256": "a50cde9e2c6d97ddfff190b4dda9e0c435cb693f9d0a5dda1a64e527a172924b",
+  "frozen_validation_metric_snapshot": {
+    "model_name": "catboost",
+    "accuracy": 0.2422196678561625,
+    "balanced_accuracy": 0.2980250810776863,
+    "macro_precision": 0.26586306756887323,
+    "macro_recall": 0.2980250810776863,
+    "macro_f1": 0.12354755243531146,
+    "weighted_precision": 0.5744442791724562,
+    "weighted_recall": 0.2422196678561625,
+    "weighted_f1": 0.2708697418750006,
+    "matthews_corrcoef": -0.03819165118745225,
+    "cohen_kappa": -0.026872168735309954,
+    "log_loss": 1.1685755020507975,
+    "high_acuity_recall": {
+      "n_high_acuity": 28186,
+      "caught_as_high_acuity": 27036,
+      "recall": 0.9591996026396084,
+      "high_acuity_levels": [
+        1,
+        2
+      ]
+    },
+    "under_over_triage": {
+      "n": 116576,
+      "under_triage_count": 1378,
+      "severe_under_triage_count": 8,
+      "over_triage_count": 86961,
+      "exact_count": 28237,
+      "within_1_acuity_level_count": 99559,
+      "under_triage_rate": 0.011820614877847928,
+      "severe_under_triage_rate": 6.862475981334065e-05,
+      "over_triage_rate": 0.7459597172659895,
+      "exact_rate": 0.2422196678561625,
+      "within_1_acuity_level_accuracy": 0.8540265577820477
+    },
+    "ordinal_metrics": {
+      "n": 116576,
+      "mae": 0.9086604446884435,
+      "within_1_acuity_level_accuracy": 0.8540265577820477,
+      "quadratic_weighted_kappa": 0.19578070504447032
+    },
+    "calibration": {
+      "brier_per_class": {
+        "1": 0.02582747636346086,
+        "2": 0.15314196399609187,
+        "3": 0.34505882627628975,
+        "4": 0.09898641868993067,
+        "5": 0.039179016687536074
+      },
+      "brier_mean": 0.13243874040266185,
+      "note": "Lower Brier = better calibrated. One-vs-rest mean."
+    },
+    "auroc_pr_auc": {
+      "auroc": 0.8033948534803397,
+      "pr_auc": 0.6316477025812499
+    },
+    "per_class": {
+      "1": {
+        "precision": 0.014714162381291994,
+        "recall": 0.8340425531914893,
+        "f1": 0.028918151303898788,
+        "support": 470
+      },
+      "2": {
+        "precision": 0.18090423143225506,
+        "recall": 0.45057006783085585,
+        "f1": 0.258157875696404,
+        "support": 27716
+      },
+      "3": {
+        "precision": 0.7393307468477207,
+        "recall": 0.19249709581291985,
+        "f1": 0.3054620501723171,
+        "support": 79196
+      },
+      "4": {
+        "precision": 0.39436619718309857,
+        "recall": 0.013015688553166763,
+        "f1": 0.02519968500393745,
+        "support": 8605
+      },
+      "5": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 589
+      }
+    },
+    "confusion_matrix": [
+      [
+        392,
+        73,
+        5,
+        0,
+        0
+      ],
+      [
+        14083,
+        12488,
+        1142,
+        3,
+        0
+      ],
+      [
+        11836,
+        51960,
+        15245,
+        155,
+        0
+      ],
+      [
+        312,
+        4286,
+        3895,
+        112,
+        0
+      ],
+      [
+        18,
+        224,
+        333,
+        14,
+        0
+      ]
+    ],
+    "confusion_matrix_labels": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5"
+    ],
+    "train_seconds": 111.176,
+    "infer_seconds": 3.655,
+    "sample_weighting": null,
+    "argmax_validation_metrics": {
+      "accuracy": 0.42237681855613507,
+      "balanced_accuracy": 0.45573767627677697,
+      "macro_precision": 0.2984883980833688,
+      "macro_recall": 0.45573767627677697,
+      "macro_f1": 0.2722394275634505,
+      "weighted_precision": 0.6694356704432515,
+      "weighted_recall": 0.42237681855613507,
+      "weighted_f1": 0.48261514855449006,
+      "matthews_corrcoef": 0.20928278717206059,
+      "cohen_kappa": 0.1772710434991408,
+      "log_loss": 1.1685755020507975,
+      "high_acuity_recall": 0.6525225289150642,
+      "acuity1_recall": 0.46170212765957447,
+      "high_acuity_precision": 0.5276415067274866,
+      "high_acuity_f1": 0.5834747711879193,
+      "severe_under_triage_rate": 0.11227010705462531,
+      "under_triage_rate": 0.3907751166620917,
+      "over_triage_rate": 0.18684806478177327,
+      "specificity": 0.8137232718633329,
+      "predicted_urgent_rate": 0.2990066566017019,
+      "auroc": 0.8033948534803397,
+      "pr_auc": 0.6316477025812499
+    },
+    "decision_rule_tuning": {
+      "validation_only": true,
+      "test_set_used": false,
+      "selected_rule": {
+        "type": "ordinal_cost_sensitive",
+        "under_triage_penalty": 10.0,
+        "over_triage_penalty": 1.0,
+        "labels": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "cost_matrix": [
+          [
+            0.0,
+            10.0,
+            20.0,
+            30.0,
+            40.0
+          ],
+          [
+            1.0,
+            0.0,
+            10.0,
+            20.0,
+            30.0
+          ],
+          [
+            2.0,
+            1.0,
+            0.0,
+            10.0,
+            20.0
+          ],
+          [
+            3.0,
+            2.0,
+            1.0,
+            0.0,
+            10.0
+          ],
+          [
+            4.0,
+            3.0,
+            2.0,
+            1.0,
+            0.0
+          ]
+        ],
+        "validation_tuned": true
+      },
+      "selected_validation_metrics": {
+        "accuracy": 0.2422196678561625,
+        "balanced_accuracy": 0.2980250810776863,
+        "macro_precision": 0.26586306756887323,
+        "macro_recall": 0.2980250810776863,
+        "macro_f1": 0.12354755243531146,
+        "weighted_precision": 0.5744442791724562,
+        "weighted_recall": 0.2422196678561625,
+        "weighted_f1": 0.2708697418750006,
+        "matthews_corrcoef": -0.03819165118745225,
+        "cohen_kappa": -0.026872168735309954,
+        "log_loss": 1.1685755020507975,
+        "high_acuity_recall": 0.9591996026396084,
+        "acuity1_recall": 0.8340425531914893,
+        "high_acuity_precision": 0.28259051760180615,
+        "high_acuity_f1": 0.43656445284115675,
+        "severe_under_triage_rate": 6.862475981334065e-05,
+        "under_triage_rate": 0.011820614877847928,
+        "over_triage_rate": 0.7459597172659895,
+        "specificity": 0.22348681977599275,
+        "predicted_urgent_rate": 0.8206835026077409,
+        "auroc": 0.8033948534803397,
+        "pr_auc": 0.6316477025812499
+      }
+    },
+    "selected_decision_rule": {
+      "type": "ordinal_cost_sensitive",
+      "under_triage_penalty": 10.0,
+      "over_triage_penalty": 1.0,
+      "labels": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "cost_matrix": [
+        [
+          0.0,
+          10.0,
+          20.0,
+          30.0,
+          40.0
+        ],
+        [
+          1.0,
+          0.0,
+          10.0,
+          20.0,
+          30.0
+        ],
+        [
+          2.0,
+          1.0,
+          0.0,
+          10.0,
+          20.0
+        ],
+        [
+          3.0,
+          2.0,
+          1.0,
+          0.0,
+          10.0
+        ],
+        [
+          4.0,
+          3.0,
+          2.0,
+          1.0,
+          0.0
+        ]
+      ],
+      "validation_tuned": true
+    },
+    "decision_rule_tuned_on": "validation",
+    "imbalance_strategy": "class_weight_balanced",
+    "class_weight_mode": "balanced",
+    "sampler": null,
+    "train_distribution": {
+      "n": 544022,
+      "class_counts": {
+        "1": 2194,
+        "2": 129341,
+        "3": 369582,
+        "4": 40159,
+        "5": 2746
+      },
+      "class_percentages": {
+        "1": 0.004032925139056876,
+        "2": 0.23774957630389948,
+        "3": 0.679351202708714,
+        "4": 0.07381870586116003,
+        "5": 0.005047589987169637
+      },
+      "high_acuity_1_2_count": 131535,
+      "high_acuity_1_2_percentage": 0.24178250144295635,
+      "non_high_acuity_3_5_count": 412487,
+      "non_high_acuity_3_5_percentage": 0.7582174985570437,
+      "minority_class_count": 2194,
+      "majority_class_count": 369582,
+      "imbalance_ratio_majority_to_minority": 168.45123062898816
+    },
+    "validation_distribution": {
+      "n": 116576,
+      "class_counts": {
+        "1": 470,
+        "2": 27716,
+        "3": 79196,
+        "4": 8605,
+        "5": 589
+      },
+      "class_percentages": {
+        "1": 0.004031704639033763,
+        "2": 0.2377504803733187,
+        "3": 0.6793508097721658,
+        "4": 0.07381450727422453,
+        "5": 0.005052497941257205
+      },
+      "high_acuity_1_2_count": 28186,
+      "high_acuity_1_2_percentage": 0.24178218501235246,
+      "non_high_acuity_3_5_count": 88390,
+      "non_high_acuity_3_5_percentage": 0.7582178149876475,
+      "minority_class_count": 470,
+      "majority_class_count": 79196,
+      "imbalance_ratio_majority_to_minority": 168.50212765957446
+    },
+    "test_distribution": null,
+    "artifact_contract_version": 8,
+    "input_type": "uhl_synthetic_triage_vitals_dataframe",
+    "raw_input_columns": [
+      "age",
+      "month",
+      "hour",
+      "time_bin",
+      "season",
+      "presenting_complaint",
+      "temperature",
+      "heartrate",
+      "resprate",
+      "o2sat",
+      "sbp",
+      "dbp",
+      "pain"
+    ],
+    "deployment_eligible": false,
+    "validation_artifact_eligible": true,
+    "convergence": {
+      "status": "PASS",
+      "warning_count": 0,
+      "warnings": []
+    },
+    "over_triage_specificity": {
+      "high_acuity_sensitivity": 0.9591996026396084,
+      "high_acuity_precision": 0.28259051760180615,
+      "high_acuity_f1": 0.43656445284115675,
+      "specificity": 0.22348681977599275,
+      "over_triage_rate": 0.7765131802240073,
+      "predicted_urgent_rate": 0.8206835026077409,
+      "true_high_acuity_count": 28186,
+      "predicted_high_acuity_count": 95672,
+      "true_positive_high_acuity_count": 27036,
+      "false_positive_high_acuity_count": 68636,
+      "true_negative_non_high_acuity_count": 19754,
+      "false_negative_high_acuity_count": 1150
+    },
+    "selection_profile": "balanced_safety",
+    "selection_constraints": {
+      "min_specificity": 0.2,
+      "max_predicted_urgent_rate": 0.85,
+      "min_high_acuity_recall": 0.8,
+      "min_acuity1_recall": 0.8,
+      "profile": "balanced_safety"
+    },
+    "passes_over_triage_constraint": true,
+    "model_seed": 42,
+    "split_seed": 42,
+    "split_assignment_sha256": "498990bd6b0246b4842ccbc4c014d4b021de94c56ddd077c65b457d8c5a079d5",
+    "artifact_reload_verification": {
+      "status": "PASS",
+      "rows_checked": 256,
+      "predictions_identical": true,
+      "probabilities_close": true,
+      "fresh_python_process": true,
+      "smoke_inputs_sha256": "3950ba85b5fdaca9aa9cc7a7c35034312b5594c997b316aac2d84fbfa751873c",
+      "smoke_expected_sha256": "f8d7fe9faaab587071aaab588cba242e7051625ef97af9b5d47abd6095a6ad30",
+      "artifact_sha256": "a50cde9e2c6d97ddfff190b4dda9e0c435cb693f9d0a5dda1a64e527a172924b",
+      "artifact_size_bytes": 3869904
+    },
+    "candidate_artifact_filename": "candidate_models/catboost.joblib"
+  },
+  "decision_rule": {
+    "type": "ordinal_cost_sensitive",
+    "under_triage_penalty": 10.0,
+    "over_triage_penalty": 1.0,
+    "labels": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "cost_matrix": [
+      [
+        0.0,
+        10.0,
+        20.0,
+        30.0,
+        40.0
+      ],
+      [
+        1.0,
+        0.0,
+        10.0,
+        20.0,
+        30.0
+      ],
+      [
+        2.0,
+        1.0,
+        0.0,
+        10.0,
+        20.0
+      ],
+      [
+        3.0,
+        2.0,
+        1.0,
+        0.0,
+        10.0
+      ],
+      [
+        4.0,
+        3.0,
+        2.0,
+        1.0,
+        0.0
+      ]
+    ],
+    "validation_tuned": true
+  },
+  "test_safety_gate_passed": true,
+  "test_metrics": {
+    "model_name": "catboost",
+    "accuracy": 0.24535067252264617,
+    "balanced_accuracy": 0.30133478499791844,
+    "macro_precision": 0.2655933314721625,
+    "macro_recall": 0.30133478499791844,
+    "macro_f1": 0.1245834687044105,
+    "weighted_precision": 0.5806986976771069,
+    "weighted_recall": 0.24535067252264617,
+    "weighted_f1": 0.27528608661720844,
+    "matthews_corrcoef": -0.033341565655621526,
+    "cohen_kappa": -0.023508269617105837,
+    "log_loss": 1.1690737243692995,
+    "high_acuity_recall": {
+      "n_high_acuity": 28186,
+      "caught_as_high_acuity": 27064,
+      "recall": 0.9601930036188179,
+      "high_acuity_levels": [
+        1,
+        2
+      ]
+    },
+    "under_over_triage": {
+      "n": 116576,
+      "under_triage_count": 1323,
+      "severe_under_triage_count": 14,
+      "over_triage_count": 86651,
+      "exact_count": 28602,
+      "within_1_acuity_level_count": 99429,
+      "under_triage_rate": 0.01134881965413121,
+      "severe_under_triage_rate": 0.00012009332967334615,
+      "over_triage_rate": 0.7433005078232227,
+      "exact_rate": 0.24535067252264617,
+      "within_1_acuity_level_accuracy": 0.8529114054350809
+    },
+    "ordinal_metrics": {
+      "n": 116576,
+      "mae": 0.9070220285479,
+      "within_1_acuity_level_accuracy": 0.8529114054350809,
+      "quadratic_weighted_kappa": 0.19440507653629957
+    },
+    "calibration": {
+      "brier_per_class": {
+        "1": 0.02562618213806244,
+        "2": 0.15129269836845322,
+        "3": 0.34618385886299197,
+        "4": 0.09938575127901061,
+        "5": 0.03960637152156501
+      },
+      "brier_mean": 0.13241897243401665,
+      "note": "Lower Brier = better calibrated. One-vs-rest mean."
+    },
+    "auroc_pr_auc": {
+      "auroc": 0.8078553387539806,
+      "pr_auc": 0.6353091341700345
+    },
+    "per_class": {
+      "1": {
+        "precision": 0.014913069544364508,
+        "recall": 0.8468085106382979,
+        "f1": 0.029309963914868547,
+        "support": 470
+      },
+      "2": {
+        "precision": 0.18175873993781058,
+        "recall": 0.45132775292249966,
+        "f1": 0.25915183658248564,
+        "support": 27716
+      },
+      "3": {
+        "precision": 0.7496154585656605,
+        "recall": 0.1969165109348957,
+        "f1": 0.3119,
+        "support": 79196
+      },
+      "4": {
+        "precision": 0.3816793893129771,
+        "recall": 0.011621150493898896,
+        "f1": 0.02255554302469832,
+        "support": 8605
+      },
+      "5": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 589
+      }
+    },
+    "confusion_matrix": [
+      [
+        398,
+        68,
+        4,
+        0,
+        0
+      ],
+      [
+        14089,
+        12509,
+        1108,
+        10,
+        0
+      ],
+      [
+        11822,
+        51646,
+        15595,
+        133,
+        0
+      ],
+      [
+        367,
+        4374,
+        3764,
+        100,
+        0
+      ],
+      [
+        12,
+        225,
+        333,
+        19,
+        0
+      ]
+    ],
+    "confusion_matrix_labels": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5"
+    ],
+    "train_seconds": 111.176,
+    "infer_seconds": 0.0,
+    "sample_weighting": null
+  },
+  "test_over_triage_specificity": {
+    "high_acuity_sensitivity": 0.9601930036188179,
+    "high_acuity_precision": 0.283362998638886,
+    "high_acuity_f1": 0.43758892769370067,
+    "specificity": 0.22563638420635818,
+    "over_triage_rate": 0.7743636157936418,
+    "predicted_urgent_rate": 0.8192938512215208,
+    "true_high_acuity_count": 28186,
+    "predicted_high_acuity_count": 95510,
+    "true_positive_high_acuity_count": 27064,
+    "false_positive_high_acuity_count": 68446,
+    "true_negative_non_high_acuity_count": 19944,
+    "false_negative_high_acuity_count": 1122
+  },
+  "promoted_artifact": "uhl_synthetic_acuity_selected.joblib",
+  "promoted_artifact_sha256": "7dddf3cc673f5598d73d7e6d56546cad49639edcae77b44b17b677f0b0d1395b",
+  "model_was_retrained": false,
+  "test_access_record_count": 1,
+  "contains_raw_patient_rows": false
+}

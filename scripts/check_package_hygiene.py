@@ -1,0 +1,83 @@
+"""Fail if a checkpoint archive contains runtime logs, caches, unapproved model
+binaries, or credentialed patient tables.
+
+Usage:
+    python scripts/check_package_hygiene.py path/to/checkpoint.zip
+"""
+from __future__ import annotations
+
+import re
+import sys
+import zipfile
+from pathlib import Path
+
+
+FORBIDDEN_PATTERNS = [
+    re.compile(r"(^|[\\/])data[\\/]processed[\\/].+\.(json|jsonl)$"),
+    re.compile(r"(^|[\\/])data[\\/]processed[\\/]supporting_uploads([\\/]|$)"),
+    re.compile(r"(^|[\\/])__pycache__([\\/]|$)"),
+    re.compile(r"\.py[co]$", re.IGNORECASE),
+    re.compile(r"(^|[\\/])\.env$"),
+    re.compile(r"(^|[\\/])\.env\.(?!example(?:[\\/]|$)).+"),
+    re.compile(r"(^|[\\/])\.git([\\/]|$)"),
+    re.compile(r"(^|[\\/])\.pytest_cache([\\/]|$)"),
+    re.compile(r"(^|[\\/])\.venv([\\/]|$)"),
+    re.compile(r"(^|[\\/])node_modules([\\/]|$)"),
+    re.compile(r"^(?:[^\\/]+[\\/])?(?:wandb|wandb-offline|wandb_logs)([\\/]|$)"),
+    re.compile(r"\.(joblib|pkl)$", re.IGNORECASE),
+    re.compile(
+        r"(^|[\\/])(edstays|triage|vitalsign|diagnosis|medrecon|pyxis)\.csv(\.gz)?$",
+        re.IGNORECASE,
+    ),
+]
+
+ALLOWED_DEPLOYMENT_MODEL_ARTIFACTS = {
+    "artifacts/model/uhl_synthetic_acuity_selected.joblib",
+    "artifacts/reports/single_seed/uhl_synthetic_acuity_selected.joblib",
+}
+
+MAX_FORBIDDEN_ENTRIES_TO_PRINT = 200
+
+
+def _allowed_deployment_artifact(name: str) -> bool:
+    normalized = name.replace("\\", "/").lstrip("/")
+    if normalized in ALLOWED_DEPLOYMENT_MODEL_ARTIFACTS:
+        return True
+    _, separator, without_archive_root = normalized.partition("/")
+    return bool(separator) and without_archive_root in ALLOWED_DEPLOYMENT_MODEL_ARTIFACTS
+
+
+def forbidden_entries(zip_path: Path) -> list[str]:
+    with zipfile.ZipFile(zip_path, "r") as zf:
+        names = zf.namelist()
+    return [
+        name
+        for name in names
+        if not _allowed_deployment_artifact(name)
+        if any(pattern.search(name) for pattern in FORBIDDEN_PATTERNS)
+    ]
+
+
+def main(argv: list[str]) -> int:
+    if len(argv) != 2:
+        print("Usage: python scripts/check_package_hygiene.py path/to/checkpoint.zip", file=sys.stderr)
+        return 2
+    zip_path = Path(argv[1])
+    if not zip_path.exists():
+        print(f"Archive not found: {zip_path}", file=sys.stderr)
+        return 2
+    bad = forbidden_entries(zip_path)
+    if bad:
+        print(f"Forbidden archive entries detected: {len(bad)}", file=sys.stderr)
+        for name in bad[:MAX_FORBIDDEN_ENTRIES_TO_PRINT]:
+            print(f"  {name}", file=sys.stderr)
+        remaining = len(bad) - MAX_FORBIDDEN_ENTRIES_TO_PRINT
+        if remaining > 0:
+            print(f"  ... and {remaining} more", file=sys.stderr)
+        return 1
+    print(f"PASS: {zip_path} contains no forbidden runtime/data/cache entries")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv))

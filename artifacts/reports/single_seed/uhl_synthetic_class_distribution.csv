@@ -1,0 +1,5 @@
+split,n,high_acuity_1_2_count,high_acuity_1_2_percentage,non_high_acuity_3_5_count,non_high_acuity_3_5_percentage,minority_class_count,majority_class_count,imbalance_ratio_majority_to_minority,class_1,class_2,class_3,class_4,class_5
+overall,,,,,,,,,,,,,
+train,544022,131535,0.24178250144295635,412487,0.7582174985570437,2194,369582,168.45123062898816,2194,129341,369582,40159,2746
+validation,116576,28186,0.24178218501235246,88390,0.7582178149876475,470,79196,168.50212765957446,470,27716,79196,8605,589
+test,116576,,,,,,,,,,,,

@@ -1,0 +1,15 @@
+{
+  "run_mode": "single_seed_preliminary",
+  "status": "COMPLETED",
+  "candidate_name": "raw_tfidf_svd_catboost_smote",
+  "candidate_index": 23,
+  "candidate_count": 23,
+  "started_at_utc": "2026-08-10T21:35:14.974477+00:00",
+  "heartbeat_at_utc": "2026-08-10T21:52:40.735104+00:00",
+  "deadline_at_utc": "2026-08-11T03:35:14.974477+00:00",
+  "elapsed_seconds": 1045,
+  "stage": "REPORTING_AND_COMMITTING",
+  "heartbeat_semantics": "process_liveness_not_native_forward_progress",
+  "process_id": 865102,
+  "contains_raw_patient_rows": false
+}

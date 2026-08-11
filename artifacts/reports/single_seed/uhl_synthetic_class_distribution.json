@@ -1,0 +1,61 @@
+{
+  "training_run_id": "68827117-f043-437f-96c8-7f02e322e40c",
+  "dataset_source": "UHL_SYNTHETIC_TRIAGE_VITALS_ACUITY_FINAL_20260402",
+  "split_kind": "deterministic_stratified_row_split",
+  "split_seed": 42,
+  "split_assignment_sha256": "498990bd6b0246b4842ccbc4c014d4b021de94c56ddd077c65b457d8c5a079d5",
+  "natural_distribution_note": "Class balancing and SMOTE are applied inside training pipelines only; validation/test remain on the recorded split distribution.",
+  "overall": null,
+  "train": {
+    "n": 544022,
+    "class_counts": {
+      "1": 2194,
+      "2": 129341,
+      "3": 369582,
+      "4": 40159,
+      "5": 2746
+    },
+    "class_percentages": {
+      "1": 0.004032925139056876,
+      "2": 0.23774957630389948,
+      "3": 0.679351202708714,
+      "4": 0.07381870586116003,
+      "5": 0.005047589987169637
+    },
+    "high_acuity_1_2_count": 131535,
+    "high_acuity_1_2_percentage": 0.24178250144295635,
+    "non_high_acuity_3_5_count": 412487,
+    "non_high_acuity_3_5_percentage": 0.7582174985570437,
+    "minority_class_count": 2194,
+    "majority_class_count": 369582,
+    "imbalance_ratio_majority_to_minority": 168.45123062898816
+  },
+  "validation": {
+    "n": 116576,
+    "class_counts": {
+      "1": 470,
+      "2": 27716,
+      "3": 79196,
+      "4": 8605,
+      "5": 589
+    },
+    "class_percentages": {
+      "1": 0.004031704639033763,
+      "2": 0.2377504803733187,
+      "3": 0.6793508097721658,
+      "4": 0.07381450727422453,
+      "5": 0.005052497941257205
+    },
+    "high_acuity_1_2_count": 28186,
+    "high_acuity_1_2_percentage": 0.24178218501235246,
+    "non_high_acuity_3_5_count": 88390,
+    "non_high_acuity_3_5_percentage": 0.7582178149876475,
+    "minority_class_count": 470,
+    "majority_class_count": 79196,
+    "imbalance_ratio_majority_to_minority": 168.50212765957446
+  },
+  "test": {
+    "n": 116576,
+    "status": "LABELS_NOT_ACCESSED_DURING_TRAINING"
+  }
+}

@@ -1,0 +1,9 @@
+# Training-only GPU extras for credentialed full-MIMIC research machines.
+# Install in the training environment, not the deployed app runtime:
+#   python -m pip install -r requirements.txt -r requirements-ml.txt -r requirements-ml-gpu.txt
+#
+# Tree-model GPU support is provided by the libraries already listed in
+# requirements-ml.txt. This file intentionally keeps the runtime app dependency
+# set separate and adds only sweep/orchestration tooling for H100 experiments.
+-r requirements-ml.txt
+optuna==3.6.1

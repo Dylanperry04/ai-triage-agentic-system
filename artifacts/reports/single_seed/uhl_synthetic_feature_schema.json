@@ -1,0 +1,37 @@
+{
+  "dataset_source": "UHL_SYNTHETIC_TRIAGE_VITALS_ACUITY_FINAL_20260402",
+  "target_column": "master_estimated_acuity",
+  "source_input_columns": [
+    "Age",
+    "month",
+    "hour",
+    "time_bin",
+    "season",
+    "PresentingComplaint_base",
+    "temperature",
+    "heartrate",
+    "resprate",
+    "o2sat",
+    "sbp",
+    "dbp",
+    "pain"
+  ],
+  "model_input_columns": [
+    "age",
+    "month",
+    "hour",
+    "time_bin",
+    "season",
+    "presenting_complaint",
+    "temperature",
+    "heartrate",
+    "resprate",
+    "o2sat",
+    "sbp",
+    "dbp",
+    "pain"
+  ],
+  "feature_schema_hash": "fd3d1365fe744d5eb75a83b8cfb1ebf9b84695a405c802b633bd2bb78f89debd",
+  "synthetic_triage_vitals_used": true,
+  "not_clinically_validated": true
+}

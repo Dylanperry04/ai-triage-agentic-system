@@ -1,0 +1,34 @@
+{
+  "created_at_utc": "2026-08-11T00:00:00+00:00",
+  "version": "22.4.0-uhl",
+  "package_checkpoint": "v22_4_uhl_data_model_swap",
+  "registry_schema_version": "1.0.0",
+  "dataset": "UHL_SYNTHETIC_TRIAGE_VITALS_ACUITY_FINAL_20260402",
+  "research_note": "The 22.4 application architecture is unchanged; only the active training/data/model/report seam is switched to the supplied UHL synthetic release. Not clinically validated; clinician review required.",
+  "uhl_model": {
+    "name": "uhl_synthetic_acuity_model",
+    "path_env": "UHL_MODEL_PATH",
+    "bundled_relative_path": "artifacts/model/uhl_synthetic_acuity_selected.joblib",
+    "report_dir_relative_path": "artifacts/reports/single_seed",
+    "sha256": "7dddf3cc673f5598d73d7e6d56546cad49639edcae77b44b17b677f0b0d1395b",
+    "dataset_sha256": "f3a6b4b8c7ee081fc02c924978ee1c5ecb5d7ebffbd32a2058d10cbd1bf1cd5c",
+    "feature_schema_hash": "fd3d1365fe744d5eb75a83b8cfb1ebf9b84695a405c802b633bd2bb78f89debd",
+    "training_run_id": "68827117-f043-437f-96c8-7f02e322e40c"
+  },
+  "blocked_leakage_features": [
+    "master_estimated_acuity",
+    "acuity",
+    "HoursinEd",
+    "Admitted",
+    "Over6Hours",
+    "Over9Hours",
+    "Over24",
+    "Over75",
+    "TTT_minutes",
+    "TTC_minutes",
+    "EdLocationName_base",
+    "EdLocationName_token",
+    "PresentingComplaint_token",
+    "AttendanceID"
+  ]
+}

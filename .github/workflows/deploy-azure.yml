@@ -1,0 +1,347 @@
+name: Deploy AI Triage to Azure
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      git_ref:
+        description: "Tag or commit SHA to (re)deploy. Leave blank for a normal deploy of the current branch; set it to a previous release-* tag (or any commit SHA) to ROLL BACK to that exact version."
+        required: false
+        default: ""
+
+permissions:
+  contents: write   # needed to push the release-* rollback tag after a successful prod deploy
+  id-token: write
+
+concurrency:
+  group: ai-triage-production
+  cancel-in-progress: true
+
+env:
+  AZURE_WEBAPP_NAME: ai-triage-agentic-system
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  test-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.git_ref || github.ref }}
+          fetch-depth: 0
+
+      - name: Record the version being deployed
+        shell: bash
+        run: |
+          set -euo pipefail
+          DEPLOY_SHA="$(git rev-parse HEAD)"
+          echo "DEPLOY_SHA=$DEPLOY_SHA" >> "$GITHUB_ENV"
+          if [ -n "${{ github.event.inputs.git_ref }}" ]; then
+            echo "::notice::ROLLBACK/redeploy requested -> ${{ github.event.inputs.git_ref }} (resolved to $DEPLOY_SHA)"
+          else
+            echo "::notice::Deploying $DEPLOY_SHA"
+          fi
+
+      - name: Remove local env file from CI checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if git ls-files --error-unmatch .env >/dev/null 2>&1; then
+            echo "::warning file=.env::.env is tracked in git. Remove it from the repository and rotate any exposed secrets."
+          fi
+
+          rm -f .env
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-autogen.txt
+
+      - name: Install test dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install --no-cache-dir -r requirements.txt
+
+          if [ -f requirements-autogen.txt ]; then
+            python -m pip install --no-cache-dir -r requirements-autogen.txt
+          fi
+
+          python -m pip install --no-cache-dir -r requirements-dev.txt
+
+          python -m pytest --version
+
+      - name: Clear cloud credentials before tests
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          {
+            echo "OPENAI_API_KEY="
+            echo "OPENAI_API_BASE="
+            echo "OPENAI_API_TYPE="
+            echo "OPENAI_ORGANIZATION="
+            echo "AZURE_OPENAI_API_KEY="
+            echo "AZURE_OPENAI_KEY="
+            echo "AZURE_OPENAI_ENDPOINT="
+            echo "AZURE_OPENAI_API_VERSION="
+            echo "AZURE_OPENAI_DEPLOYMENT="
+            echo "AZURE_OPENAI_DEPLOYMENT_ID="
+            echo "AZURE_OPENAI_MODEL="
+            echo "AZURE_OPENAI_RESOURCE_NAME="
+            echo "CORS_ALLOWED_ORIGINS="
+            echo "WANDB_MODE=disabled"
+          } >> "$GITHUB_ENV"
+
+          echo "Cloud LLM and CORS variables cleared for deterministic test run."
+
+      - name: Run tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest tests/ -q
+
+      - name: Validate deployment files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test -f requirements.txt
+          test -f startup-backend.sh
+          test -f app/main.py
+          test -f frontend-react/dist/index.html
+          test -f data/uhl_dataset_final.csv.gz
+          test -f artifacts/model/uhl_synthetic_acuity_selected.joblib
+          test -f artifacts/reports/single_seed/uhl_synthetic_training_provenance.json
+
+          test "$(sha256sum data/uhl_dataset_final.csv.gz | awk '{print $1}')" = "f3a6b4b8c7ee081fc02c924978ee1c5ecb5d7ebffbd32a2058d10cbd1bf1cd5c"
+          test "$(sha256sum artifacts/model/uhl_synthetic_acuity_selected.joblib | awk '{print $1}')" = "7dddf3cc673f5598d73d7e6d56546cad49639edcae77b44b17b677f0b0d1395b"
+
+          echo "Required deployment files are present."
+
+      - name: Create deployment directory
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          rm -rf deployment deployment.zip
+          mkdir -p deployment
+
+          rsync -a ./ deployment/ \
+            --exclude '.git/' \
+            --exclude '.github/' \
+            --exclude '.venv/' \
+            --exclude '.venv*/' \
+            --exclude 'venv/' \
+            --exclude 'env/' \
+            --exclude 'antenv/' \
+            --exclude '.python_packages/' \
+            --exclude '__pycache__/' \
+            --exclude '.pytest_cache/' \
+            --exclude '.mypy_cache/' \
+            --exclude '.ruff_cache/' \
+            --exclude 'frontend-react/node_modules/' \
+            --exclude 'node_modules/' \
+            --exclude 'wandb/' \
+            --exclude 'wandb-offline/' \
+            --exclude 'wandb_logs/' \
+            --exclude 'mimic_data/' \
+            --exclude 'mimic-iv-ed*/' \
+            --exclude 'data/processed/' \
+            --exclude '.env' \
+            --exclude '.env.*' \
+            --exclude '*.parquet' \
+            --exclude '*.sqlite' \
+            --exclude '*.sqlite3' \
+            --exclude '*.db'
+
+      - name: Install Azure deployment dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p deployment/.python_packages/lib/site-packages
+
+          python -m pip install \
+            --no-cache-dir \
+            --no-compile \
+            --target deployment/.python_packages/lib/site-packages \
+            -r deployment/requirements.txt
+
+          if [ -f deployment/requirements-autogen.txt ]; then
+            python -m pip install \
+              --no-cache-dir \
+              --no-compile \
+              --target deployment/.python_packages/lib/site-packages \
+              -r deployment/requirements-autogen.txt
+          fi
+
+      - name: Verify packaged application
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          export PYTHONPATH="$GITHUB_WORKSPACE/deployment/.python_packages/lib/site-packages:$GITHUB_WORKSPACE/deployment"
+          export PYTHONDONTWRITEBYTECODE=1
+
+          python - <<'PY'
+          import sys
+          import traceback
+          try:
+              import fastapi
+              import uvicorn
+              import sklearn
+              import joblib
+              import app.main
+              from app.config import settings
+              from ml_training.uhl_synthetic.serving import validate_uhl_serving_bundle
+
+              assert settings.uhl_data_path.is_file(), settings.uhl_data_path
+              assert settings.uhl_model_path.is_file(), settings.uhl_model_path
+              validate_uhl_serving_bundle(
+                  joblib.load(settings.uhl_model_path),
+                  require_deployable=True,
+              )
+              print("Packaged application imports successfully")
+          except Exception:
+              traceback.print_exc()
+              sys.exit(1)
+          PY
+
+      - name: Clean deployment package
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "Removing generated bytecode, caches, and runtime audit data from deployment..."
+
+          find deployment -type f \( -name '*.pyc' -o -name '*.pyo' \) -print -delete
+          find deployment -depth -type d \( \
+            -name '__pycache__' -o \
+            -name '.pytest_cache' -o \
+            -name '.mypy_cache' -o \
+            -name '.ruff_cache' \
+          \) -print -exec rm -rf {} +
+
+          if [ -d deployment/.python_packages ]; then
+            SITE="deployment/.python_packages/lib/site-packages"
+
+            # IMPORTANT: numpy/testing/ is a RUNTIME-REQUIRED public submodule --
+            # scipy's array_api_compat imports it whenever scikit-learn is imported,
+            # so if it is missing the app fails on Azure with
+            # "No module named 'numpy.testing'" and the model can't be verified.
+            # The name-based directory prune below matches it, so we preserve it
+            # across the prune and restore it immediately afterwards.
+            if [ -d "$SITE/numpy/testing" ]; then
+              rm -rf /tmp/_keep_numpy_testing
+              cp -r "$SITE/numpy/testing" /tmp/_keep_numpy_testing
+            fi
+
+            find deployment/.python_packages -depth -type d \( \
+              -iname 'test' -o \
+              -iname 'tests' -o \
+              -iname 'testing' -o \
+              -iname 'doc' -o \
+              -iname 'docs' -o \
+              -iname 'example' -o \
+              -iname 'examples' \
+            \) -print -exec rm -rf {} +
+
+            if [ -d /tmp/_keep_numpy_testing ]; then
+              rm -rf "$SITE/numpy/testing"
+              cp -r /tmp/_keep_numpy_testing "$SITE/numpy/testing"
+              echo "Preserved numpy/testing/ (runtime-required; matched by the name prune above)."
+            fi
+
+            find deployment/.python_packages -depth -type d \( \
+              -name '__pycache__' -o \
+              -name '.pytest_cache' -o \
+              -name '.mypy_cache' -o \
+              -name '.ruff_cache' \
+            \) -print -exec rm -rf {} +
+
+            find deployment/.python_packages -type f \( \
+              -iname '*.pyc' -o \
+              -iname '*.pyo' -o \
+              -iname '*.pkl' -o \
+              -iname '*.pickle' -o \
+              -iname '*.joblib' \
+            \) -print -delete
+          fi
+
+          rm -rf deployment/data/processed
+
+          echo "Clean complete."
+
+      - name: Create deployment ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cd deployment
+          zip -qr ../deployment.zip .
+          cd ..
+
+          echo "Deployment package:"
+          ls -lh deployment.zip
+
+      - name: Verify deployment ZIP contains runtime dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          unzip -l deployment.zip | grep -q '.python_packages/lib/site-packages/uvicorn/__init__.py'
+          unzip -l deployment.zip | grep -q '.python_packages/lib/site-packages/fastapi/__init__.py'
+          unzip -l deployment.zip | grep -q 'data/uhl_dataset_final.csv.gz'
+          unzip -l deployment.zip | grep -q 'artifacts/model/uhl_synthetic_acuity_selected.joblib'
+
+          echo "Deployment ZIP includes runtime dependencies and pinned UHL assets."
+
+      - name: Check deployment package hygiene
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python scripts/check_package_hygiene.py deployment.zip
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_44BFC9371A134A889F5F1E44197A9487 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_52274CD9E9D646DC9AF08A57F6D5DF84 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_1D2096DBF7F74C8B980B96A14C448275 }}
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          slot-name: Production
+          package: deployment.zip
+
+      - name: Tag this deploy as a rollback point
+        # Only auto-tag real pushes to main (not manual rollbacks, which already point at a tag).
+        if: ${{ github.event_name == 'push' && github.event.inputs.git_ref == '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="release-${{ github.run_number }}"
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Deployed to Azure (run ${{ github.run_number }}, sha ${DEPLOY_SHA})"
+          if git push origin "$TAG"; then
+            echo "::notice::Tagged this deploy as $TAG. To roll back later: run this workflow with git_ref=$TAG."
+          else
+            echo "::warning::Could not push tag $TAG (branch protection / permissions). Deploy still succeeded; you can roll back by commit SHA instead."
+          fi

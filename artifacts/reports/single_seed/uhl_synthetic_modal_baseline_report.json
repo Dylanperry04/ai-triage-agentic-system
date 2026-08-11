@@ -1,0 +1,73 @@
+{
+  "status": "available",
+  "purpose": "Train-set modal-label baselines expose how much of the UHL research target is recoverable from presenting complaint and age band alone. They are not candidate models and are not used for selection.",
+  "overall_train_mode": 3,
+  "baselines": {
+    "complaint_only": {
+      "group_columns": [
+        "presenting_complaint"
+      ],
+      "train_group_count": 41,
+      "validation_metrics": {
+        "accuracy": 0.6793508097721658,
+        "balanced_accuracy": 0.2,
+        "macro_precision": 0.13587016195443316,
+        "macro_recall": 0.2,
+        "macro_f1": 0.16181272092025417,
+        "weighted_precision": 0.46151752273809743,
+        "weighted_recall": 0.6793508097721658,
+        "weighted_f1": 0.5496380149430607,
+        "matthews_corrcoef": 0.0,
+        "cohen_kappa": 0.0,
+        "log_loss": null,
+        "high_acuity_recall": 0.0,
+        "acuity1_recall": 0.0,
+        "high_acuity_precision": null,
+        "high_acuity_f1": null,
+        "severe_under_triage_rate": 0.004031704639033763,
+        "under_triage_rate": 0.24178218501235246,
+        "over_triage_rate": 0.07886700521548175,
+        "specificity": null,
+        "predicted_urgent_rate": null,
+        "auroc": null,
+        "pr_auc": null
+      },
+      "test_metrics": null,
+      "test_status": "NOT_ACCESSED_DURING_TRAINING"
+    },
+    "complaint_age_band": {
+      "group_columns": [
+        "presenting_complaint",
+        "derived_age_band"
+      ],
+      "train_group_count": 364,
+      "validation_metrics": {
+        "accuracy": 0.6793079192972825,
+        "balanced_accuracy": 0.19999675443649578,
+        "macro_precision": 0.18031308651295438,
+        "macro_recall": 0.19999675443649578,
+        "macro_f1": 0.1618347119064542,
+        "weighted_precision": 0.5143458001423936,
+        "weighted_recall": 0.6793079192972825,
+        "weighted_f1": 0.5496490014151919,
+        "matthews_corrcoef": -0.0010257378041281357,
+        "cohen_kappa": -2.743413593098154e-05,
+        "log_loss": null,
+        "high_acuity_recall": 7.095721280068119e-05,
+        "acuity1_recall": 0.0,
+        "high_acuity_precision": null,
+        "high_acuity_f1": null,
+        "severe_under_triage_rate": 0.004031704639033763,
+        "under_triage_rate": 0.24176502882239911,
+        "over_triage_rate": 0.07892705188031841,
+        "specificity": null,
+        "predicted_urgent_rate": null,
+        "auroc": null,
+        "pr_auc": null
+      },
+      "test_metrics": null,
+      "test_status": "NOT_ACCESSED_DURING_TRAINING"
+    }
+  },
+  "contains_raw_patient_rows": false
+}

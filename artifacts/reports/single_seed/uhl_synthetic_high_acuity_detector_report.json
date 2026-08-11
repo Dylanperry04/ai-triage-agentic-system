@@ -1,0 +1,181 @@
+{
+  "model_name": "binary_uhl_tfidf_logistic_high_acuity_detector",
+  "binary_target": "acuity_1_2_high_acuity_vs_3_5_non_high_acuity",
+  "solver": "lbfgs",
+  "max_iter": 3000,
+  "tolerance": 0.001,
+  "validation_only": true,
+  "selected_threshold": 0.3,
+  "selected_threshold_metrics": {
+    "threshold": 0.3,
+    "high_acuity_recall": 0.9012275597814517,
+    "specificity": 0.23699513519628918,
+    "predicted_urgent_rate": 0.796424650013725,
+    "passes_constraints": true
+  },
+  "accuracy_at_0_5": 0.6783729069448257,
+  "f1_high_acuity_at_0_5": 0.48936344074306104,
+  "precision_non_high_acuity_at_0_5": 0.8567343276886845,
+  "precision_high_acuity_at_0_5": 0.3971264367816092,
+  "recall_non_high_acuity_at_0_5": 0.691435682769544,
+  "recall_high_acuity_at_0_5": 0.6374086425885191,
+  "support_non_high_acuity": 88390,
+  "support_high_acuity": 28186,
+  "auroc": 0.7188663584597033,
+  "pr_auc": 0.5162857995743759,
+  "threshold_curve": [
+    {
+      "threshold": 0.05,
+      "high_acuity_recall": 1.0,
+      "specificity": 0.0,
+      "predicted_urgent_rate": 1.0,
+      "passes_constraints": false
+    },
+    {
+      "threshold": 0.1,
+      "high_acuity_recall": 0.999893564180799,
+      "specificity": 0.0011992306822038693,
+      "predicted_urgent_rate": 0.9990649876475433,
+      "passes_constraints": false
+    },
+    {
+      "threshold": 0.15,
+      "high_acuity_recall": 0.993542893635138,
+      "specificity": 0.021993438171738884,
+      "predicted_urgent_rate": 0.9817629700796047,
+      "passes_constraints": false
+    },
+    {
+      "threshold": 0.2,
+      "high_acuity_recall": 0.9724686014333357,
+      "specificity": 0.07370743296753027,
+      "predicted_urgent_rate": 0.9374571095251166,
+      "passes_constraints": false
+    },
+    {
+      "threshold": 0.25,
+      "high_acuity_recall": 0.9415312566522387,
+      "specificity": 0.1462948297318701,
+      "predicted_urgent_rate": 0.8749399533351633,
+      "passes_constraints": false
+    },
+    {
+      "threshold": 0.3,
+      "high_acuity_recall": 0.9012275597814517,
+      "specificity": 0.23699513519628918,
+      "predicted_urgent_rate": 0.796424650013725,
+      "passes_constraints": true
+    },
+    {
+      "threshold": 0.35,
+      "high_acuity_recall": 0.8505641098417654,
+      "specificity": 0.3444959837085643,
+      "predicted_urgent_rate": 0.7026660719187483,
+      "passes_constraints": true
+    },
+    {
+      "threshold": 0.4,
+      "high_acuity_recall": 0.7912793585467963,
+      "specificity": 0.46364973413282046,
+      "predicted_urgent_rate": 0.5979875789184738,
+      "passes_constraints": false
+    },
+    {
+      "threshold": 0.45,
+      "high_acuity_recall": 0.7227346909813382,
+      "specificity": 0.5830750084851227,
+      "predicted_urgent_rate": 0.49086432884984904,
+      "passes_constraints": false
+    },
+    {
+      "threshold": 0.5,
+      "high_acuity_recall": 0.6374086425885191,
+      "specificity": 0.691435682769544,
+      "predicted_urgent_rate": 0.3880730167444414,
+      "passes_constraints": false
+    },
+    {
+      "threshold": 0.55,
+      "high_acuity_recall": 0.5485702121620663,
+      "specificity": 0.78258852811404,
+      "predicted_urgent_rate": 0.29747975569585505,
+      "passes_constraints": false
+    },
+    {
+      "threshold": 0.6,
+      "high_acuity_recall": 0.459164124033208,
+      "specificity": 0.855017535920353,
+      "predicted_urgent_rate": 0.2209459923140269,
+      "passes_constraints": false
+    },
+    {
+      "threshold": 0.65,
+      "high_acuity_recall": 0.3767118427588164,
+      "specificity": 0.9073085190632425,
+      "predicted_urgent_rate": 0.16136254460609387,
+      "passes_constraints": false
+    },
+    {
+      "threshold": 0.7,
+      "high_acuity_recall": 0.3013907613708934,
+      "specificity": 0.9444394162235547,
+      "predicted_urgent_rate": 0.1149979412572056,
+      "passes_constraints": false
+    },
+    {
+      "threshold": 0.75,
+      "high_acuity_recall": 0.22809196054778968,
+      "specificity": 0.9685484783346533,
+      "predicted_urgent_rate": 0.07899567664013175,
+      "passes_constraints": false
+    },
+    {
+      "threshold": 0.8,
+      "high_acuity_recall": 0.15220322145746115,
+      "specificity": 0.9857676207715805,
+      "predicted_urgent_rate": 0.047591270930551745,
+      "passes_constraints": false
+    },
+    {
+      "threshold": 0.85,
+      "high_acuity_recall": 0.081458880295182,
+      "specificity": 0.9951917637741826,
+      "predicted_urgent_rate": 0.023340996431512488,
+      "passes_constraints": false
+    },
+    {
+      "threshold": 0.9,
+      "high_acuity_recall": 0.02802809905626907,
+      "specificity": 0.9991741147188596,
+      "predicted_urgent_rate": 0.007402895964864123,
+      "passes_constraints": false
+    },
+    {
+      "threshold": 0.95,
+      "high_acuity_recall": 0.0030866387568296316,
+      "specificity": 0.9999321190179885,
+      "predicted_urgent_rate": 0.0007977628328300851,
+      "passes_constraints": false
+    }
+  ],
+  "confusion_matrix_labels": [
+    "not_high_acuity",
+    "high_acuity"
+  ],
+  "confusion_matrix_at_0_5": [
+    [
+      61116,
+      27274
+    ],
+    [
+      10220,
+      17966
+    ]
+  ],
+  "convergence": {
+    "status": "PASS",
+    "warning_count": 0,
+    "warnings": []
+  },
+  "note": "Research-only binary safety detector report; final artefact remains the selected multiclass model."
+}
