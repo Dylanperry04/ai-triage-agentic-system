@@ -30,6 +30,19 @@ from ml_training.uhl_synthetic.serving import UHL_PRESENTING_COMPLAINTS
 from app.security.redaction import pseudonymous_case_uid
 
 
+def _pseudonym_cache_signature() -> str:
+    """Non-secret fingerprint of the active pseudonymisation context.
+
+    The derived SQLite cache persists case_uid values. It is therefore valid
+    only while the same pseudonym key/context remains active. A keyed UID for a
+    fixed sentinel detects key rotation without storing or exposing the secret.
+    """
+    return pseudonymous_case_uid(
+        DATASET_SOURCE,
+        "__uhl_cache_pseudonym_context__",
+    )
+
+
 class UhlDatasetContractError(RuntimeError):
     """The configured dataset is absent, stale, or incompatible."""
 
@@ -104,7 +117,7 @@ class UhlCaseRepository:
     def __init__(self, settings: Settings):
         self.settings = settings
         self._lock = threading.RLock()
-        self._ready_signature: tuple[int, int, str] | None = None
+        self._ready_signature: tuple[int, int, str, str] | None = None
 
     @contextmanager
     def _connect(self) -> Iterator[sqlite3.Connection]:
@@ -115,7 +128,7 @@ class UhlCaseRepository:
         finally:
             connection.close()
 
-    def _source_signature(self) -> tuple[int, int, str]:
+    def _source_signature(self) -> tuple[int, int, str, str]:
         path = self.settings.data_path
         if not path.is_file():
             raise UhlDatasetContractError(f"UHL dataset file not found: {path.name}")
@@ -125,9 +138,18 @@ class UhlCaseRepository:
             raise UhlDatasetContractError(
                 "UHL dataset SHA-256 does not match UHL_DATASET_SHA256; refusing stale or incompatible data"
             )
-        return stat.st_mtime_ns, stat.st_size, digest
+        return (
+            stat.st_mtime_ns,
+            stat.st_size,
+            digest,
+            _pseudonym_cache_signature(),
+        )
 
-    def _cache_is_current(self, dataset_sha256: str) -> bool:
+    def _cache_is_current(
+        self,
+        dataset_sha256: str,
+        pseudonym_signature: str,
+    ) -> bool:
         if not self.settings.case_cache_path.is_file():
             return False
         try:
@@ -143,6 +165,7 @@ class UhlCaseRepository:
                     and values.get("dataset_sha256") == dataset_sha256
                     and values.get("dataset_source") == DATASET_SOURCE
                     and values.get("source_columns") == json.dumps(SOURCE_COLUMNS)
+                    and values.get("pseudonym_signature") == pseudonym_signature
                 )
         except (OSError, sqlite3.Error, KeyError):
             return False
@@ -153,15 +176,20 @@ class UhlCaseRepository:
             if not path.is_file():
                 raise UhlDatasetContractError(f"UHL dataset file not found: {path.name}")
             stat = path.stat()
+            pseudonym_signature = _pseudonym_cache_signature()
             if (
                 self._ready_signature is not None
                 and (stat.st_mtime_ns, stat.st_size) == self._ready_signature[:2]
+                and pseudonym_signature == self._ready_signature[3]
                 and self.settings.case_cache_path.is_file()
             ):
                 return
+
             signature = self._source_signature()
-            if not self._cache_is_current(signature[2]):
-                self._build_cache(signature[2])
+
+            if not self._cache_is_current(signature[2], signature[3]):
+                self._build_cache(signature[2], signature[3])
+
             self._ready_signature = signature
 
     def clear_derived_cache(self) -> None:
@@ -174,7 +202,11 @@ class UhlCaseRepository:
                 target.unlink()
             self._ready_signature = None
 
-    def _build_cache(self, dataset_sha256: str) -> None:
+    def _build_cache(
+        self,
+        dataset_sha256: str,
+        pseudonym_signature: str,
+    ) -> None:
         target = self.settings.case_cache_path
         target.parent.mkdir(parents=True, exist_ok=True)
         temporary = target.with_name(f".{target.name}.{os.getpid()}.building")
@@ -357,6 +389,7 @@ class UhlCaseRepository:
                 "source_columns": json.dumps(SOURCE_COLUMNS),
                 "source_rows": str(source_rows),
                 "model_rows": str(model_rows),
+                "pseudonym_signature": pseudonym_signature,
                 "target_counts": json.dumps(target_counts, sort_keys=True),
             }
             connection.executemany(

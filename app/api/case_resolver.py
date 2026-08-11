@@ -108,6 +108,19 @@ def _cache_signature(dataset: str) -> Any:
             sig.append(("uhl_dataset", st.st_mtime_ns, st.st_size))
         except OSError:
             sig.append(("uhl_dataset", "missing"))
+
+        # ResolvedCase caches contain case_uid values generated with the active
+        # pseudonymisation secret. Include a non-secret keyed fingerprint so the
+        # in-memory resolver cache is invalidated whenever that context changes.
+        sig.append(
+            (
+                "pseudonym_context",
+                pseudonymous_case_uid(
+                    UHL_DATASET_LABEL,
+                    "__resolver_cache_pseudonym_context__",
+                ),
+            )
+        )
         return tuple(sig)
     try:
         override = settings.processed_dir / "frontend_cases_override.jsonl"
