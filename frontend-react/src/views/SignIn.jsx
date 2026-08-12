@@ -20,8 +20,8 @@ const ICONS = {
   ScrollText,
 };
 
-const emailFor = (n) =>
-  n
+const emailFor = (name) =>
+  name
     .toLowerCase()
     .replace(/prof\.|dr\.|mr\.|ms\./g, "")
     .trim()
@@ -51,7 +51,7 @@ export default function SignIn({ session, onSignIn }) {
     )[0],
   );
 
-  const [pw, setPw] = useState("");
+  const [password, setPassword] = useState("");
 
   useEffect(() => {
     setPerson(
@@ -78,6 +78,7 @@ export default function SignIn({ session, onSignIn }) {
       }}
     >
       <div
+        className="fade-up"
         style={{
           display: "flex",
           flexDirection: "column",
@@ -85,7 +86,6 @@ export default function SignIn({ session, onSignIn }) {
           gap: 10,
           marginBottom: 26,
         }}
-        className="fade-up"
       >
         <HseTile size={56} />
 
@@ -113,12 +113,12 @@ export default function SignIn({ session, onSignIn }) {
       </div>
 
       <Card
+        className="fade-up"
         style={{
           width: "100%",
           maxWidth: 540,
           padding: 28,
         }}
-        className="fade-up"
       >
         {!demo ? (
           <>
@@ -165,12 +165,12 @@ export default function SignIn({ session, onSignIn }) {
 
             <Btn
               onClick={() => onSignIn(null, null)}
+              disabled={!session?.authenticated}
               style={{
                 width: "100%",
                 padding: "12px",
                 fontSize: 14.5,
               }}
-              disabled={!session?.authenticated}
             >
               Enter workspace
             </Btn>
@@ -331,9 +331,9 @@ export default function SignIn({ session, onSignIn }) {
 
             <input
               type="password"
-              value={pw}
+              value={password}
               onChange={(event) =>
-                setPw(event.target.value)
+                setPassword(event.target.value)
               }
               placeholder="Password"
               style={{
