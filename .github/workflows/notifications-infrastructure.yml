@@ -1,0 +1,121 @@
+name: Provision ALTER notification infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_create_resources:
+        description: "Type CREATE-NOTIFICATION-RESOURCES after separate approval"
+        required: true
+        default: ""
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: alter-notification-infrastructure
+  cancel-in-progress: false
+
+env:
+  RESOURCE_GROUP: Triage_System
+  DEPLOYMENT_NAME: alter-notifications
+
+jobs:
+  validate-and-provision:
+    if: ${{ github.event.inputs.confirm_create_resources == 'CREATE-NOTIFICATION-RESOURCES' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_8E10AB941B49477E8DB5B04BA57534E3 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_C7011A71516F47C3B47046CE8B487CBC }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_D21A2CA51CC44989841D4098E4A47910 }}
+
+      - name: Verify required providers are registered
+        shell: bash
+        run: |
+          set -euo pipefail
+          required=(Microsoft.Communication Microsoft.EventGrid Microsoft.KeyVault Microsoft.ServiceBus Microsoft.Insights Microsoft.OperationalInsights Microsoft.ManagedIdentity Microsoft.Storage Microsoft.Web)
+          for provider in "${required[@]}"; do
+            state="$(az provider show --namespace "$provider" --query registrationState --output tsv)"
+            if [ "$state" != "Registered" ]; then
+              echo "::error::$provider is $state. Provider registration requires separate subscription approval."
+              exit 1
+            fi
+          done
+
+      - name: Validate and preview Bicep
+        shell: bash
+        run: |
+          set -euo pipefail
+          az bicep build --file infra/notifications/main.bicep --stdout >/dev/null
+          az deployment group validate \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$DEPLOYMENT_NAME-validate" \
+            --template-file infra/notifications/main.bicep \
+            --parameters infra/notifications/main.bicepparam
+          az deployment group what-if \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$DEPLOYMENT_NAME-preview" \
+            --template-file infra/notifications/main.bicep \
+            --parameters infra/notifications/main.bicepparam
+
+      - name: Deploy notification resources with SMS disabled
+        shell: bash
+        run: |
+          set -euo pipefail
+          az deployment group create \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$DEPLOYMENT_NAME" \
+            --template-file infra/notifications/main.bicep \
+            --parameters infra/notifications/main.bicepparam \
+            --parameters smsPublishEnabled=false smsEnabled=false
+
+      - name: Attach web identity and non-secret settings
+        shell: pwsh
+        run: |
+          ./scripts/configure-notification-app.ps1 -ResourceGroup $env:RESOURCE_GROUP -WebAppName Triage -DeploymentName $env:DEPLOYMENT_NAME -SmsPublishEnabled false
+
+      - name: Stage Function package
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p function-package/app
+          cp functions/notification_worker/function_app.py function-package/function_app.py
+          cp functions/notification_worker/host.json function-package/host.json
+          cp functions/notification_worker/requirements.txt function-package/requirements.txt
+          cp app/__init__.py function-package/app/__init__.py
+          cp -R app/notifications function-package/app/notifications
+
+      - name: Read Function app output
+        shell: bash
+        run: |
+          set -euo pipefail
+          name="$(az deployment group show --resource-group "$RESOURCE_GROUP" --name "$DEPLOYMENT_NAME" --query properties.outputs.functionAppName.value --output tsv)"
+          test -n "$name"
+          echo "NOTIFICATION_FUNCTION_NAME=$name" >> "$GITHUB_ENV"
+
+      - name: Deploy notification Function code
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ env.NOTIFICATION_FUNCTION_NAME }}
+          package: function-package
+          respect-funcignore: true
+          scm-do-build-during-deployment: true
+          enable-oryx-build: true
+
+      - name: Confirm disabled rollout state
+        shell: bash
+        run: |
+          set -euo pipefail
+          publish="$(az webapp config appsettings list --resource-group "$RESOURCE_GROUP" --name Triage --query "[?name=='SMS_PUBLISH_ENABLED'].value | [0]" --output tsv)"
+          worker="$(az functionapp config appsettings list --resource-group "$RESOURCE_GROUP" --name "$NOTIFICATION_FUNCTION_NAME" --query "[?name=='SMS_ENABLED'].value | [0]" --output tsv)"
+          test "$publish" = "false"
+          test "$worker" = "false"
+          az webapp config appsettings set --resource-group "$RESOURCE_GROUP" --name Triage --settings "ALTER_BUILD_ID=${GITHUB_SHA}" --output none
+          az functionapp config appsettings set --resource-group "$RESOURCE_GROUP" --name "$NOTIFICATION_FUNCTION_NAME" --settings "ALTER_BUILD_ID=${GITHUB_SHA}" --output none
+          echo "Infrastructure and worker deployed. SMS publication and chargeable submission remain disabled."

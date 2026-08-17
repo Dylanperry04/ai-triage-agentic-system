@@ -92,6 +92,13 @@ export const api = {
   listCases: (params) => get(`/cases${qs(params)}`),
   getCase: (uid) => get(`/cases/${encodeURIComponent(uid)}`),
   workflowQueue: (params) => get(`/workflow/queue${qs(params)}`),
+  notifications: (limit = 200, offset = 0) =>
+    get(`/notifications${qs({ limit, offset: offset > 0 ? offset : undefined })}`),
+  markNotificationRead: (notificationId) =>
+    post(`/notifications/${encodeURIComponent(notificationId)}/read`),
+  acknowledgeNotification: (notificationId) =>
+    post(`/notifications/${encodeURIComponent(notificationId)}/acknowledge`),
+  notificationHealth: () => get("/notifications/system/health"),
   runAssessment: (uid) => post(`/cases/${encodeURIComponent(uid)}/assessments`),
   /* Read-only acuity for queue colouring: computes the advisory
      category WITHOUT writing a workflow-run audit record, so rendering or

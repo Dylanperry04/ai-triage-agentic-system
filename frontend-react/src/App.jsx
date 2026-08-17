@@ -3,6 +3,7 @@ import { T, priorityFromCategory, patientWithEncounter } from "./theme.js";
 import { GlobalStyle, Toasts, Spinner } from "./atoms.jsx";
 import { Sidebar, Header, navForSession, NAV } from "./shell.jsx";
 import { api, setDemoIdentity } from "./api.js";
+import { mergeNotificationFallback, reconcileNotificationSnapshot } from "./notificationState.js";
 import SignIn from "./views/SignIn.jsx";
 import Triage from "./views/Triage.jsx";
 import ReviewQueue from "./views/ReviewQueue.jsx";
@@ -40,7 +41,8 @@ export default function App() {
   const [notifs, setNotifs] = useState([]);
   const [notifOpen, setNotifOpen] = useState(false);
   const [ringKey, setRingKey] = useState(0);
-  const seenNotifs = useRef(new Set());
+  const announcedNotifs = useRef(new Set());
+  const notificationBaselineLoaded = useRef(false);
   const bootErr = useRef(null);
 
   const toast = useCallback((title, body, tone = "ok") => {
@@ -48,12 +50,17 @@ export default function App() {
     setToasts((t) => [...t, { id, title, body, tone }]);
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 5200);
   }, []);
-  const pushNotif = useCallback((n) => {
-    if (seenNotifs.current.has(n.key)) return;
-    seenNotifs.current.add(n.key);
-    setNotifs((xs) => [{ ...n, id: n.key, at: Date.now(), read: false }, ...xs].slice(0, 30));
-    setRingKey((k) => k + 1);
-    toast(n.title, n.body, "warn");
+  const reconcileNotifications = useCallback((next) => {
+    const snapshot = reconcileNotificationSnapshot(
+      next, announcedNotifs.current, notificationBaselineLoaded.current,
+    );
+    announcedNotifs.current = snapshot.announced;
+    notificationBaselineLoaded.current = true;
+    setNotifs(snapshot.ordered);
+    if (snapshot.newlyUnread.length) {
+      setRingKey((k) => k + 1);
+      snapshot.newlyUnread.forEach((n) => toast(n.title, n.body, "warn"));
+    }
   }, [toast]);
 
   useEffect(() => { api.authSession().then(setSession).catch((e) => { bootErr.current = e.detail || e.message; setSession({ authenticated: false, all_role_options: [] }); }); }, []);
@@ -116,7 +123,8 @@ export default function App() {
   };
   const signOut = () => {
     setDemoIdentity(null, null); setEntered(false); setPersona(null); setTab(null);
-    setCases(null); setDecisionMap({}); setNotifs([]); seenNotifs.current = new Set(); setSelectedUid(null);
+    setCases(null); setDecisionMap({}); setNotifs([]); announcedNotifs.current = new Set();
+    notificationBaselineLoaded.current = false; setSelectedUid(null);
     api.authSession().then(setSession).catch(() => {});
   };
 
@@ -124,40 +132,72 @@ export default function App() {
   useEffect(() => { if (entered && (!tab || !navItems.includes(tab))) setTab(navItems[0] || null); }, [entered, navItems, tab]);
   useEffect(() => { if (entered) refreshCases(); }, [entered, refreshCases]);
 
-  /* Notification engine: poll the backend worklist for overdue-vitals alerts
-     targeted at my role, and escalations awaiting senior review. */
+  /* The durable API is authoritative when complete. During a reported
+     reconciliation gap, merge workflow-derived alerts instead of trusting a
+     partial HTTP 200 response. */
   useEffect(() => {
     if (!entered || !(session?.permissions || []).includes("can_view_workflow_queue")) return;
     let stop = false;
     const roles = new Set(session?.roles || []);
+    const workflowFallback = async () => {
+      const wq = await api.workflowQueue({ limit: 5000 });
+      const rows = [];
+      (wq.rows || []).forEach((row) => {
+        const rowLabel = patientWithEncounter(row);
+        const target = row.notification_target_role;
+        if (row.overdue_vitals_alert_active && (!target || roles.has(target))) {
+          const raw = row.overdue_vitals_reference_at || row.last_vitals_updated_at || "";
+          const eventTime = Number.isNaN(Date.parse(raw)) ? raw : new Date(raw).toISOString();
+          rows.push({ id: `fallback-overdue_vitals:${row.case_uid}:${eventTime}`, semanticKey: `overdue_vitals:${row.case_uid}:${eventTime}`, kind: "recheck", caseUid: row.case_uid, caseLabel: rowLabel, title: "Vitals recheck due", body: `${rowLabel} — observations have not been repeated within the recheck window. Open the case to acknowledge.`, at: row.overdue_vitals_alert_created_at ? Date.parse(row.overdue_vitals_alert_created_at) : Date.now(), read: false, durable: false });
+        }
+        if (["requested", "pending"].includes(String(row.escalation_status || "").toLowerCase())) {
+          const targetRole = row.escalation_target_role;
+          if ((targetRole && roles.has(targetRole)) || (!targetRole && (roles.has("ed_doctor") || roles.has("clinical_supervisor")))) {
+            const raw = row.escalation_requested_at || "";
+            const eventTime = Number.isNaN(Date.parse(raw)) ? raw : new Date(raw).toISOString();
+            rows.push({ id: `fallback-escalation:${row.case_uid}:${eventTime}`, semanticKey: `escalation:${row.case_uid}:${eventTime}`, kind: "escalation", caseUid: row.case_uid, caseLabel: rowLabel, title: "Escalation awaiting review", body: `${rowLabel} was escalated${row.escalation_requested_by_role ? ` by the ${String(row.escalation_requested_by_role).replace(/_/g, " ")}` : ""} and needs a senior decision.`, at: raw ? Date.parse(raw) : Date.now(), read: false, durable: false });
+          }
+        }
+      });
+      return rows;
+    };
     const poll = async () => {
       try {
-        /* Reviewed cases must stay visible until discharged or closed, so the
-           queue window has to exceed the number of cases that can accumulate in
-           a session. 500 silently dropped the oldest still-active entries. */
-        const wq = await api.workflowQueue({ limit: 5000 });
+        let page = await api.notifications(200, 0);
+        const durableRows = [...(page.notifications || [])];
+        let degraded = Boolean(page.degraded);
+        while (page.has_more && page.next_offset != null && durableRows.length < 5000) {
+          page = await api.notifications(200, page.next_offset);
+          degraded = degraded || Boolean(page.degraded);
+          durableRows.push(...(page.notifications || []));
+        }
+        if (page.has_more) throw new Error("notification list exceeds the 5,000-item safety window");
         if (stop) return;
-        setPollError(null);   // worklist readable again
-        (wq.rows || []).forEach((row) => {
-          const rowLabel = patientWithEncounter(row);
-          const target = row.notification_target_role;
-          if (row.overdue_vitals_alert_active && (!target || roles.has(target))) {
-            pushNotif({ key: `ov-${row.case_uid}-${row.last_vitals_updated_at || ""}`, kind: "recheck", caseUid: row.case_uid, caseLabel: rowLabel, title: "Vitals recheck due", body: `${rowLabel} — observations have not been repeated within the recheck window. Open the case to acknowledge.` });
-          }
-          if (["requested", "pending"].includes(String(row.escalation_status || "").toLowerCase())) {
-            const t = row.escalation_target_role;
-            if ((t && roles.has(t)) || (!t && (roles.has("ed_doctor") || roles.has("clinical_supervisor")))) {
-              pushNotif({ key: `esc-${row.case_uid}-${row.escalation_requested_at || ""}`, kind: "escalation", caseUid: row.case_uid, caseLabel: rowLabel, title: "Escalation awaiting review", body: `${rowLabel} was escalated${row.escalation_requested_by_role ? ` by the ${String(row.escalation_requested_by_role).replace(/_/g, " ")}` : ""} and needs a senior decision.` });
-            }
-          }
-        });
-      } catch (e) {
-        /* Recorded rather than swallowed: if the worklist cannot be read, the
-           absence of notifications says nothing about whether any are due. */
-        /* Separate state: a later successful sweep must not clear a standing
-           worklist failure, and vice versa. Sharing one slot let one healthy
-           operation mask another's outage. */
-        if (!stop) setPollError(e?.detail || e?.message || "worklist unavailable — notifications may be stale");
+        const mapped = durableRows.map((n) => ({
+          id: n.notification_id, kind: n.kind, caseUid: n.case_uid,
+          caseLabel: n.case_label, title: n.title, body: n.body,
+          at: n.created_at ? Date.parse(n.created_at) : Date.now(),
+          read: Boolean(n.read), durable: true,
+          semanticKey: `${n.kind === "recheck" ? "overdue_vitals" : n.kind}:${n.case_uid}:${n.event_time_ms || n.event_key || ""}`,
+        }));
+        if (!degraded) {
+          setPollError(null);
+          reconcileNotifications(mapped);
+          return;
+        }
+        const fallback = await workflowFallback();
+        if (stop) return;
+        reconcileNotifications(mergeNotificationFallback(mapped, fallback));
+        setPollError("durable notification reconciliation is degraded; showing a deduplicated workflow fallback");
+      } catch (durableError) {
+        if (stop) return;
+        try {
+          const fallback = await workflowFallback();
+          if (!stop) reconcileNotifications(fallback);
+          if (!stop) setPollError(`durable notification store unavailable (${durableError?.detail || durableError?.message || "request failed"}); showing workflow-derived fallback`);
+        } catch (e) {
+          if (!stop) setPollError(e?.detail || e?.message || "worklist unavailable — notifications may be stale");
+        }
       }
     };
     /* The sweep CREATES overdue-vitals alerts; the poll READS them. Running the
@@ -188,16 +228,29 @@ export default function App() {
     let t2 = null;
     if (canSweep) t2 = setInterval(sweep, 300000);
     return () => { stop = true; clearInterval(t1); if (t2) clearInterval(t2); };
-  }, [entered, session, pushNotif]);
+  }, [entered, session, reconcileNotifications]);
 
   const onOpenCase = async (n) => {
     setNotifOpen(false);
-    setNotifs((xs) => xs.map((x) => x.id === n.id ? { ...x, read: true } : x));
     if (n.kind === "recheck") {
-      try { await api.acknowledgeOverdue(n.caseUid); toast("Recheck acknowledged", `${n.caseLabel || "Patient"} — logged against your identity.`); } catch (e) { toast("Could not acknowledge", e.detail || e.message, "err"); }
+      try {
+        if (n.durable) await api.acknowledgeNotification(n.id);
+        else await api.acknowledgeOverdue(n.caseUid);
+        setNotifs((xs) => xs.filter((x) => x.id !== n.id));
+        toast("Recheck acknowledged", `${n.caseLabel || "Patient"} — logged against your identity.`);
+      }
+      catch (e) {
+        toast("Could not acknowledge", e.detail || e.message, "err");
+        return;
+      }
       setTab(navItems.includes("triage") ? "triage" : navItems[0]);
       setSelectedUid(n.caseUid);
     } else {
+      setNotifs((xs) => xs.map((x) => x.id === n.id ? { ...x, read: true } : x));
+      if (n.durable) {
+        try { await api.markNotificationRead(n.id); }
+        catch (e) { toast("Could not mark notification read", e.detail || e.message, "err"); }
+      }
       setTab(navItems.includes("escalations") ? "escalations" : navItems.includes("review") ? "review" : navItems[0]);
       setFocusUid(n.caseUid);
     }
@@ -216,7 +269,8 @@ export default function App() {
      clears every piece of client state the reset invalidates. */
   const clearClientStateAfterReset = useCallback(() => {
     setCases(null); setCasesMeta(null); setCasesError(null);
-    setDecisionMap({}); setNotifs([]); seenNotifs.current = new Set();
+    setDecisionMap({}); setNotifs([]); announcedNotifs.current = new Set();
+    notificationBaselineLoaded.current = false;
     setSelectedUid(null); setFocusUid(null); setSweepError(null); setPollError(null);
     /* Search state survived the reset: because `query` does not change, its
        effect does not re-run, so switching back to Triage still showed results
@@ -267,7 +321,11 @@ export default function App() {
         <Sidebar session={session} tab={tab} setTab={(k) => { setTab(k); setNotifOpen(false); }} collapsed={collapsed} setCollapsed={setCollapsed} presentation={presentation} />
         <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
           <Header identity={identity} roleLabel={roleLabel} onSignOut={signOut} notifs={notifs} notifOpen={notifOpen} onToggleNotifs={() => setNotifOpen((o) => !o)}
-            onDismissNotif={(id) => setNotifs((xs) => xs.map((x) => x.id === id ? { ...x, read: true } : x))} onOpenCase={onOpenCase}
+            onDismissNotif={(id) => {
+              const target = notifs.find((n) => n.id === id);
+              setNotifs((xs) => xs.map((x) => x.id === id ? { ...x, read: true } : x));
+              if (target?.durable) api.markNotificationRead(id).catch((e) => toast("Could not dismiss notification", e.detail || e.message, "err"));
+            }} onOpenCase={onOpenCase}
             query={query} setQuery={setQuery} ringKey={ringKey} canSearch={canSearch && tab === "triage"} />
           <main style={{ flex: 1, overflowY: "auto", padding: 18, minHeight: 0 }} onClick={() => notifOpen && setNotifOpen(false)}>
             {(sweepError || pollError) && (

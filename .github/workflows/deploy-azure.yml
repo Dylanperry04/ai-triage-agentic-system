@@ -1,4 +1,4 @@
-name: Deploy AI Triage to Azure
+name: Test and deploy ALTER Triage
 
 on:
   push:
@@ -20,7 +20,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  AZURE_WEBAPP_NAME: ai-triage-agentic-system
+  AZURE_WEBAPP_NAME: Triage
   PYTHON_VERSION: "3.11"
 
 jobs:
@@ -47,6 +47,103 @@ jobs:
             echo "::notice::Deploying $DEPLOY_SHA"
           fi
 
+      - name: Detect rollback and notification source capabilities
+        shell: bash
+        run: |
+          set -euo pipefail
+          rollback_requested=false
+          if [ -n "${{ github.event.inputs.git_ref }}" ]; then
+            rollback_requested=true
+          fi
+          echo "ROLLBACK_REQUESTED=$rollback_requested" >> "$GITHUB_ENV"
+
+          notification_source=true
+          for path in \
+            infra/notifications/main.bicep \
+            functions/notification_worker/function_app.py \
+            functions/notification_worker/host.json \
+            functions/notification_worker/requirements.txt \
+            app/notifications; do
+            if [ ! -e "$path" ]; then
+              notification_source=false
+            fi
+          done
+          if [ "$notification_source" != true ] && [ "$rollback_requested" != true ]; then
+            echo "::error::Current-version deployment is missing required notification source files."
+            exit 1
+          fi
+          echo "NOTIFICATION_SOURCE_PRESENT=$notification_source" >> "$GITHUB_ENV"
+
+          if [ -f requirements-runtime.txt ]; then
+            runtime_requirements=requirements-runtime.txt
+          elif [ "$rollback_requested" = true ] && [ -f requirements.txt ]; then
+            runtime_requirements=requirements.txt
+            echo "::warning::Selected historical ref predates the minimal runtime manifest; using its own requirements.txt."
+          else
+            echo "::error::No deployable runtime requirements manifest was found."
+            exit 1
+          fi
+          echo "RUNTIME_REQUIREMENTS=$runtime_requirements" >> "$GITHUB_ENV"
+          echo "::notice::notification_source=$notification_source runtime_requirements=$runtime_requirements rollback=$rollback_requested"
+
+      # A manual historical ref is treated as a rollback. Stop all SMS work
+      # before lengthy tests/packaging so a pre-SMS incident rollback is useful
+      # even when that historical commit contains no notification files.
+      - name: Login to Azure for rollback safety
+        if: ${{ env.ROLLBACK_REQUESTED == 'true' }}
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_8E10AB941B49477E8DB5B04BA57534E3 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_C7011A71516F47C3B47046CE8B487CBC }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_D21A2CA51CC44989841D4098E4A47910 }}
+
+      - name: Disable and verify SMS before rollback
+        if: ${{ env.ROLLBACK_REQUESTED == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # A lexically increasing policy version lets the currently running
+          # v25.7+ application persist the rollback kill switch before an older
+          # (possibly pre-SMS) build replaces it.
+          rollback_policy_version="$(date -u +%Y%m%dT%H%M%S)0000000Z-rollback-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          az webapp config appsettings set \
+            --resource-group Triage_System \
+            --name "${AZURE_WEBAPP_NAME}" \
+            --settings SMS_PUBLISH_ENABLED=false SMS_ENABLED=false "SMS_ROLLOUT_POLICY_VERSION=${rollback_policy_version}" \
+            --output none
+
+          mapfile -t rollback_workers < <(az functionapp list \
+            --resource-group Triage_System \
+            --query "[?tags.application=='ALTER' && tags.component=='notifications'].name" \
+            --output tsv)
+          if [ "${#rollback_workers[@]}" -gt 1 ]; then
+            echo "::error::More than one ALTER notification Function was found; refusing an ambiguous rollback."
+            exit 1
+          fi
+          if [ "${#rollback_workers[@]}" -eq 1 ]; then
+            az functionapp config appsettings set \
+              --resource-group Triage_System \
+              --name "${rollback_workers[0]}" \
+              --settings SMS_PUBLISH_ENABLED=false SMS_ENABLED=false AzureWebJobs.sms_dispatch.Disabled=true "SMS_ROLLOUT_POLICY_VERSION=${rollback_policy_version}" \
+              --output none
+            worker_publish="$(az functionapp config appsettings list --resource-group Triage_System --name "${rollback_workers[0]}" --query "[?name=='SMS_PUBLISH_ENABLED'].value | [0]" --output tsv)"
+            worker_enabled="$(az functionapp config appsettings list --resource-group Triage_System --name "${rollback_workers[0]}" --query "[?name=='SMS_ENABLED'].value | [0]" --output tsv)"
+            trigger_disabled="$(az functionapp config appsettings list --resource-group Triage_System --name "${rollback_workers[0]}" --query "[?name=='AzureWebJobs.sms_dispatch.Disabled'].value | [0]" --output tsv)"
+            worker_policy_version="$(az functionapp config appsettings list --resource-group Triage_System --name "${rollback_workers[0]}" --query "[?name=='SMS_ROLLOUT_POLICY_VERSION'].value | [0]" --output tsv)"
+            test "${worker_publish,,}" = false
+            test "${worker_enabled,,}" = false
+            test "${trigger_disabled,,}" = true
+            test "$worker_policy_version" = "$rollback_policy_version"
+          fi
+
+          web_publish="$(az webapp config appsettings list --resource-group Triage_System --name "${AZURE_WEBAPP_NAME}" --query "[?name=='SMS_PUBLISH_ENABLED'].value | [0]" --output tsv)"
+          web_enabled="$(az webapp config appsettings list --resource-group Triage_System --name "${AZURE_WEBAPP_NAME}" --query "[?name=='SMS_ENABLED'].value | [0]" --output tsv)"
+          web_policy_version="$(az webapp config appsettings list --resource-group Triage_System --name "${AZURE_WEBAPP_NAME}" --query "[?name=='SMS_ROLLOUT_POLICY_VERSION'].value | [0]" --output tsv)"
+          test "${web_publish,,}" = false
+          test "${web_enabled,,}" = false
+          test "$web_policy_version" = "$rollback_policy_version"
+          echo "::notice::SMS publication, submission, and dispatch are disabled under policy $rollback_policy_version before rollback packaging."
+
       - name: Remove local env file from CI checkout
         shell: bash
         run: |
@@ -65,7 +162,31 @@ jobs:
           cache: pip
           cache-dependency-path: |
             requirements.txt
+            requirements-runtime.txt
             requirements-autogen.txt
+            requirements-azure.txt
+            requirements-legacy-ui.txt
+
+      - name: Set up Node and pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: frontend-react/pnpm-lock.yaml
+
+      - name: Build and test React application
+        shell: bash
+        working-directory: frontend-react
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile
+          pnpm test
+          pnpm build
 
       - name: Install test dependencies
         shell: bash
@@ -79,9 +200,14 @@ jobs:
             python -m pip install --no-cache-dir -r requirements-autogen.txt
           fi
 
-          python -m pip install --no-cache-dir -r requirements-dev.txt
+          # Streamlit is retained only for the archived UI tests. Installing
+          # this manifest here keeps it out of the production runtime ZIP.
+          python -m pip install --no-cache-dir \
+            -r requirements-dev.txt \
+            -r requirements-legacy-ui.txt
 
           python -m pytest --version
+          python -m pytest --collect-only -q tests/ >/dev/null
 
       - name: Clear cloud credentials before tests
         shell: bash
@@ -103,7 +229,10 @@ jobs:
             echo "AZURE_OPENAI_RESOURCE_NAME="
             echo "CORS_ALLOWED_ORIGINS="
             echo "WANDB_MODE=disabled"
+            echo "UHL_CASE_CACHE_PATH=$RUNNER_TEMP/alter-uhl-cache/uhl_cases.sqlite3"
           } >> "$GITHUB_ENV"
+
+          mkdir -p "$RUNNER_TEMP/alter-uhl-cache"
 
           echo "Cloud LLM and CORS variables cleared for deterministic test run."
 
@@ -112,6 +241,19 @@ jobs:
         run: |
           set -euo pipefail
           python -m pytest tests/ -q
+          if [ -d data/cache ] && find data/cache -type f -print -quit | grep -q .; then
+            echo "::error::Tests wrote a UHL runtime cache into the source checkout."
+            find data/cache -maxdepth 1 -type f -printf '%f\n'
+            exit 1
+          fi
+
+      - name: Compile notification infrastructure
+        if: ${{ env.NOTIFICATION_SOURCE_PRESENT == 'true' }}
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            set -euo pipefail
+            az bicep build --file infra/notifications/main.bicep --stdout >/dev/null
 
       - name: Validate deployment files
         shell: bash
@@ -119,6 +261,7 @@ jobs:
           set -euo pipefail
 
           test -f requirements.txt
+          test -f "${RUNTIME_REQUIREMENTS}"
           test -f startup-backend.sh
           test -f app/main.py
           test -f frontend-react/dist/index.html
@@ -128,6 +271,12 @@ jobs:
 
           test "$(sha256sum data/uhl_dataset_final.csv.gz | awk '{print $1}')" = "f3a6b4b8c7ee081fc02c924978ee1c5ecb5d7ebffbd32a2058d10cbd1bf1cd5c"
           test "$(sha256sum artifacts/model/uhl_synthetic_acuity_selected.joblib | awk '{print $1}')" = "7dddf3cc673f5598d73d7e6d56546cad49639edcae77b44b17b677f0b0d1395b"
+
+          if [ "${NOTIFICATION_SOURCE_PRESENT}" = true ]; then
+            test -f infra/notifications/main.bicep
+            test -f functions/notification_worker/function_app.py
+            test -d app/notifications
+          fi
 
           echo "Required deployment files are present."
 
@@ -153,6 +302,8 @@ jobs:
             --exclude '.mypy_cache/' \
             --exclude '.ruff_cache/' \
             --exclude 'frontend-react/node_modules/' \
+            --exclude 'functions/notification_worker/' \
+            --exclude 'infra/notifications/' \
             --exclude 'node_modules/' \
             --exclude 'wandb/' \
             --exclude 'wandb-offline/' \
@@ -160,6 +311,7 @@ jobs:
             --exclude 'mimic_data/' \
             --exclude 'mimic-iv-ed*/' \
             --exclude 'data/processed/' \
+            --exclude 'data/cache/' \
             --exclude '.env' \
             --exclude '.env.*' \
             --exclude '*.parquet' \
@@ -178,15 +330,7 @@ jobs:
             --no-cache-dir \
             --no-compile \
             --target deployment/.python_packages/lib/site-packages \
-            -r deployment/requirements.txt
-
-          if [ -f deployment/requirements-autogen.txt ]; then
-            python -m pip install \
-              --no-cache-dir \
-              --no-compile \
-              --target deployment/.python_packages/lib/site-packages \
-              -r deployment/requirements-autogen.txt
-          fi
+            -r "deployment/${RUNTIME_REQUIREMENTS}"
 
       - name: Verify packaged application
         shell: bash
@@ -196,7 +340,9 @@ jobs:
           export PYTHONPATH="$GITHUB_WORKSPACE/deployment/.python_packages/lib/site-packages:$GITHUB_WORKSPACE/deployment"
           export PYTHONDONTWRITEBYTECODE=1
 
-          python - <<'PY'
+          # -S excludes the runner's globally installed site-packages, so a
+          # missing dependency cannot be hidden by the earlier test install.
+          python -S - <<'PY'
           import sys
           import traceback
           try:
@@ -281,9 +427,41 @@ jobs:
             \) -print -delete
           fi
 
-          rm -rf deployment/data/processed
+          rm -rf deployment/data/processed deployment/data/cache
 
           echo "Clean complete."
+
+      - name: Verify cleaned deployment application
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Validate the exact post-prune tree that will be zipped. This catches
+          # an over-broad cleanup rule removing a package that imports correctly
+          # before cleanup but fails in the deployed artifact.
+          export PYTHONPATH="$GITHUB_WORKSPACE/deployment/.python_packages/lib/site-packages:$GITHUB_WORKSPACE/deployment"
+          export PYTHONDONTWRITEBYTECODE=1
+
+          # Keep the verification isolated from the runner environment.
+          python -S - <<'PY'
+          import joblib
+          from app.config import settings
+          from ml_training.uhl_synthetic.serving import validate_uhl_serving_bundle
+
+          import app.main
+          import catboost
+          import fastapi
+          import sklearn
+          import uvicorn
+
+          assert settings.uhl_data_path.is_file(), settings.uhl_data_path
+          assert settings.uhl_model_path.is_file(), settings.uhl_model_path
+          validate_uhl_serving_bundle(
+              joblib.load(settings.uhl_model_path),
+              require_deployable=True,
+          )
+          print("Cleaned deployment application imports successfully")
+          PY
 
       - name: Create deployment ZIP
         shell: bash
@@ -297,6 +475,37 @@ jobs:
           echo "Deployment package:"
           ls -lh deployment.zip
 
+      - name: Enforce deployment package size budget
+        shell: bash
+        run: |
+          set -euo pipefail
+          zip_bytes="$(stat -c '%s' deployment.zip)"
+          extracted_bytes="$(du -sb deployment | cut -f1)"
+
+          # App Service run-from-package has a documented 1 GB ZIP ceiling.
+          # Normal releases keep explicit headroom. Historical rollback refs
+          # may use their own larger requirements set, but must remain below
+          # the documented 2,048 MB Kudu ZIP-deploy ceiling and are checked
+          # against the live WEBSITE_RUN_FROM_PACKAGE setting after login.
+          if [ "${ROLLBACK_REQUESTED}" = true ]; then
+            max_zip_bytes=2000000000
+            max_extracted_bytes=5000000000
+          else
+            max_zip_bytes=900000000
+            max_extracted_bytes=1800000000
+          fi
+          echo "Deployment bytes: zip=$zip_bytes extracted=$extracted_bytes"
+          if [ "$zip_bytes" -gt "$max_zip_bytes" ]; then
+            echo "::error::Deployment ZIP exceeds the release budget ($zip_bytes > $max_zip_bytes bytes)."
+            exit 1
+          fi
+          if [ "$extracted_bytes" -gt "$max_extracted_bytes" ]; then
+            echo "::error::Expanded deployment exceeds the release budget ($extracted_bytes > $max_extracted_bytes bytes)."
+            exit 1
+          fi
+          echo "DEPLOYMENT_ZIP_BYTES=$zip_bytes" >> "$GITHUB_ENV"
+          echo "DEPLOYMENT_EXPANDED_BYTES=$extracted_bytes" >> "$GITHUB_ENV"
+
       - name: Verify deployment ZIP contains runtime dependencies
         shell: bash
         run: |
@@ -304,6 +513,7 @@ jobs:
 
           unzip -l deployment.zip | grep -q '.python_packages/lib/site-packages/uvicorn/__init__.py'
           unzip -l deployment.zip | grep -q '.python_packages/lib/site-packages/fastapi/__init__.py'
+          unzip -l deployment.zip | grep -q '.python_packages/lib/site-packages/catboost/__init__.py'
           unzip -l deployment.zip | grep -q 'data/uhl_dataset_final.csv.gz'
           unzip -l deployment.zip | grep -q 'artifacts/model/uhl_synthetic_acuity_selected.joblib'
 
@@ -319,9 +529,92 @@ jobs:
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_44BFC9371A134A889F5F1E44197A9487 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_52274CD9E9D646DC9AF08A57F6D5DF84 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_1D2096DBF7F74C8B980B96A14C448275 }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_8E10AB941B49477E8DB5B04BA57534E3 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_C7011A71516F47C3B47046CE8B487CBC }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_D21A2CA51CC44989841D4098E4A47910 }}
+
+      - name: Verify deployment mode accepts this package
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_from_package="$(az webapp config appsettings list \
+            --resource-group Triage_System \
+            --name "${AZURE_WEBAPP_NAME}" \
+            --query "[?name=='WEBSITE_RUN_FROM_PACKAGE'].value | [0]" \
+            --output tsv)"
+          if [ -n "$run_from_package" ] && [ "${run_from_package,,}" != false ] && [ "$run_from_package" != 0 ]; then
+            if [ "${DEPLOYMENT_ZIP_BYTES}" -ge 1000000000 ]; then
+              echo "::error::Live App Service uses WEBSITE_RUN_FROM_PACKAGE but the ZIP is at or above the documented 1 GB ceiling."
+              exit 1
+            fi
+          fi
+
+      - name: Stage notification Function package from the same commit
+        if: ${{ env.NOTIFICATION_SOURCE_PRESENT == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf function-package
+          mkdir -p function-package/app
+          cp functions/notification_worker/function_app.py function-package/function_app.py
+          cp functions/notification_worker/host.json function-package/host.json
+          cp functions/notification_worker/requirements.txt function-package/requirements.txt
+          cp app/__init__.py function-package/app/__init__.py
+          cp -R app/notifications function-package/app/notifications
+          find function-package -depth -type d -name '__pycache__' -exec rm -rf {} +
+
+      - name: Resolve the existing notification Function
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t names < <(az functionapp list --resource-group Triage_System --query "[?tags.application=='ALTER' && tags.component=='notifications'].name" --output tsv)
+          if [ "${#names[@]}" -gt 1 ]; then
+            echo "::error::More than one ALTER notification Function was found; refusing an ambiguous deployment."
+            exit 1
+          fi
+          if [ "${#names[@]}" -eq 1 ]; then
+            echo "NOTIFICATION_FUNCTION_NAME=${names[0]}" >> "$GITHUB_ENV"
+          else
+            echo "NOTIFICATION_FUNCTION_NAME=" >> "$GITHUB_ENV"
+            disabled_policy_version="$(date -u +%Y%m%dT%H%M%S)0000000Z-no-worker-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+            az webapp config appsettings set \
+              --resource-group Triage_System \
+              --name "${AZURE_WEBAPP_NAME}" \
+              --settings SMS_PUBLISH_ENABLED=false SMS_ENABLED=false "SMS_ROLLOUT_POLICY_VERSION=${disabled_policy_version}" \
+              --output none
+            web_publish="$(az webapp config appsettings list --resource-group Triage_System --name "${AZURE_WEBAPP_NAME}" --query "[?name=='SMS_PUBLISH_ENABLED'].value | [0]" --output tsv)"
+            web_enabled="$(az webapp config appsettings list --resource-group Triage_System --name "${AZURE_WEBAPP_NAME}" --query "[?name=='SMS_ENABLED'].value | [0]" --output tsv)"
+            web_policy_version="$(az webapp config appsettings list --resource-group Triage_System --name "${AZURE_WEBAPP_NAME}" --query "[?name=='SMS_ROLLOUT_POLICY_VERSION'].value | [0]" --output tsv)"
+            test "${web_publish,,}" = false
+            test "${web_enabled,,}" = false
+            test "$web_policy_version" = "$disabled_policy_version"
+            echo "::warning::Notification Function is absent; web SMS publication and submission were explicitly forced off and verified under policy $disabled_policy_version."
+          fi
+
+      # Worker-first is fail-closed across schema changes: a newer worker will
+      # abandon an older message schema for redelivery until the matching web
+      # publisher is live. Deploying the web publisher first could expose new
+      # work to an older, generation-blind worker during the release window.
+      - name: Deploy matching notification Function code
+        if: ${{ env.NOTIFICATION_SOURCE_PRESENT == 'true' && env.NOTIFICATION_FUNCTION_NAME != '' }}
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ env.NOTIFICATION_FUNCTION_NAME }}
+          package: function-package
+          respect-funcignore: true
+          scm-do-build-during-deployment: true
+          enable-oryx-build: true
+
+      - name: Stamp the Function build identity
+        if: ${{ env.NOTIFICATION_SOURCE_PRESENT == 'true' && env.NOTIFICATION_FUNCTION_NAME != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          az functionapp config appsettings set \
+            --resource-group Triage_System \
+            --name "${NOTIFICATION_FUNCTION_NAME}" \
+            --settings "ALTER_BUILD_ID=${DEPLOY_SHA}" \
+            --output none
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
@@ -329,6 +622,93 @@ jobs:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
           slot-name: Production
           package: deployment.zip
+
+      - name: Stamp the web build identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          az webapp config appsettings set \
+            --resource-group Triage_System \
+            --name "${AZURE_WEBAPP_NAME}" \
+            --settings "ALTER_BUILD_ID=${DEPLOY_SHA}" \
+            --output none
+
+      - name: Verify matching web and Function build identities
+        if: ${{ env.NOTIFICATION_SOURCE_PRESENT == 'true' && env.NOTIFICATION_FUNCTION_NAME != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          worker_build="$(az functionapp config appsettings list --resource-group Triage_System --name "${NOTIFICATION_FUNCTION_NAME}" --query "[?name=='ALTER_BUILD_ID'].value | [0]" --output tsv)"
+          web_build="$(az webapp config appsettings list --resource-group Triage_System --name "${AZURE_WEBAPP_NAME}" --query "[?name=='ALTER_BUILD_ID'].value | [0]" --output tsv)"
+          test "$worker_build" = "$DEPLOY_SHA"
+          test "$web_build" = "$DEPLOY_SHA"
+
+      - name: Verify all notification Functions are registered
+        if: ${{ env.NOTIFICATION_SOURCE_PRESENT == 'true' && env.NOTIFICATION_FUNCTION_NAME != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected=(
+            sms_dispatch
+            sms_delivery_report
+            notification_outbox_reconciler
+            notification_retention_cleanup
+          )
+          for attempt in $(seq 1 30); do
+            registered="$(az functionapp function list \
+              --resource-group Triage_System \
+              --name "${NOTIFICATION_FUNCTION_NAME}" \
+              --query '[].name' --output tsv 2>/dev/null || true)"
+            missing=0
+            for function_name in "${expected[@]}"; do
+              if ! grep -Eq "(^|/)${function_name}$" <<< "$registered"; then
+                missing=1
+              fi
+            done
+            if [ "$missing" -eq 0 ]; then
+              echo "::notice::All four notification Functions are registered."
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              echo "::error::Notification Function registration did not converge."
+              exit 1
+            fi
+            sleep 10
+          done
+
+      - name: Post-deployment web and notification smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          host="$(az webapp show --resource-group Triage_System --name "${AZURE_WEBAPP_NAME}" --query defaultHostName --output tsv)"
+          test -n "$host"
+          if [ "${NOTIFICATION_SOURCE_PRESENT}" = true ]; then
+            args=(
+              --base-url "https://${host}"
+              --expected-build-id "${DEPLOY_SHA}"
+              --check-notifications
+              --attempts 30
+              --retry-seconds 10
+            )
+            if [ -n "${NOTIFICATION_FUNCTION_NAME}" ]; then
+              args+=(--require-notification-worker)
+            fi
+            python scripts/azure_smoke_test.py "${args[@]}"
+          else
+            # A selected historical pre-SMS ref cannot contain the current
+            # notification smoke script. Keep rollback verification minimal
+            # but fail unless the deployed web application becomes healthy.
+            for attempt in $(seq 1 30); do
+              if curl --fail --silent --show-error "https://${host}/health" >/dev/null; then
+                break
+              fi
+              if [ "$attempt" -eq 30 ]; then
+                echo "::error::Historical rollback health check did not converge."
+                exit 1
+              fi
+              sleep 10
+            done
+          fi
 
       - name: Tag this deploy as a rollback point
         # Only auto-tag real pushes to main (not manual rollbacks, which already point at a tag).

@@ -21,6 +21,7 @@ Routes:
 from __future__ import annotations
 
 import hashlib
+import logging
 import re
 import uuid
 from datetime import datetime, timezone
@@ -37,6 +38,7 @@ from app.schemas.internal import EDTriageCase
 from app.agents.orchestrator import run_workflow
 
 router = APIRouter()
+_notification_logger = logging.getLogger("alter.notifications.workflow")
 
 
 def _sensitive_audit_mode() -> bool:
@@ -83,6 +85,23 @@ def _latest_workflow_state(case_uid: str) -> Dict[str, Any]:
 def _append_workflow_state(state: Dict[str, Any]) -> Dict[str, Any]:
     from app.storage.case_state_repository import append_case_state
     append_case_state(_case_state_path(), state)
+    # The clinical transition is committed first. Notification persistence is a
+    # separate reliability boundary: it is idempotent and the reconciler can
+    # safely replay it after any transient failure. A notification outage must
+    # never roll back or conceal a clinical workflow action.
+    try:
+        from app.notifications.service import sync_workflow_state
+
+        case_uid = str(state.get("case_uid") or "").strip()
+        resolved = case_resolver.resolve(case_uid) if case_uid else None
+        sync_workflow_state(state, case=(resolved.case if resolved else None))
+    except Exception as exc:
+        # Deliberately excludes case identifiers, phone numbers, and message
+        # content. Health endpoints and the outbox retry surface the degradation.
+        _notification_logger.error(
+            "durable notification reconciliation failed error=%s",
+            exc.__class__.__name__,
+        )
     return state
 
 
@@ -1876,6 +1895,19 @@ def acknowledge_overdue_vitals(
     endpoint records that responsible staff saw the overdue-vitals notification,
     suppressing duplicate visible alerts until vitals are next updated.
     """
+    return acknowledge_overdue_vitals_event(case_uid, expected_reference=None, ctx=ctx)
+
+
+def acknowledge_overdue_vitals_event(
+    case_uid: str,
+    *,
+    expected_reference: str | None,
+    durable_target_role: str | None = None,
+    ctx: AuthContext,
+) -> Dict[str, Any]:
+    """Idempotently acknowledge exactly one overdue-vitals event clock."""
+    from app.notifications.models import canonical_time_key
+
     rc = _resolve_or_404(case_uid)
     previous_state = _latest_workflow_state(rc.case_uid)
     if _is_case_closed(previous_state):
@@ -1883,17 +1915,57 @@ def acknowledge_overdue_vitals(
             status_code=409,
             detail="case is discharged/closed; overdue-vitals notifications are disabled",
         )
+    clock_dt = _last_vitals_reference_dt(rc, previous_state)
+    current_reference = str(
+        previous_state.get("overdue_vitals_reference_at")
+        or (clock_dt.isoformat() if clock_dt is not None else "")
+    ).strip()
+    acknowledged_reference = str(
+        previous_state.get("overdue_vitals_acknowledged_reference_at") or ""
+    ).strip()
+    expected = canonical_time_key(expected_reference) if expected_reference else (
+        canonical_time_key(current_reference) if current_reference else ""
+    )
+    durable_due = bool(
+        expected_reference
+        and clock_dt is not None
+        and canonical_time_key(clock_dt) == expected
+        and (datetime.now(timezone.utc) - clock_dt).total_seconds()
+        >= _OVERDUE_VITALS_MINUTES * 60
+    )
     if not previous_state.get("overdue_vitals_alert_active"):
+        if expected and acknowledged_reference:
+            try:
+                if canonical_time_key(acknowledged_reference) == expected:
+                    return {
+                        "case_uid": rc.case_uid, "status": "acknowledged",
+                        "workflow_state": previous_state, "idempotent": True,
+                    }
+            except (TypeError, ValueError):
+                pass
+        # A Service Bus schedule can materialise the durable bell item exactly
+        # at 210 minutes before the five-minute workflow sweep persists its
+        # legacy active flag. The durable route already verified the immutable
+        # notification and role; accept that exact, still-current, backend-due
+        # clock so the single acknowledgement command remains convergent.
+        if not durable_due:
+            raise HTTPException(
+                status_code=409,
+                detail="no active overdue-vitals notification exists for this exact event",
+            )
+    if not current_reference or canonical_time_key(current_reference) != expected:
         raise HTTPException(
             status_code=409,
-            detail="no active overdue-vitals notification exists for this case",
+            detail="the overdue-vitals event clock changed; refresh notifications and retry",
         )
     # The alert is raised FOR a specific role and acknowledging it clears the
     # alert for everyone. Any holder of PERM_SUBMIT_REVIEW could therefore
     # silence a notification addressed to a different role, and the staff member
     # actually responsible would never see it. Enforce the target the sweeper
     # recorded; only clear it if you are who it was raised for.
-    target_role = _text_or_empty(previous_state.get("notification_target_role"))
+    target_role = _text_or_empty(
+        previous_state.get("notification_target_role") or durable_target_role
+    )
     actor_role = _primary_role(ctx) or ""
     if target_role and actor_role != target_role:
         raise HTTPException(
@@ -1918,7 +1990,7 @@ def acknowledge_overdue_vitals(
                 "overdue_vitals_acknowledged_at": now,
                 "overdue_vitals_acknowledged_by_role": _primary_role(ctx),
                 "overdue_vitals_acknowledged_reference_at": (
-                    previous_state.get("overdue_vitals_reference_at")
+                    current_reference
                 ),
             },
         )
@@ -1927,6 +1999,7 @@ def acknowledge_overdue_vitals(
         "case_uid": rc.case_uid,
         "status": "acknowledged",
         "workflow_state": workflow_state,
+        "idempotent": False,
     }
 
 

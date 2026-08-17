@@ -19,6 +19,8 @@ docs/DEPLOYMENT_SECURITY_CHECKLIST.md.
 """
 import asyncio
 from contextlib import asynccontextmanager, suppress
+from datetime import datetime, timezone
+import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -29,6 +31,9 @@ from app.version import APP_VERSION, PACKAGE_CHECKPOINT
 from app.rules.provisional_mts_ruleset import register_provisional_ruleset
 from app.api.health_routes import router as health_router
 from app.api.governance_routes import router as governance_router
+
+
+_notification_logger = logging.getLogger("alter.notifications.runtime")
 
 
 def _overdue_vitals_sweeper_enabled() -> bool:
@@ -44,9 +49,9 @@ def _overdue_vitals_sweeper_enabled() -> bool:
 @asynccontextmanager
 async def _app_lifespan(app: FastAPI):
     task = None
+    notification_task = None
+    notification_backfill_task = None
     if _overdue_vitals_sweeper_enabled():
-        import asyncio
-
         try:
             interval = max(60, int(_os.environ.get("OVERDUE_VITALS_SWEEP_INTERVAL_SECONDS", "300")))
         except ValueError:
@@ -60,16 +65,122 @@ async def _app_lifespan(app: FastAPI):
             while True:
                 try:
                     from app.api.case_routes import sweep_overdue_vitals_once
-                    await asyncio.to_thread(sweep_overdue_vitals_once, limit=limit)
-                except Exception:
+                    result = await asyncio.to_thread(sweep_overdue_vitals_once, limit=limit)
+                    app.state.overdue_vitals_sweeper_status = {
+                        "state": "complete", "last_success_at": datetime.now(timezone.utc).isoformat(),
+                        "errors": len(result.get("errors") or []),
+                    }
+                except Exception as exc:
                     # The explicit sweep route and health/preflight checks surface
                     # durable-store failures. The background loop keeps the service
                     # alive and retries on the next interval.
-                    pass
+                    app.state.overdue_vitals_sweeper_status = {
+                        "state": "failed", "last_error_at": datetime.now(timezone.utc).isoformat(),
+                        "error": exc.__class__.__name__,
+                    }
+                    _notification_logger.error(
+                        "overdue-vitals background sweep failed error=%s",
+                        exc.__class__.__name__,
+                    )
                 await asyncio.sleep(interval)
 
         task = asyncio.create_task(_loop())
         app.state.overdue_vitals_sweeper_task = task
+    try:
+        from app.notifications.config import validate_sms_startup
+        from app.notifications.repository import get_notification_repository
+
+        notification_settings = validate_sms_startup()
+        notification_repository = get_notification_repository(notification_settings)
+        active_rollout_policy = notification_repository.upsert_rollout_policy(
+            notification_settings.rollout_policy()
+        )
+        app.state.notification_rollout_policy_version = active_rollout_policy.version
+    except Exception:
+        # A live-SMS configuration error is unsafe and must prevent startup.
+        # With SMS disabled, validate_sms_startup accepts an unprovisioned Azure
+        # environment so the existing in-app workflow remains available.
+        raise
+    try:
+        notification_reconcile_interval = max(
+            30, min(int(_os.environ.get("NOTIFICATION_RECONCILE_INTERVAL_SECONDS", "60")), 3600)
+        )
+    except ValueError:
+        notification_reconcile_interval = 60
+
+    async def _backfill_notifications() -> None:
+        """Continuously repair the workflow-to-notification reliability boundary."""
+        previous: dict = {}
+        while True:
+            app.state.notification_backfill_status = {
+                **previous, "state": "running",
+                "started_at": datetime.now(timezone.utc).isoformat(),
+            }
+            try:
+                from app.notifications.models import utc_iso
+                from app.notifications.service import reconcile_current_workflow_states
+
+                result = await asyncio.to_thread(reconcile_current_workflow_states, limit=50000)
+                unresolved = int(result.get("failures") or 0) + int(
+                    result.get("publication_failures") or 0
+                )
+                observed_at = utc_iso()
+                previous = {
+                    "state": "complete" if unresolved == 0 else "degraded",
+                    "complete": unresolved == 0,
+                    "unresolved_event_count": unresolved,
+                    "last_attempted_reconciliation_at": observed_at,
+                    "last_successful_reconciliation_at": (
+                        observed_at if unresolved == 0 else
+                        str(previous.get("last_successful_reconciliation_at") or "")
+                    ),
+                    **result,
+                }
+                app.state.notification_backfill_status = previous
+            except Exception as exc:
+                from app.notifications.models import utc_iso
+
+                previous = {
+                    **previous, "state": "failed", "complete": False,
+                    "unresolved_event_count": max(
+                        1, int(previous.get("unresolved_event_count") or 0)
+                    ),
+                    "last_error_at": utc_iso(), "error": exc.__class__.__name__,
+                }
+                app.state.notification_backfill_status = previous
+                _notification_logger.error(
+                    "notification reconciliation failed error=%s", exc.__class__.__name__
+                )
+            await asyncio.sleep(notification_reconcile_interval)
+
+    notification_backfill_task = asyncio.create_task(_backfill_notifications())
+    app.state.notification_backfill_task = notification_backfill_task
+    if notification_settings.sms_publish_enabled:
+        async def _notification_loop() -> None:
+            while True:
+                try:
+                    from app.notifications.publisher import reconcile_outbox
+
+                    result = await asyncio.to_thread(
+                        reconcile_outbox,
+                        notification_repository,
+                        notification_settings,
+                        limit=500,
+                    )
+                    app.state.notification_outbox_status = {"state": "complete", **result}
+                except Exception as exc:
+                    # The Azure Function has its own timer reconciliation. This
+                    # loop is a latency optimisation and retries every minute.
+                    app.state.notification_outbox_status = {
+                        "state": "failed", "error": exc.__class__.__name__,
+                    }
+                    _notification_logger.error(
+                        "notification outbox loop failed error=%s", exc.__class__.__name__
+                    )
+                await asyncio.sleep(60)
+
+        notification_task = asyncio.create_task(_notification_loop())
+        app.state.notification_outbox_task = notification_task
     try:
         yield
     finally:
@@ -80,6 +191,14 @@ async def _app_lifespan(app: FastAPI):
             # cancellation escapes into the lifespan teardown.
             with suppress(asyncio.CancelledError, Exception):
                 await task
+        if notification_task is not None:
+            notification_task.cancel()
+            with suppress(asyncio.CancelledError, Exception):
+                await notification_task
+        if notification_backfill_task is not None:
+            notification_backfill_task.cancel()
+            with suppress(asyncio.CancelledError, Exception):
+                await notification_backfill_task
 
 
 app = FastAPI(
@@ -233,9 +352,11 @@ app.include_router(health_router)
 from app.api.case_routes import router as case_router
 from app.api.status_routes import router as status_router
 from app.api.session_routes import router as session_router
+from app.api.notification_routes import router as notification_router
 app.include_router(case_router)
 app.include_router(status_router)
 app.include_router(session_router)
+app.include_router(notification_router)
 app.include_router(governance_router)
 
 # ── Legacy raw-ID routers (triage/review/explanation/chat/followup) ──────────

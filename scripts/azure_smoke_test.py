@@ -1,140 +1,165 @@
-"""Azure/runtime smoke test for the single-service app (FastAPI serves the built React UI; the Streamlit frontend is retired).
+"""Read-only post-deployment verification for the FastAPI/React service.
 
-This checks live endpoints after deployment. It is intentionally separate from
-unit tests: green pytest results do not prove Azure wiring, auth, audit, model
-artefacts, or endpoint reachability.
+The script deliberately does not create assessments, follow-ups, alerts, or SMS
+work. It logs endpoint/result metadata only, never notification bodies or case
+identifiers.
 """
 from __future__ import annotations
 
 import argparse
 import json
-from typing import Any, Dict, Optional
+import time
+from typing import Any
 
 import requests
 
 
-BASE_ENDPOINTS = (
-    ("GET", "/health", None),
-    ("GET", "/auth/triage-link", None),
-    ("GET", "/runtime/status", None),
-    ("GET", "/status/full-mimic", None),
-    ("GET", "/status/llm", None),
-    ("GET", "/security/status", None),
-    ("GET", "/cases", None),
-    ("GET", "/model/performance", None),
-    ("GET", "/audit/events", None),
-)
+PUBLIC_ENDPOINTS = ("/", "/health", "/status/uhl", "/runtime/status")
+NOTIFICATION_ENDPOINTS = ("/notifications", "/notifications/system/health")
 
 
-def _safe_json(resp: requests.Response) -> Any:
-    try:
-        return resp.json()
-    except Exception:
-        return resp.text[:500]
-
-
-def _call(
+def _request(
     session: requests.Session,
-    method: str,
-    url: str,
+    base_url: str,
+    path: str,
     *,
     timeout: float,
-    json_body: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
-    try:
-        resp = session.request(method, url, json=json_body, timeout=timeout)
-        return {
-            "status_code": resp.status_code,
-            "ok": 200 <= resp.status_code < 300,
-            "body": _safe_json(resp),
-        }
-    except Exception as exc:
-        return {
-            "status_code": None,
-            "ok": False,
-            "body": f"{type(exc).__name__}: {exc}",
-        }
+) -> tuple[int, Any]:
+    response = session.get(
+        base_url + path,
+        timeout=timeout,
+        allow_redirects=True,
+    )
+    payload: Any = None
+    if response.headers.get("content-type", "").lower().startswith("application/json"):
+        try:
+            payload = response.json()
+        except ValueError:
+            payload = None
+    return response.status_code, payload
+
+
+def _attempt(
+    *,
+    base_url: str,
+    timeout: float,
+    demo_role: str,
+    expected_build_id: str,
+    check_notifications: bool,
+    require_notification_worker: bool,
+) -> dict[str, Any]:
+    session = requests.Session()
+    if demo_role:
+        session.headers.update(
+            {"X-Demo-Role": demo_role, "X-Demo-User": "deployment-smoke"}
+        )
+
+    checks: dict[str, int] = {}
+    payloads: dict[str, Any] = {}
+    for path in PUBLIC_ENDPOINTS:
+        status, payload = _request(session, base_url, path, timeout=timeout)
+        checks[path] = status
+        payloads[path] = payload
+        if not 200 <= status < 300:
+            raise RuntimeError(f"{path} returned HTTP {status}")
+
+    if not isinstance(payloads["/health"], dict):
+        raise RuntimeError("/health did not return a JSON object")
+    if not isinstance(payloads["/status/uhl"], dict):
+        raise RuntimeError("/status/uhl did not return a JSON object")
+
+    if check_notifications:
+        for path in NOTIFICATION_ENDPOINTS:
+            status, payload = _request(session, base_url, path, timeout=timeout)
+            checks[path] = status
+            payloads[path] = payload
+            if not 200 <= status < 300:
+                raise RuntimeError(f"{path} returned HTTP {status}")
+        notifications = payloads["/notifications"]
+        health = payloads["/notifications/system/health"]
+        if not isinstance(notifications, dict) or (
+            notifications.get("source") != "durable_notification_store"
+        ):
+            raise RuntimeError("durable notification API source mismatch")
+        if not isinstance(health, dict) or not health.get("available"):
+            raise RuntimeError("notification repository is unavailable")
+        rollout = health.get("rollout_policy") or {}
+        if (
+            not rollout.get("active_version")
+            or rollout.get("configured_version") != rollout.get("active_version")
+            or not rollout.get("version_match")
+        ):
+            raise RuntimeError("durable rollout policy has not converged")
+        worker = health.get("submission_worker") or {}
+        if expected_build_id and worker.get("web_build_id") != expected_build_id:
+            raise RuntimeError("web notification build identity mismatch")
+        if require_notification_worker and (
+            not worker.get("build_match") or not worker.get("last_heartbeat_at")
+        ):
+            raise RuntimeError("matching worker heartbeat has not arrived")
+
+    return {
+        "status": "PASS",
+        "checks": checks,
+        "notification_source": check_notifications,
+        "worker_required": require_notification_worker,
+    }
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(description="Smoke-test a deployed triage app.")
-    parser.add_argument("--base-url", required=True, help="Backend base URL.")
-    parser.add_argument("--demo-role", default="", help="Optional X-Demo-Role header.")
-    parser.add_argument("--case-uid", default="", help="Optional case_uid to exercise.")
-    parser.add_argument("--timeout", type=float, default=20.0)
-    parser.add_argument(
-        "--strict",
-        action="store_true",
-        help="Return non-zero on any non-2xx endpoint. Without this, auth-gated "
-             "401/403 responses are reported but not treated as script failure.",
+    parser = argparse.ArgumentParser(
+        description="Run read-only health checks against a deployed ALTER service."
     )
+    parser.add_argument("--base-url", required=True)
+    parser.add_argument("--demo-role", default="security_admin")
+    parser.add_argument("--expected-build-id", default="")
+    parser.add_argument("--check-notifications", action="store_true")
+    parser.add_argument("--require-notification-worker", action="store_true")
+    parser.add_argument("--timeout", type=float, default=30.0)
+    parser.add_argument("--attempts", type=int, default=30)
+    parser.add_argument("--retry-seconds", type=float, default=10.0)
+    # Retained only so old operator commands fail safely without mutating a case.
+    parser.add_argument("--case-uid", default="", help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
+    if not 1 <= args.attempts <= 60:
+        parser.error("--attempts must be between 1 and 60")
+    if args.require_notification_worker and not args.check_notifications:
+        parser.error("--require-notification-worker requires --check-notifications")
 
-    base = args.base_url.rstrip("/")
-    session = requests.Session()
-    if args.demo_role:
-        session.headers.update({"X-Demo-Role": args.demo_role})
+    base_url = args.base_url.rstrip("/")
+    last_error = "not started"
+    for attempt in range(1, args.attempts + 1):
+        try:
+            result = _attempt(
+                base_url=base_url,
+                timeout=args.timeout,
+                demo_role=args.demo_role,
+                expected_build_id=args.expected_build_id,
+                check_notifications=args.check_notifications,
+                require_notification_worker=args.require_notification_worker,
+            )
+            result["attempt"] = attempt
+            result["base_url"] = base_url
+            print(json.dumps(result, indent=2, sort_keys=True))
+            return 0
+        except Exception as exc:
+            last_error = f"{type(exc).__name__}: {exc}"
+            if attempt < args.attempts:
+                time.sleep(args.retry_seconds)
 
-    results: Dict[str, Any] = {"base_url": base, "checks": {}}
-    for method, path, body in BASE_ENDPOINTS:
-        results["checks"][path] = _call(
-            session, method, base + path, timeout=args.timeout, json_body=body)
-
-    case_uid = args.case_uid
-    cases_body = results["checks"].get("/cases", {}).get("body")
-    if not case_uid and isinstance(cases_body, dict):
-        cases = cases_body.get("cases") or []
-        if cases:
-            case_uid = cases[0].get("case_uid") or ""
-
-    if case_uid:
-        case_paths = {
-            f"/cases/{case_uid}/assessments": ("POST", None),
-            f"/cases/{case_uid}/multiagent-explanations": (
-                "POST", {"question": "Smoke test: summarize already-computed evidence."}
-            ),
-            f"/cases/{case_uid}/followups": (
-                "POST", {"updated_vitals": {"heartrate": 120}}
-            ),
-            f"/cases/{case_uid}/followups/multiagent-explanations": (
-                "POST",
-                {
-                    "updated_vitals": {"heartrate": 120},
-                    "question": "Smoke test: why did the follow-up result change or stay the same?",
-                },
-            ),
-        }
-        for path, (method, body) in case_paths.items():
-            results["checks"][path] = _call(
-                session, method, base + path, timeout=args.timeout, json_body=body)
-    else:
-        results["case_exercise_skipped"] = (
-            "No case_uid supplied and /cases did not return an available case."
+    print(
+        json.dumps(
+            {
+                "status": "FAIL",
+                "attempts": args.attempts,
+                "base_url": base_url,
+                "error": last_error,
+            },
+            indent=2,
+            sort_keys=True,
         )
-
-    results["audit_write_read_note"] = (
-        "Protected endpoint calls above should create access-audit records; "
-        "/audit/events checks whether audit reads are reachable for the active role."
     )
-    hard_failures = [
-        path for path, item in results["checks"].items()
-        if item.get("status_code") is None or int(item.get("status_code") or 0) >= 500
-    ]
-    strict_failures = [
-        path for path, item in results["checks"].items()
-        if not item.get("ok")
-    ]
-    results["status"] = (
-        "FAIL"
-        if hard_failures or (args.strict and strict_failures)
-        else "PASS_WITH_AUTH_GATED_WARNINGS"
-        if strict_failures
-        else "PASS"
-    )
-    results["hard_failures"] = hard_failures
-    results["strict_failures"] = strict_failures
-    print(json.dumps(results, indent=2, sort_keys=True))
-    return 1 if results["status"] == "FAIL" else 0
+    return 1
 
 
 if __name__ == "__main__":

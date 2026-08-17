@@ -1,0 +1,7 @@
+# The Azure Functions Python worker is provided by the platform; do not add azure-functions-worker.
+azure-functions==1.23.0
+azure-identity==1.25.3
+azure-data-tables==12.7.0
+azure-servicebus==7.14.3
+azure-communication-sms==1.1.0
+phonenumbers==9.0.36

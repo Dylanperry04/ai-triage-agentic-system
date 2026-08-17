@@ -69,3 +69,5 @@ Thumbs.db
 .vscode/settings.json
 data/processed/case_workflow_state.jsonl
 data/processed/supporting_uploads/
+data/processed/notifications.sqlite3*
+data/cache/

@@ -1,5 +1,4 @@
 from pathlib import Path
-import json
 import re
 
 import pytest
@@ -9,27 +8,47 @@ from packaging.requirements import InvalidRequirement, Requirement
 REPO = Path(__file__).resolve().parents[1]
 
 
-def test_dockerfile_installs_autogen_runtime_dependencies():
+def test_dockerfile_is_a_complete_backend_only_runtime_image():
     text = (REPO / "Dockerfile").read_text(encoding="utf-8")
-    assert "requirements-autogen.txt" in text
-    assert "pip install --no-cache-dir -r requirements-autogen.txt" in text
+    assert "COPY requirements.txt requirements-runtime.txt ./" in text
+    assert "pip install --no-cache-dir -r requirements.txt" in text
+    assert "ARG SKIP_AZURE=0" in text
+    assert 'if [ "$SKIP_AZURE" != "1" ]' in text
+    assert 'CMD ["sh", "startup-backend.sh"]' in text
+    assert "startup-frontend.sh" not in text
+    assert "SERVICE_ROLE" not in text
 
 
 def test_default_requirements_include_autogen_for_azure_oryx_deployments():
-    text = (REPO / "requirements.txt").read_text(encoding="utf-8")
+    default = (REPO / "requirements.txt").read_text(encoding="utf-8")
+    assert "-r requirements-runtime.txt" in default
+    text = (REPO / "requirements-runtime.txt").read_text(encoding="utf-8")
     assert "autogen-agentchat==0.7.5" in text
     assert "autogen-core==0.7.5" in text
     assert "autogen-ext[openai]==0.7.5" in text
 
 
 def test_default_requirements_include_wandb_sdk_for_governance_toolkit():
-    text = (REPO / "requirements.txt").read_text(encoding="utf-8")
+    text = (REPO / "requirements-runtime.txt").read_text(encoding="utf-8")
     assert re.search(r"^wandb[<>=]", text, re.MULTILINE)
 
 
 def test_default_requirements_can_load_selected_smote_artifacts():
-    text = (REPO / "requirements.txt").read_text(encoding="utf-8")
-    assert re.search(r"^imbalanced-learn[<>=]", text, re.MULTILINE)
+    runtime = (REPO / "requirements-runtime.txt").read_text(encoding="utf-8")
+    training = (REPO / "requirements-ml.txt").read_text(encoding="utf-8")
+    assert re.search(r"^catboost[<>=]", runtime, re.MULTILINE)
+    assert not re.search(r"^(streamlit|xgboost|lightgbm|imbalanced-learn)[<>=]", runtime, re.MULTILINE)
+    assert re.search(r"^imbalanced-learn[<>=]", training, re.MULTILINE)
+
+
+def test_active_runtime_pins_security_fixed_web_dependencies():
+    runtime = (REPO / "requirements-runtime.txt").read_text(encoding="utf-8")
+    assert "fastapi==0.140.0" in runtime
+    assert "starlette==1.3.1" in runtime
+    assert "python-multipart==0.0.32" in runtime
+    assert "python-dotenv==1.2.2" in runtime
+    assert "orjson==3.11.6" in runtime
+    assert "requests==2.33.0" in runtime
 
 
 def test_wandb_runtime_directories_are_not_packaged_source():
@@ -56,12 +75,21 @@ def test_runtime_audit_logs_are_ignored_for_clean_packaging():
         assert path in text
 
 
+def test_uhl_runtime_cache_is_ignored_for_clean_packaging():
+    text = (REPO / ".gitignore").read_text(encoding="utf-8")
+    assert re.search(r"^data/cache/$", text, re.MULTILINE)
+
+
 def test_azure_deploy_workflow_excludes_runtime_data_and_cleans_generated_caches():
     text = (REPO / ".github" / "workflows" / "deploy-azure.yml").read_text(
         encoding="utf-8"
     )
 
     assert "--exclude 'data/processed/'" in text
+    assert "--exclude 'data/cache/'" in text
+    assert "UHL_CASE_CACHE_PATH=$RUNNER_TEMP/alter-uhl-cache/uhl_cases.sqlite3" in text
+    assert "-r requirements-legacy-ui.txt" in text
+    assert "python -m pytest --collect-only -q tests/" in text
     assert 'echo "WANDB_MODE=disabled"' in text
     assert "--no-compile" in text
     assert "export PYTHONDONTWRITEBYTECODE=1" in text
@@ -77,7 +105,9 @@ def test_azure_deploy_workflow_excludes_runtime_data_and_cleans_generated_caches
     assert "Verify deployment ZIP contains runtime dependencies" in text
     assert ".python_packages/lib/site-packages/uvicorn/__init__.py" in text
     assert ".python_packages/lib/site-packages/fastapi/__init__.py" in text
-    assert "rm -rf deployment/data/processed" in text
+    assert "rm -rf deployment/data/processed deployment/data/cache" in text
+    assert '-r "deployment/${RUNTIME_REQUIREMENTS}"' in text
+    assert "max_zip_bytes=900000000" in text
     assert (
         text.index("Verify packaged application")
         < text.index("Clean deployment package")
@@ -91,6 +121,8 @@ def test_azure_deploy_workflow_excludes_runtime_data_and_cleans_generated_caches
     "filename",
     [
         "requirements.txt",
+        "requirements-runtime.txt",
+        "requirements-legacy-ui.txt",
         "requirements-autogen.txt",
         "requirements-azure.txt",
         "requirements-dev.txt",
@@ -113,10 +145,10 @@ def test_requirements_files_have_parseable_requirement_lines(filename):
     assert not bad_lines
 
 
-def test_azure_preflight_checks_autogen_container_dependency():
+def test_azure_preflight_checks_complete_container_runtime_manifest():
     text = (REPO / "scripts" / "azure_preflight_check.py").read_text(encoding="utf-8")
-    assert "dockerfile_installs_autogen_runtime_deps" in text
-    assert "requirements-autogen.txt" in text
+    assert "dockerfile_installs_complete_runtime_manifest" in text
+    assert "COPY requirements.txt requirements-runtime.txt" in text
     assert "uhl_model_serving_contract_valid" in text
     assert "uhl_dataset_sha256_matches" in text
     assert "uhl_model_sha256_matches" in text
@@ -145,8 +177,18 @@ def test_package_hygiene_allows_only_pinned_deployment_model_artifact(tmp_path):
         zf.writestr("model_outputs/last_training/other.pkl", b"forbidden")
         zf.writestr("19.91/app/main.pyc", b"forbidden")
         zf.writestr("data/processed/supporting_uploads/case/file.png", b"forbidden")
+        zf.writestr("19.91/data/cache/uhl_cases.sqlite3", b"forbidden runtime cache")
+        zf.writestr(
+            "19.91/data/cache/.uhl_cases.sqlite3.9.building",
+            b"forbidden in-progress runtime cache",
+        )
+        zf.writestr(
+            "19.91/validation/function-package-deadbeef/function_app.py",
+            b"forbidden generated staging package",
+        )
         zf.writestr("19.91/.git/config", b"forbidden")
         zf.writestr("19.91/.venv/pyvenv.cfg", b"forbidden")
+        zf.writestr("19.91/.ruff_cache/cache-entry", b"forbidden")
         zf.writestr("19.91/frontend-react/node_modules/pkg/index.js", b"forbidden")
         zf.writestr("19.91/wandb/run.txt", b"forbidden")
         zf.writestr("19.91/wandb-offline/run.txt", b"forbidden")
@@ -167,8 +209,12 @@ def test_package_hygiene_allows_only_pinned_deployment_model_artifact(tmp_path):
     assert "model_outputs/last_training/other.pkl" in bad
     assert "19.91/app/main.pyc" in bad
     assert "data/processed/supporting_uploads/case/file.png" in bad
+    assert "19.91/data/cache/uhl_cases.sqlite3" in bad
+    assert "19.91/data/cache/.uhl_cases.sqlite3.9.building" in bad
+    assert "19.91/validation/function-package-deadbeef/function_app.py" in bad
     assert "19.91/.git/config" in bad
     assert "19.91/.venv/pyvenv.cfg" in bad
+    assert "19.91/.ruff_cache/cache-entry" in bad
     assert "19.91/frontend-react/node_modules/pkg/index.js" in bad
     assert "19.91/wandb/run.txt" in bad
     assert "19.91/wandb-offline/run.txt" in bad

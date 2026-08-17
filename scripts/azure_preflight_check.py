@@ -111,9 +111,9 @@ def main() -> int:
             "data/uhl_dataset_final.csv.gz" in docker_text
             and "COPY artifacts/" in docker_text
         ),
-        "dockerfile_installs_autogen_runtime_deps": (
-            "requirements-autogen.txt" in docker_text
-            and "pip install --no-cache-dir -r requirements-autogen.txt" in docker_text
+        "dockerfile_installs_complete_runtime_manifest": (
+            "COPY requirements.txt requirements-runtime.txt" in docker_text
+            and "pip install --no-cache-dir -r requirements.txt" in docker_text
         ),
         "patient_data_config_safe_or_synthetic": (not patient_mode) or not unsafe,
     }

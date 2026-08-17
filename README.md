@@ -1,4 +1,4 @@
-# AI Triage Agentic System 22.4 — UHL data/model swap
+# AI Triage Agentic System 22.4 — UHL model with durable ACS notifications
 
 > **Research prototype — not for clinical use.** Every assessment requires
 > clinician review. The project does not implement an official or clinically
@@ -42,7 +42,6 @@ Python 3.11 is the deployment target.
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
-python -m pip install -r requirements-autogen.txt
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
@@ -69,6 +68,22 @@ Settings or Key Vault; never commit them. Without those values, the core
 workflow and ML model still run while the LLM explanation layer reports that it
 is not configured.
 
+## Durable notifications and ACS SMS
+
+The notification bell now reads persistent, role-filtered records from the
+backend. Escalation and 210-minute overdue-vitals alerts are committed before
+any SMS work is published. Azure Communication Services SMS is a secondary
+prompt; notification creation and acknowledgement continue to work if SMS,
+Service Bus, Functions, or a carrier is unavailable.
+
+Live SMS is disabled by default. The infrastructure template, worker, managed
+identity roles, hard 100-attempt UTC-day cap, 90-day retention, privacy-safe
+templates, deployment sequence, and rollback steps are documented in
+`docs/ACS_SMS_OPERATIONS.md`. The data flow is in
+`docs/NOTIFICATION_ARCHITECTURE.md`. Creating these Azure resources requires a
+separate approval and the manual guarded workflow; pushing application code
+does not enable or send SMS.
+
 ## Useful endpoints
 
 - `/health` — service and active UHL asset state
@@ -77,6 +92,8 @@ is not configured.
 - `/cases` — bounded, paginated UHL case list
 - `/model/performance` — UHL model evidence in the unchanged 22.4 UI contract
 - `/system/meta` — release metadata
+- `/notifications` — role-filtered durable in-app notifications
+- `/notifications/system/health` — restricted, redacted notification health
 
 The first case request builds a validated SQLite index from the compressed UHL
 cohort. Later paging and case resolution use that index. Set
@@ -89,21 +106,34 @@ Azure if the application directory is read-only or ephemeral.
 python scripts\azure_preflight_check.py
 python -m pytest tests -q
 cd frontend-react
-npm test -- --run
-npm run build
+pnpm test
+pnpm build
 ```
+
+The deployment manifest contains only the active FastAPI/UHL/notification
+runtime. Retired Streamlit and model-training tools are isolated in separate
+legacy/training manifests and are not installed into the App Service package.
 
 The test configuration explicitly skips 21 archived assertions whose sole
 purpose was to require full MIMIC as the active deployment source. They are
 kept for source history; UHL-specific replacement coverage lives in
-`tests/test_uhl_22_4_swap.py`. All other 22.4 tests continue to run.
+`tests/test_uhl_22_4_swap.py`. This GitHub integration preserves the newer
+pseudonym-aware UHL cache and resolver invalidation fixes already present on
+`main`, rather than restoring the archive's deferred cache defect. The merged
+Python 3.12 environment completed 1,106 backend checks (1,085 passed and 21
+skipped, with no failures or XFAILs), while the React suite passed 47/47 and the
+production Vite build transformed 2,076 modules. The supplied archive's
+independent validation records remain documented in the release notes.
 
 ## Azure deployment
 
 The current shape is one Linux App Service running `bash startup-backend.sh` on
 Python 3.11. The checked-in workflow packages the built React UI, the pinned UHL
 cohort, the selected UHL model, the reports, and Python runtime dependencies.
-It verifies both asset hashes and the UHL serving contract before deploying.
+It verifies both asset hashes and the UHL serving contract before deploying,
+enforces package-size limits, fails closed when the notification worker is
+absent, and runs post-deployment web, notification, Function, build-identity,
+and worker-heartbeat checks before creating a release tag.
 See `infrastructure/azure_deploy.md` for the deployment checklist.
 
 Historic MIMIC loaders, training utilities, fixtures, and tests remain in the

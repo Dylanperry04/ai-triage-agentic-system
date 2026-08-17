@@ -63,6 +63,23 @@ describe("read-only preview assessment", () => {
   });
 });
 
+describe("durable notification API", () => {
+  it("loads notifications and records read state through same-origin routes", async () => {
+    await api.notifications(30);
+    expect(calls.at(-1).url).toBe("/notifications?limit=30");
+    expect(calls.at(-1).opts.method).toBe("GET");
+
+    await api.markNotificationRead("ntf-v1-abc");
+    expect(calls.at(-1).url).toBe("/notifications/ntf-v1-abc/read");
+    expect(calls.at(-1).opts.method).toBe("POST");
+
+    await api.acknowledgeNotification("ntf-v1-abc");
+    expect(calls.at(-1).url).toBe("/notifications/ntf-v1-abc/acknowledge");
+    expect(calls.at(-1).opts.method).toBe("POST");
+    expect(calls.at(-1).opts.credentials).toBe("same-origin");
+  });
+});
+
 describe("reassessment endpoint", () => {
   it("posts followups with updated vitals in backend (MIMIC/°F) units", async () => {
     await api.followupCase("case-4", { updated_vitals: { heartrate: 128, temperature: 102.2 }, updated_context: "ECG done." });

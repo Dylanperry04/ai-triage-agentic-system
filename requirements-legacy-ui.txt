@@ -1,0 +1,4 @@
+# Retired Streamlit presentation retained for source-history use only.
+# It is not installed into the active FastAPI/React Azure deployment.
+-r requirements-runtime.txt
+streamlit==1.54.0

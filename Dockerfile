@@ -6,10 +6,8 @@
 # (frontend-react/dist) at "/". Deploy ONE container/App Service running
 # startup-backend.sh. Same-origin UI -> no CORS needed for the built-in UI.
 #
-# LEGACY: the retired Streamlit frontend (frontend/app.py, startup-frontend.sh,
-# SERVICE_ROLE=frontend) is kept in the image for reference and can still be
-# run as the old two-service shape if ever needed. It is not the deployment
-# target. See infrastructure/azure_deploy.md ("Single-service React UI").
+# The retired Streamlit source remains in the repository for historical tests,
+# but it is not installed or exposed as a container service role.
 #
 # Patient-data mode (PATIENT_DATA_MODE=true) additionally requires: Entra auth
 # via a trusted proxy, Key Vault secrets, a durable audit sink, and a
@@ -27,19 +25,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # App runtime deps only. (requirements-ml.txt / requirements-azure.txt are layered
 # in the environments that need them: ML training on the credentialed box, and
 # Key Vault/durable-audit clients in the Azure deployment.)
-COPY requirements.txt .
+COPY requirements.txt requirements-runtime.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 # Azure deployment extras (Key Vault + durable audit clients). These are REQUIRED
 # for the patient-data profile, so the build must fail if they cannot be
 # installed (do not mask the failure). For a public-demo-only image, build with
 # --build-arg SKIP_AZURE=1 or use a separate demo Dockerfile.
-COPY requirements-azure.txt .
-RUN pip install --no-cache-dir -r requirements-azure.txt
-# AutoGen explanation/chat runtime deps. These routes are part of the app demo
-# surface, so the container image must match the local app venv rather than
-# silently degrading only after deployment.
-COPY requirements-autogen.txt .
-RUN pip install --no-cache-dir -r requirements-autogen.txt
+ARG SKIP_AZURE=0
+COPY requirements-azure.txt ./
+RUN if [ "$SKIP_AZURE" != "1" ]; then \
+      pip install --no-cache-dir -r requirements-azure.txt; \
+    fi
 
 # Application code
 COPY app/ ./app/
@@ -50,7 +46,7 @@ COPY data/models/ ./data/models/
 # Pinned UHL synthetic cohort, selected serving artifact, and aggregate reports.
 COPY data/uhl_dataset_final.csv.gz ./data/uhl_dataset_final.csv.gz
 COPY artifacts/ ./artifacts/
-COPY startup-backend.sh startup-frontend.sh ./
+COPY startup-backend.sh ./
 RUN mkdir -p ./data/processed/ ./data/cache/
 
 # The packaged cohort is synthetic UHL research data. No patient dataset or
@@ -65,8 +61,7 @@ RUN useradd --create-home --uid 10001 appuser \
 USER appuser
 
 ENV PORT=8000
-ENV SERVICE_ROLE=backend
 EXPOSE 8000
 
-# Dispatch on SERVICE_ROLE. Default is the backend (the enforcement boundary).
-CMD ["sh", "-c", "if [ \"$SERVICE_ROLE\" = \"frontend\" ]; then exec sh startup-frontend.sh; else exec sh startup-backend.sh; fi"]
+# One image, one service: FastAPI serves the built React application.
+CMD ["sh", "startup-backend.sh"]

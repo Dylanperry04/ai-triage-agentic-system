@@ -20,10 +20,12 @@ export default function Health({ session }) {
   useEffect(() => {
     let dead = false;
     const canModel = (session?.permissions || []).includes("can_view_model_performance");
+    const canSecurity = (session?.permissions || []).includes("can_view_security_status");
     Promise.allSettled([
       api.health(), api.runtimeStatus(), api.uhlStatus(), api.llmStatus(), api.governanceReport(), api.systemMeta(),
       canModel ? api.modelPerformance() : Promise.reject(new Error("skipped")),
-    ]).then(([h, r, m, l, g, meta, mp]) => {
+      canSecurity ? api.notificationHealth() : Promise.reject(new Error("skipped")),
+    ]).then(([h, r, m, l, g, meta, mp, notifications]) => {
       if (dead) return;
       setD({
         health: h.status === "fulfilled" ? h.value : null,
@@ -33,13 +35,14 @@ export default function Health({ session }) {
         gov: g.status === "fulfilled" ? g.value : null,
         meta: meta.status === "fulfilled" ? meta.value : null,
         perf: mp.status === "fulfilled" ? mp.value : null,
+        notifications: notifications.status === "fulfilled" ? notifications.value : null,
       });
       setLoading(false);
     });
     return () => { dead = true; };
   }, []);
   if (loading) return <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 8, color: T.slate, fontSize: 13.5 }}><Spinner /> Reading service status…</div>;
-  const { health, runtime, uhl, llm, gov, meta, perf } = d;
+  const { health, runtime, uhl, llm, gov, meta, perf, notifications } = d;
   const card = perf?.artefacts?.model_card || null;
   const metrics = card?.headline_metrics || card?.metrics || {};
   const pick = (...keys) => { for (const k of keys) { const v = metrics?.[k]; if (v != null && !Number.isNaN(Number(v))) return Number(v); } return null; };
@@ -57,6 +60,16 @@ export default function Health({ session }) {
         <Light ok={uhl?.model_ready || meta?.uhl_model_configured} warn={!uhl?.model_ready} label="Prediction model artefact" detail={(uhl?.model_ready || meta?.uhl_model_configured) ? "Pinned UHL CatBoost model verified" : "Missing or invalid — assessments fall back to the rules engine"} />
         <Light ok={llm?.configured || llm?.status === "configured"} warn={!(llm?.configured || llm?.status === "configured")} label="LLM explanation layer" detail={(llm?.configured || llm?.status === "configured") ? "Azure OpenAI configured — explains only, never decides" : "Not configured — predictions unaffected; explanations disabled"} />
         <Light ok={runtime?.overdue_vitals_sweeper_enabled ?? runtime?.sweeper_enabled} warn={!(runtime?.overdue_vitals_sweeper_enabled ?? runtime?.sweeper_enabled)} label="Overdue-vitals sweeper" detail={(runtime?.overdue_vitals_sweeper_enabled ?? runtime?.sweeper_enabled) ? "Server-side recheck notifications active" : "Off in this profile — enable ENABLE_OVERDUE_VITALS_SWEEPER for live recheck alerts"} />
+        {notifications && <Light
+          ok={notifications.available && !notifications.degraded}
+          warn={notifications.degraded || !notifications.available}
+          label="Notification delivery"
+          detail={
+            notifications.submission_worker?.required
+              ? `Publication ${notifications.publication?.state || "unknown"}; worker ${notifications.submission_worker?.state || "unknown"}; ${notifications.daily_limit}/day hard limit`
+              : "Durable in-app notifications active; SMS worker not required in this profile"
+          }
+        />}
         <Light ok={String(meta?.rules_status || "").includes("ACTIVE")} label="Rules engine" detail={String(meta?.rules_status || "").includes("ACTIVE") ? "Provisional MTS ruleset active — clinician review required" : "No automated categorisation configured"} />
       </div>
       <Eyebrow style={{ marginTop: 20, marginBottom: 9 }}>Governance gates</Eyebrow>
