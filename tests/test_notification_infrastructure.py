@@ -11,6 +11,7 @@ def _read(relative: str) -> str:
 
 def test_infrastructure_is_secure_by_default_and_preserves_hard_limits():
     template = _read("infra/notifications/main.bicep")
+    assert "param existingWebAppName string = 'ai-triage-agentic-system'" in template
     assert "param smsPublishEnabled bool = false" in template
     assert "param smsEnabled bool = false" in template
     assert "@maxValue(100)\nparam smsDailyLimit int = 100" in template
@@ -34,6 +35,8 @@ def test_infrastructure_is_secure_by_default_and_preserves_hard_limits():
 
 def test_notification_identity_does_not_overwrite_existing_app_identity_setting():
     script = _read("scripts/configure-notification-app.ps1")
+    assert "$ResourceGroup = 'Ai-triaging'" in script
+    assert "$WebAppName = 'ai-triage-agentic-system'" in script
     assert "NOTIFICATION_MANAGED_IDENTITY_CLIENT_ID=$clientId" in script
     assert '"AZURE_CLIENT_ID=$clientId"' not in script
     assert "$functionAppName = $outputs.functionAppName.value" in script
@@ -60,16 +63,33 @@ def test_resource_creation_is_manual_confirmed_and_sms_remains_disabled():
     workflow = _read(".github/workflows/notifications-infrastructure.yml")
     assert "workflow_dispatch:" in workflow
     assert "CREATE-NOTIFICATION-RESOURCES" in workflow
+    assert "RESOURCE_GROUP: Ai-triaging" in workflow
+    assert "AZURE_WEBAPP_NAME: ai-triage-agentic-system" in workflow
+    assert "Verify authoritative Azure deployment target" in workflow
     assert "smsPublishEnabled=false smsEnabled=false" in workflow
     assert "SMS publication and chargeable submission remain disabled" in workflow
     assert "az provider register" not in workflow
 
 
-def test_single_authoritative_app_service_workflow_targets_triage():
+def test_single_authoritative_app_service_workflow_targets_college_app():
     workflow_dir = ROOT / ".github" / "workflows"
     assert not (workflow_dir / "main_triage.yml").exists()
+    assert not (workflow_dir / "main_ai-triage-agentic-system.yml").exists()
     deploy = _read(".github/workflows/deploy-azure.yml")
-    assert "AZURE_WEBAPP_NAME: Triage" in deploy
+    infrastructure = _read(".github/workflows/notifications-infrastructure.yml")
+    assert "AZURE_WEBAPP_NAME: ai-triage-agentic-system" in deploy
+    assert "AZURE_RESOURCE_GROUP: Ai-triaging" in deploy
+    assert "Triage_System" not in deploy
+    assert "Triage_System" not in infrastructure
+    assert "Verify authoritative Azure deployment target" in deploy
+    correct_credentials = (
+        "AZUREAPPSERVICE_CLIENTID_BD0090C04EFB406F8635DC9131E5EAC7",
+        "AZUREAPPSERVICE_TENANTID_C617D75FF5BE4DC89A52C293A09788D4",
+        "AZUREAPPSERVICE_SUBSCRIPTIONID_AF58CC7D0B264843975E5FF090DEE3C6",
+    )
+    for secret_name in correct_credentials:
+        assert secret_name in deploy
+        assert secret_name in infrastructure
     assert "python -m pytest tests/ -q" in deploy
     assert "pnpm test" in deploy
     assert "az bicep build --file infra/notifications/main.bicep" in deploy

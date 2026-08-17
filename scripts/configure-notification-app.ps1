@@ -1,6 +1,6 @@
 param(
-    [Parameter(Mandatory = $false)][string]$ResourceGroup = 'Triage_System',
-    [Parameter(Mandatory = $false)][string]$WebAppName = 'Triage',
+    [Parameter(Mandatory = $false)][string]$ResourceGroup = 'Ai-triaging',
+    [Parameter(Mandatory = $false)][string]$WebAppName = 'ai-triage-agentic-system',
     [Parameter(Mandatory = $false)][string]$DeploymentName = 'alter-notifications',
     [Parameter(Mandatory = $false)][ValidateSet('true', 'false')][string]$SmsPublishEnabled = 'false',
     [Parameter(Mandatory = $false)][ValidateRange(1, 100)][int]$SmsDailyLimit = 100,

@@ -1,6 +1,6 @@
 using './main.bicep'
 
-param existingWebAppName = 'Triage'
+param existingWebAppName = 'ai-triage-agentic-system'
 param location = 'swedencentral'
 param environmentName = 'demo'
 param smsPublishEnabled = false

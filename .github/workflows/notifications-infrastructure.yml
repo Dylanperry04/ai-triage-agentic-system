@@ -17,7 +17,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  RESOURCE_GROUP: Triage_System
+  RESOURCE_GROUP: Ai-triaging
+  AZURE_WEBAPP_NAME: ai-triage-agentic-system
   DEPLOYMENT_NAME: alter-notifications
 
 jobs:
@@ -31,9 +32,25 @@ jobs:
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_8E10AB941B49477E8DB5B04BA57534E3 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_C7011A71516F47C3B47046CE8B487CBC }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_D21A2CA51CC44989841D4098E4A47910 }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_BD0090C04EFB406F8635DC9131E5EAC7 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_C617D75FF5BE4DC89A52C293A09788D4 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_AF58CC7D0B264843975E5FF090DEE3C6 }}
+
+      - name: Verify authoritative Azure deployment target
+        shell: bash
+        run: |
+          set -euo pipefail
+          target_id="$(az webapp show \
+            --resource-group "${RESOURCE_GROUP}" \
+            --name "${AZURE_WEBAPP_NAME}" \
+            --query id \
+            --output tsv 2>/dev/null || true)"
+          expected_suffix="/resourcegroups/${RESOURCE_GROUP,,}/providers/microsoft.web/sites/${AZURE_WEBAPP_NAME,,}"
+          if [ -z "$target_id" ] || [[ "${target_id,,}" != *"${expected_suffix}" ]]; then
+            echo "::error::Azure login did not resolve the authoritative App Service ${RESOURCE_GROUP}/${AZURE_WEBAPP_NAME}."
+            exit 1
+          fi
+          echo "::notice::Verified authoritative Azure target ${RESOURCE_GROUP}/${AZURE_WEBAPP_NAME}."
 
       - name: Verify required providers are registered
         shell: bash
@@ -78,7 +95,7 @@ jobs:
       - name: Attach web identity and non-secret settings
         shell: pwsh
         run: |
-          ./scripts/configure-notification-app.ps1 -ResourceGroup $env:RESOURCE_GROUP -WebAppName Triage -DeploymentName $env:DEPLOYMENT_NAME -SmsPublishEnabled false
+          ./scripts/configure-notification-app.ps1 -ResourceGroup $env:RESOURCE_GROUP -WebAppName $env:AZURE_WEBAPP_NAME -DeploymentName $env:DEPLOYMENT_NAME -SmsPublishEnabled false
 
       - name: Stage Function package
         shell: bash
@@ -112,10 +129,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          publish="$(az webapp config appsettings list --resource-group "$RESOURCE_GROUP" --name Triage --query "[?name=='SMS_PUBLISH_ENABLED'].value | [0]" --output tsv)"
+          publish="$(az webapp config appsettings list --resource-group "$RESOURCE_GROUP" --name "$AZURE_WEBAPP_NAME" --query "[?name=='SMS_PUBLISH_ENABLED'].value | [0]" --output tsv)"
           worker="$(az functionapp config appsettings list --resource-group "$RESOURCE_GROUP" --name "$NOTIFICATION_FUNCTION_NAME" --query "[?name=='SMS_ENABLED'].value | [0]" --output tsv)"
           test "$publish" = "false"
           test "$worker" = "false"
-          az webapp config appsettings set --resource-group "$RESOURCE_GROUP" --name Triage --settings "ALTER_BUILD_ID=${GITHUB_SHA}" --output none
+          az webapp config appsettings set --resource-group "$RESOURCE_GROUP" --name "$AZURE_WEBAPP_NAME" --settings "ALTER_BUILD_ID=${GITHUB_SHA}" --output none
           az functionapp config appsettings set --resource-group "$RESOURCE_GROUP" --name "$NOTIFICATION_FUNCTION_NAME" --settings "ALTER_BUILD_ID=${GITHUB_SHA}" --output none
           echo "Infrastructure and worker deployed. SMS publication and chargeable submission remain disabled."

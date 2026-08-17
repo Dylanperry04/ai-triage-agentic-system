@@ -1,7 +1,7 @@
 targetScope = 'resourceGroup'
 
 @description('Existing, authoritative App Service name. This template does not redeploy its application content.')
-param existingWebAppName string = 'Triage'
+param existingWebAppName string = 'ai-triage-agentic-system'
 
 @description('Azure region for the notification resources.')
 param location string = 'swedencentral'

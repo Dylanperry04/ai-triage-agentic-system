@@ -2,7 +2,8 @@
 
 This Bicep layer adds durable notification storage, Service Bus, an Azure
 Functions worker, ACS, Event Grid delivery reports, Key Vault, and monitoring to
-the existing `Triage` App Service. It is based on Microsoft's pinned
+the existing `ai-triage-agentic-system` App Service in the `Ai-triaging`
+resource group. It is based on Microsoft's pinned
 `servicebus-trigger-python-azd` Python Functions template (`v1.0.0`).
 
 Both `smsPublishEnabled` and `smsEnabled` default to `false`. Deployment does not

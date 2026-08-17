@@ -20,7 +20,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  AZURE_WEBAPP_NAME: Triage
+  AZURE_WEBAPP_NAME: ai-triage-agentic-system
+  AZURE_RESOURCE_GROUP: Ai-triaging
   PYTHON_VERSION: "3.11"
 
 jobs:
@@ -93,9 +94,26 @@ jobs:
         if: ${{ env.ROLLBACK_REQUESTED == 'true' }}
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_8E10AB941B49477E8DB5B04BA57534E3 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_C7011A71516F47C3B47046CE8B487CBC }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_D21A2CA51CC44989841D4098E4A47910 }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_BD0090C04EFB406F8635DC9131E5EAC7 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_C617D75FF5BE4DC89A52C293A09788D4 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_AF58CC7D0B264843975E5FF090DEE3C6 }}
+
+      - name: Verify authoritative Azure rollback target
+        if: ${{ env.ROLLBACK_REQUESTED == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          target_id="$(az webapp show \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --name "${AZURE_WEBAPP_NAME}" \
+            --query id \
+            --output tsv 2>/dev/null || true)"
+          expected_suffix="/resourcegroups/${AZURE_RESOURCE_GROUP,,}/providers/microsoft.web/sites/${AZURE_WEBAPP_NAME,,}"
+          if [ -z "$target_id" ] || [[ "${target_id,,}" != *"${expected_suffix}" ]]; then
+            echo "::error::Azure login did not resolve the authoritative rollback target ${AZURE_RESOURCE_GROUP}/${AZURE_WEBAPP_NAME}."
+            exit 1
+          fi
+          echo "::notice::Verified authoritative Azure rollback target ${AZURE_RESOURCE_GROUP}/${AZURE_WEBAPP_NAME}."
 
       - name: Disable and verify SMS before rollback
         if: ${{ env.ROLLBACK_REQUESTED == 'true' }}
@@ -107,13 +125,13 @@ jobs:
           # (possibly pre-SMS) build replaces it.
           rollback_policy_version="$(date -u +%Y%m%dT%H%M%S)0000000Z-rollback-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           az webapp config appsettings set \
-            --resource-group Triage_System \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
             --name "${AZURE_WEBAPP_NAME}" \
             --settings SMS_PUBLISH_ENABLED=false SMS_ENABLED=false "SMS_ROLLOUT_POLICY_VERSION=${rollback_policy_version}" \
             --output none
 
           mapfile -t rollback_workers < <(az functionapp list \
-            --resource-group Triage_System \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
             --query "[?tags.application=='ALTER' && tags.component=='notifications'].name" \
             --output tsv)
           if [ "${#rollback_workers[@]}" -gt 1 ]; then
@@ -122,23 +140,23 @@ jobs:
           fi
           if [ "${#rollback_workers[@]}" -eq 1 ]; then
             az functionapp config appsettings set \
-              --resource-group Triage_System \
+              --resource-group "${AZURE_RESOURCE_GROUP}" \
               --name "${rollback_workers[0]}" \
               --settings SMS_PUBLISH_ENABLED=false SMS_ENABLED=false AzureWebJobs.sms_dispatch.Disabled=true "SMS_ROLLOUT_POLICY_VERSION=${rollback_policy_version}" \
               --output none
-            worker_publish="$(az functionapp config appsettings list --resource-group Triage_System --name "${rollback_workers[0]}" --query "[?name=='SMS_PUBLISH_ENABLED'].value | [0]" --output tsv)"
-            worker_enabled="$(az functionapp config appsettings list --resource-group Triage_System --name "${rollback_workers[0]}" --query "[?name=='SMS_ENABLED'].value | [0]" --output tsv)"
-            trigger_disabled="$(az functionapp config appsettings list --resource-group Triage_System --name "${rollback_workers[0]}" --query "[?name=='AzureWebJobs.sms_dispatch.Disabled'].value | [0]" --output tsv)"
-            worker_policy_version="$(az functionapp config appsettings list --resource-group Triage_System --name "${rollback_workers[0]}" --query "[?name=='SMS_ROLLOUT_POLICY_VERSION'].value | [0]" --output tsv)"
+            worker_publish="$(az functionapp config appsettings list --resource-group "${AZURE_RESOURCE_GROUP}" --name "${rollback_workers[0]}" --query "[?name=='SMS_PUBLISH_ENABLED'].value | [0]" --output tsv)"
+            worker_enabled="$(az functionapp config appsettings list --resource-group "${AZURE_RESOURCE_GROUP}" --name "${rollback_workers[0]}" --query "[?name=='SMS_ENABLED'].value | [0]" --output tsv)"
+            trigger_disabled="$(az functionapp config appsettings list --resource-group "${AZURE_RESOURCE_GROUP}" --name "${rollback_workers[0]}" --query "[?name=='AzureWebJobs.sms_dispatch.Disabled'].value | [0]" --output tsv)"
+            worker_policy_version="$(az functionapp config appsettings list --resource-group "${AZURE_RESOURCE_GROUP}" --name "${rollback_workers[0]}" --query "[?name=='SMS_ROLLOUT_POLICY_VERSION'].value | [0]" --output tsv)"
             test "${worker_publish,,}" = false
             test "${worker_enabled,,}" = false
             test "${trigger_disabled,,}" = true
             test "$worker_policy_version" = "$rollback_policy_version"
           fi
 
-          web_publish="$(az webapp config appsettings list --resource-group Triage_System --name "${AZURE_WEBAPP_NAME}" --query "[?name=='SMS_PUBLISH_ENABLED'].value | [0]" --output tsv)"
-          web_enabled="$(az webapp config appsettings list --resource-group Triage_System --name "${AZURE_WEBAPP_NAME}" --query "[?name=='SMS_ENABLED'].value | [0]" --output tsv)"
-          web_policy_version="$(az webapp config appsettings list --resource-group Triage_System --name "${AZURE_WEBAPP_NAME}" --query "[?name=='SMS_ROLLOUT_POLICY_VERSION'].value | [0]" --output tsv)"
+          web_publish="$(az webapp config appsettings list --resource-group "${AZURE_RESOURCE_GROUP}" --name "${AZURE_WEBAPP_NAME}" --query "[?name=='SMS_PUBLISH_ENABLED'].value | [0]" --output tsv)"
+          web_enabled="$(az webapp config appsettings list --resource-group "${AZURE_RESOURCE_GROUP}" --name "${AZURE_WEBAPP_NAME}" --query "[?name=='SMS_ENABLED'].value | [0]" --output tsv)"
+          web_policy_version="$(az webapp config appsettings list --resource-group "${AZURE_RESOURCE_GROUP}" --name "${AZURE_WEBAPP_NAME}" --query "[?name=='SMS_ROLLOUT_POLICY_VERSION'].value | [0]" --output tsv)"
           test "${web_publish,,}" = false
           test "${web_enabled,,}" = false
           test "$web_policy_version" = "$rollback_policy_version"
@@ -529,16 +547,32 @@ jobs:
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_8E10AB941B49477E8DB5B04BA57534E3 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_C7011A71516F47C3B47046CE8B487CBC }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_D21A2CA51CC44989841D4098E4A47910 }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_BD0090C04EFB406F8635DC9131E5EAC7 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_C617D75FF5BE4DC89A52C293A09788D4 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_AF58CC7D0B264843975E5FF090DEE3C6 }}
+
+      - name: Verify authoritative Azure deployment target
+        shell: bash
+        run: |
+          set -euo pipefail
+          target_id="$(az webapp show \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --name "${AZURE_WEBAPP_NAME}" \
+            --query id \
+            --output tsv 2>/dev/null || true)"
+          expected_suffix="/resourcegroups/${AZURE_RESOURCE_GROUP,,}/providers/microsoft.web/sites/${AZURE_WEBAPP_NAME,,}"
+          if [ -z "$target_id" ] || [[ "${target_id,,}" != *"${expected_suffix}" ]]; then
+            echo "::error::Azure login did not resolve the authoritative App Service ${AZURE_RESOURCE_GROUP}/${AZURE_WEBAPP_NAME}."
+            exit 1
+          fi
+          echo "::notice::Verified authoritative Azure target ${AZURE_RESOURCE_GROUP}/${AZURE_WEBAPP_NAME}."
 
       - name: Verify deployment mode accepts this package
         shell: bash
         run: |
           set -euo pipefail
           run_from_package="$(az webapp config appsettings list \
-            --resource-group Triage_System \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
             --name "${AZURE_WEBAPP_NAME}" \
             --query "[?name=='WEBSITE_RUN_FROM_PACKAGE'].value | [0]" \
             --output tsv)"
@@ -567,7 +601,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mapfile -t names < <(az functionapp list --resource-group Triage_System --query "[?tags.application=='ALTER' && tags.component=='notifications'].name" --output tsv)
+          mapfile -t names < <(az functionapp list --resource-group "${AZURE_RESOURCE_GROUP}" --query "[?tags.application=='ALTER' && tags.component=='notifications'].name" --output tsv)
           if [ "${#names[@]}" -gt 1 ]; then
             echo "::error::More than one ALTER notification Function was found; refusing an ambiguous deployment."
             exit 1
@@ -578,13 +612,13 @@ jobs:
             echo "NOTIFICATION_FUNCTION_NAME=" >> "$GITHUB_ENV"
             disabled_policy_version="$(date -u +%Y%m%dT%H%M%S)0000000Z-no-worker-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
             az webapp config appsettings set \
-              --resource-group Triage_System \
+              --resource-group "${AZURE_RESOURCE_GROUP}" \
               --name "${AZURE_WEBAPP_NAME}" \
               --settings SMS_PUBLISH_ENABLED=false SMS_ENABLED=false "SMS_ROLLOUT_POLICY_VERSION=${disabled_policy_version}" \
               --output none
-            web_publish="$(az webapp config appsettings list --resource-group Triage_System --name "${AZURE_WEBAPP_NAME}" --query "[?name=='SMS_PUBLISH_ENABLED'].value | [0]" --output tsv)"
-            web_enabled="$(az webapp config appsettings list --resource-group Triage_System --name "${AZURE_WEBAPP_NAME}" --query "[?name=='SMS_ENABLED'].value | [0]" --output tsv)"
-            web_policy_version="$(az webapp config appsettings list --resource-group Triage_System --name "${AZURE_WEBAPP_NAME}" --query "[?name=='SMS_ROLLOUT_POLICY_VERSION'].value | [0]" --output tsv)"
+            web_publish="$(az webapp config appsettings list --resource-group "${AZURE_RESOURCE_GROUP}" --name "${AZURE_WEBAPP_NAME}" --query "[?name=='SMS_PUBLISH_ENABLED'].value | [0]" --output tsv)"
+            web_enabled="$(az webapp config appsettings list --resource-group "${AZURE_RESOURCE_GROUP}" --name "${AZURE_WEBAPP_NAME}" --query "[?name=='SMS_ENABLED'].value | [0]" --output tsv)"
+            web_policy_version="$(az webapp config appsettings list --resource-group "${AZURE_RESOURCE_GROUP}" --name "${AZURE_WEBAPP_NAME}" --query "[?name=='SMS_ROLLOUT_POLICY_VERSION'].value | [0]" --output tsv)"
             test "${web_publish,,}" = false
             test "${web_enabled,,}" = false
             test "$web_policy_version" = "$disabled_policy_version"
@@ -611,7 +645,7 @@ jobs:
         run: |
           set -euo pipefail
           az functionapp config appsettings set \
-            --resource-group Triage_System \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
             --name "${NOTIFICATION_FUNCTION_NAME}" \
             --settings "ALTER_BUILD_ID=${DEPLOY_SHA}" \
             --output none
@@ -628,7 +662,7 @@ jobs:
         run: |
           set -euo pipefail
           az webapp config appsettings set \
-            --resource-group Triage_System \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
             --name "${AZURE_WEBAPP_NAME}" \
             --settings "ALTER_BUILD_ID=${DEPLOY_SHA}" \
             --output none
@@ -638,8 +672,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          worker_build="$(az functionapp config appsettings list --resource-group Triage_System --name "${NOTIFICATION_FUNCTION_NAME}" --query "[?name=='ALTER_BUILD_ID'].value | [0]" --output tsv)"
-          web_build="$(az webapp config appsettings list --resource-group Triage_System --name "${AZURE_WEBAPP_NAME}" --query "[?name=='ALTER_BUILD_ID'].value | [0]" --output tsv)"
+          worker_build="$(az functionapp config appsettings list --resource-group "${AZURE_RESOURCE_GROUP}" --name "${NOTIFICATION_FUNCTION_NAME}" --query "[?name=='ALTER_BUILD_ID'].value | [0]" --output tsv)"
+          web_build="$(az webapp config appsettings list --resource-group "${AZURE_RESOURCE_GROUP}" --name "${AZURE_WEBAPP_NAME}" --query "[?name=='ALTER_BUILD_ID'].value | [0]" --output tsv)"
           test "$worker_build" = "$DEPLOY_SHA"
           test "$web_build" = "$DEPLOY_SHA"
 
@@ -656,7 +690,7 @@ jobs:
           )
           for attempt in $(seq 1 30); do
             registered="$(az functionapp function list \
-              --resource-group Triage_System \
+              --resource-group "${AZURE_RESOURCE_GROUP}" \
               --name "${NOTIFICATION_FUNCTION_NAME}" \
               --query '[].name' --output tsv 2>/dev/null || true)"
             missing=0
@@ -680,7 +714,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          host="$(az webapp show --resource-group Triage_System --name "${AZURE_WEBAPP_NAME}" --query defaultHostName --output tsv)"
+          host="$(az webapp show --resource-group "${AZURE_RESOURCE_GROUP}" --name "${AZURE_WEBAPP_NAME}" --query defaultHostName --output tsv)"
           test -n "$host"
           if [ "${NOTIFICATION_SOURCE_PRESENT}" = true ]; then
             args=(
