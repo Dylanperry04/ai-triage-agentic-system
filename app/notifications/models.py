@@ -26,7 +26,7 @@ _GSM7_BASIC = set(
     " !\"#¤%&'()*+,-./0123456789:;<=>?"
     "¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà"
 )
-_SAFE_ID_RE = re.compile(r"^[A-Za-z0-9._:-]{1,256}$")
+_SAFE_ID_RE = re.compile(r"^[A-Za-z0-9._:~-]{1,256}$")
 
 
 def utc_now() -> datetime:

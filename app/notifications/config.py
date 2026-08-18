@@ -44,7 +44,7 @@ class SmsRolloutPolicy:
         for case_uid in self.sms_demo_case_uid_allowlist:
             if case_uid == "*":
                 continue
-            if not re.fullmatch(r"[A-Za-z0-9._:-]{1,256}", case_uid):
+            if not re.fullmatch(r"[A-Za-z0-9._:~-]{1,256}", case_uid):
                 raise ValueError("SMS rollout policy contains an invalid case identifier")
         if self.sms_publish_enabled and not self.sms_demo_case_uid_allowlist:
             raise ValueError("Enabled SMS rollout policy requires a case allowlist")
@@ -272,7 +272,7 @@ class NotificationSettings:
         for case_uid in self.sms_demo_case_uid_allowlist:
             if case_uid == "*":
                 continue
-            if not re.fullmatch(r"[A-Za-z0-9._:-]{1,256}", case_uid):
+            if not re.fullmatch(r"[A-Za-z0-9._:~-]{1,256}", case_uid):
                 raise ValueError(
                     "SMS_DEMO_CASE_UID_ALLOWLIST contains an invalid case identifier"
                 )

@@ -444,3 +444,42 @@ class _MemoryTableClient:
                 continue
             output.append(_Entity(dict(value), etag))
         return output
+
+
+def test_real_uhl_case_uid_is_accepted_across_sms_validation_layers(tmp_path):
+    case_uid = (
+        "UHL_SYNTHETIC_TRIAGE_VITALS_ACUITY_FINAL_20260402"
+        "~e2087107ccd30ca7cc4ae0cb"
+    )
+
+    settings = _settings(
+        tmp_path,
+        sms_demo_case_uid_allowlist=(case_uid,),
+    )
+
+    # NotificationSettings validation must accept the canonical UHL UID.
+    settings.validate()
+
+    # Durable rollout-policy validation must accept the same UID.
+    policy = settings.rollout_policy()
+    eligible, reason = policy.sms_eligibility(
+        case_uid,
+        "2026-08-14T12:01:00Z",
+    )
+    assert eligible is True
+    assert reason == ""
+
+    # Durable notification records must also accept the canonical UID.
+    record = NotificationRecord.create(
+        kind="escalation",
+        case_uid=case_uid,
+        event_key="2026-08-14T12:01:00Z",
+        target_role="clinical_supervisor",
+        title="Escalation awaiting review",
+        body="This case needs review.",
+        created_at="2026-08-14T12:01:00Z",
+        sms_enabled=True,
+        sms_eligible=True,
+    )
+
+    assert record.case_uid == case_uid
