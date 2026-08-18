@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 import json
 import logging
+import os
 import uuid
 from typing import Any
 
@@ -42,6 +43,80 @@ class _AcsHttpError(RuntimeError):
     def __init__(self, status_code: int):
         super().__init__(f"acs_http_{int(status_code)}")
         self.status_code = int(status_code)
+
+
+class _InfobipHttpError(RuntimeError):
+    def __init__(self, status_code: int):
+        super().__init__(f"infobip_http_{int(status_code)}")
+        self.status_code = int(status_code)
+
+
+class InfobipDirectSmsProvider:
+    """Direct Infobip transport used by the free-trial ALTER demo."""
+
+    def __init__(self, settings: NotificationSettings):
+        self._api_key = settings.messaging_connect_api_key
+        self._base_url = os.environ.get("INFOBIP_BASE_URL", "").strip().rstrip("/")
+
+        if not self._api_key:
+            raise RuntimeError("infobip_api_key_missing")
+        if not self._base_url:
+            raise RuntimeError("infobip_base_url_missing")
+
+    def send(
+        self, *, sender: str, recipient: str, message: str, tag: str
+    ) -> SmsSubmissionResult:
+        del tag
+
+        try:
+            import requests
+        except ImportError as exc:
+            raise RuntimeError("requests is required for Infobip transport") from exc
+
+        payload = {
+            "messages": [
+                {
+                    "sender": sender,
+                    "destinations": [{"to": recipient}],
+                    "content": {"text": message},
+                }
+            ]
+        }
+
+        try:
+            response = requests.post(
+                f"{self._base_url}/sms/3/messages",
+                headers={
+                    "Authorization": f"App {self._api_key}",
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                },
+                json=payload,
+                timeout=30,
+            )
+        except requests.RequestException as exc:
+            raise RuntimeError("infobip_transport_outcome_unknown") from exc
+
+        if response.status_code >= 400:
+            raise _InfobipHttpError(response.status_code)
+
+        try:
+            body = response.json()
+        except ValueError as exc:
+            raise RuntimeError("infobip_invalid_response") from exc
+
+        items = body.get("messages") if isinstance(body, dict) else None
+        if not isinstance(items, list) or len(items) != 1:
+            raise RuntimeError("infobip_unexpected_result_count")
+
+        item = items[0]
+        message_id = str(item.get("messageId") or "")
+
+        return SmsSubmissionResult(
+            successful=bool(message_id),
+            message_id=message_id,
+            http_status_code=response.status_code,
+        )
 
 
 class AzureCommunicationSmsProvider:
@@ -354,7 +429,12 @@ def dispatch_notification(
     # Construct the transport before the final authorization point. Credential
     # discovery or SDK initialization must not create a window after the live
     # policy read in which an operator revocation can go unnoticed.
-    transport = provider or AzureCommunicationSmsProvider(config)
+    if provider is not None:
+        transport = provider
+    elif os.environ.get("SMS_TRANSPORT", "acs").strip().lower() == "infobip_direct":
+        transport = InfobipDirectSmsProvider(config)
+    else:
+        transport = AzureCommunicationSmsProvider(config)
     policy_outcome, _ = _cancel_if_rollout_policy_revoked(
         store=store,
         record=record,
