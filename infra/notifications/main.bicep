@@ -544,7 +544,7 @@ resource serviceBusDeadLetterAlert 'Microsoft.Insights/metricAlerts@2018-03-01' 
           metricName: 'DeadletteredMessages'
           operator: 'GreaterThan'
           threshold: 0
-          timeAggregation: 'Total'
+          timeAggregation: 'Maximum'
         }
       ]
     }

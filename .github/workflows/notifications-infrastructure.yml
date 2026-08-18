@@ -122,8 +122,7 @@ jobs:
           app-name: ${{ env.NOTIFICATION_FUNCTION_NAME }}
           package: function-package
           respect-funcignore: true
-          scm-do-build-during-deployment: true
-          enable-oryx-build: true
+          remote-build: true
 
       - name: Confirm disabled rollout state
         shell: bash

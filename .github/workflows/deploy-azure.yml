@@ -636,8 +636,7 @@ jobs:
           app-name: ${{ env.NOTIFICATION_FUNCTION_NAME }}
           package: function-package
           respect-funcignore: true
-          scm-do-build-during-deployment: true
-          enable-oryx-build: true
+          remote-build: true
 
       - name: Stamp the Function build identity
         if: ${{ env.NOTIFICATION_SOURCE_PRESENT == 'true' && env.NOTIFICATION_FUNCTION_NAME != '' }}

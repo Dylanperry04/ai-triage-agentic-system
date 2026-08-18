@@ -71,7 +71,7 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
       AzureWebJobsStorage__clientId: identityClientId
       APPLICATIONINSIGHTS_CONNECTION_STRING: insights.properties.ConnectionString
       APPLICATIONINSIGHTS_AUTHENTICATION_STRING: 'ClientId=${identityClientId};Authorization=AAD'
-      FUNCTIONS_WORKER_RUNTIME: 'python'
+
     })
   }
 }
