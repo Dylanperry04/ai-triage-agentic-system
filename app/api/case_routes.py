@@ -1178,6 +1178,8 @@ def _review_workflow_state(
             "requested_fields": list(body.requested_fields or []),
             "requesting_role": role,
             "request_timestamp": now,
+            "information_response_received_at": None,
+            "information_response_by_role": None,
         })
     if status in _ESCALATION_REQUEST_STATUSES:
         target_role = _canonical_escalation_target(

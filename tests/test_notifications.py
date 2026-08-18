@@ -663,3 +663,71 @@ def test_messaging_connect_result_parser_accepts_preview_shape():
     assert result.successful is True
     assert result.message_id == "acs-preview-123"
     assert result.http_status_code == 202
+
+
+
+def test_information_request_sms_contains_exact_requested_fields(tmp_path):
+    settings = _settings(tmp_path)
+    repository = SQLiteNotificationRepository(settings.sqlite_path)
+
+    requested = [
+        "Repeat vital signs",
+        "Pain reassessment after analgesia",
+        "Collateral history",
+        "ECG",
+        "Blood glucose",
+    ]
+
+    state = {
+        "case_uid": "case-info-1",
+        "case_status": "request_more_info",
+        "review_status": "information_requested",
+        "requested_fields": requested,
+        "requesting_role": "ed_doctor",
+        "request_timestamp": "2026-08-18T17:30:00+00:00",
+    }
+
+    result = sync_workflow_state(
+        state,
+        case={"display_name": "UHL Case 006767"},
+        settings=settings,
+        repository=repository,
+        publish=False,
+    )
+
+    assert result["notifications_created"] == 1
+
+    records = repository.list_notifications(
+        roles=["triage_nurse"],
+        user_id="demo-nurse",
+        limit=30,
+    )
+    matches = [item for item in records if item["kind"] == "information_request"]
+
+    assert len(matches) == 1
+
+    record = repository.get_notification(matches[0]["notification_id"])
+
+    expected = (
+        "ALTER: UHL Case 006767 - ED Doctor requested: "
+        "Repeat vital signs, Pain reassessment after analgesia, "
+        "Collateral history, ECG, Blood glucose."
+    )
+
+    assert record.body == expected
+    assert len(expected) <= 160
+    assert_one_segment_gsm7(expected)
+
+    provider = SuccessfulProvider()
+
+    outcome = dispatch_notification(
+        record.notification_id,
+        settings=settings,
+        repository=repository,
+        provider=provider,
+        owner="worker-info-request-test",
+    )
+
+    assert outcome == "submitted"
+    assert len(provider.calls) == 1
+    assert provider.calls[0]["message"] == expected

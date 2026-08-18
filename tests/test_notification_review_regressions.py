@@ -61,8 +61,8 @@ def _repository(tmp_path, kind):
     return repository
 
 
-def test_information_request_preserves_accepted_queue_only_contract(tmp_path):
-    """v25.2 never surfaced information requests in the notification bell."""
+def test_information_request_creates_durable_triage_notification(tmp_path):
+    """Information requests now create one durable notification for triage staff."""
     settings = _settings(tmp_path)
     repository = SQLiteNotificationRepository(settings.sqlite_path)
 
@@ -71,20 +71,27 @@ def test_information_request_preserves_accepted_queue_only_contract(tmp_path):
             "case_uid": "case-info-baseline",
             "case_status": "request_more_info",
             "review_status": "information_requested",
+            "requested_fields": ["Repeat vital signs", "ECG"],
             "request_timestamp": "2026-08-14T12:30:00Z",
             "requesting_role": "ed_doctor",
             "notification_target_role": "triage_nurse",
         },
+        case={"display_name": "UHL Case 006767"},
         settings=settings,
         repository=repository,
         publish=False,
     )
 
-    assert result["notifications_created"] == 0
-    assert repository.list_notifications(
+    assert result["notifications_created"] == 1
+
+    visible = repository.list_notifications(
         roles=["triage_nurse"], user_id="reader", limit=30
-    ) == []
-    assert repository.list_unpublished(limit=30) == []
+    )
+    assert len(visible) == 1
+    assert visible[0]["kind"] == "information_request"
+
+    unpublished = repository.list_unpublished(limit=30)
+    assert len(unpublished) == 1
 
 
 @pytest.mark.parametrize(

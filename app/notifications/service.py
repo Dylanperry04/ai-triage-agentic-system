@@ -47,6 +47,16 @@ def _target_role(state: dict[str, Any], *, escalation: bool = False) -> str:
     return "clinical_supervisor" if escalation else "triage_nurse"
 
 
+def _requesting_role_label(value: Any) -> str:
+    role = str(value or "").strip()
+    return {
+        "ed_doctor": "ED Doctor",
+        "triage_nurse": "Triage Nurse",
+        "clinical_supervisor": "Clinical Supervisor",
+        "security_admin": "Security Admin",
+    }.get(role, "Clinician")
+
+
 def _vitals_reference(state: dict[str, Any], case: dict[str, Any] | None) -> datetime | None:
     edstay = (case or {}).get("edstay") or {}
     audit = (case or {}).get("audit_metadata") or {}
@@ -71,16 +81,19 @@ def create_notification_for_event(
     created_at: str,
     initial_active: bool = True,
     case: dict[str, Any] | None = None,
+    body_override: str | None = None,
 ) -> tuple[NotificationRecord, bool]:
     titles = {
         "overdue_vitals": "Vitals recheck due",
         "escalation": "Escalation awaiting review",
         "clinical_alert": "Clinical alert",
+        "information_request": "More information requested",
     }
     bodies = {
         "overdue_vitals": "Observations have not been repeated within the recheck window. Open the case to acknowledge.",
         "escalation": "This case was escalated and needs a senior decision.",
         "clinical_alert": "A clinical alert needs review.",
+        "information_request": "More information has been requested for this case.",
     }
 
     case_label = ""
@@ -103,7 +116,7 @@ def create_notification_for_event(
         event_key=event,
         target_role=target_role,
         title=titles[kind],
-        body=bodies[kind],
+        body=body_override if body_override is not None else bodies[kind],
         created_at=created,
         sms_enabled=eligible,
         sms_eligible=eligible,
@@ -213,6 +226,60 @@ def sync_workflow_state(
             store.deactivate_notifications_except_event(
                 case_uid, "overdue_vitals", current_reference, utc_iso()
             )
+
+    info_status = str(state.get("review_status") or "").strip().lower()
+    info_case_status = str(state.get("case_status") or "").strip().lower()
+    info_requested_at = str(state.get("request_timestamp") or "").strip()
+    info_response_at = str(state.get("information_response_received_at") or "").strip()
+
+    if (
+        info_status == "information_requested"
+        or info_case_status == "request_more_info"
+    ) and info_requested_at and not info_response_at:
+        request_time = canonical_time_key(info_requested_at)
+
+        requested_fields = [
+            str(item or "").strip()
+            for item in (state.get("requested_fields") or [])
+            if str(item or "").strip()
+        ]
+
+        case_label = str((case or {}).get("display_name") or "").strip()
+        requesting_role = _requesting_role_label(state.get("requesting_role"))
+
+        if case_label and requested_fields:
+            request_body = (
+                f"ALTER: {case_label} - {requesting_role} requested: "
+                f"{', '.join(requested_fields)}."
+            )
+        elif case_label:
+            request_body = (
+                f"ALTER: {case_label} - {requesting_role} requested more information."
+            )
+        else:
+            request_body = (
+                "ALTER: More information has been requested. Sign in to ALTER securely."
+            )
+
+        _, created = create_notification_for_event(
+            repository=store,
+            settings=config,
+            kind="information_request",
+            case_uid=case_uid,
+            event_key=request_time,
+            target_role="triage_nurse",
+            created_at=request_time,
+            case=case,
+            body_override=request_body,
+        )
+        results["notifications_created"] += int(created)
+    else:
+        store.deactivate_notifications(
+            case_uid,
+            "information_request",
+            utc_iso(),
+            cancel_reason="information_request_resolved",
+        )
 
     escalation_status = str(state.get("escalation_status") or "").strip().lower()
     requested_at = str(state.get("escalation_requested_at") or state.get("escalation_timestamp") or "").strip()

@@ -8,7 +8,7 @@ import re
 from typing import Any
 
 
-ALLOWED_NOTIFICATION_KINDS = {"overdue_vitals", "escalation", "clinical_alert"}
+ALLOWED_NOTIFICATION_KINDS = {"overdue_vitals", "escalation", "clinical_alert", "information_request"}
 ALLOWED_TARGET_ROLES = {"triage_nurse", "ed_doctor", "clinical_supervisor", "security_admin"}
 TERMINAL_SMS_STATES = {
     "submitted", "delivered", "failed_permanent", "ambiguous",
@@ -18,6 +18,7 @@ SMS_TEMPLATES = {
     "overdue_vitals": "ALTER: Vitals review is due. Sign in to ALTER securely.",
     "escalation": "ALTER: A clinical alert needs your attention. Sign in securely.",
     "clinical_alert": "ALTER: A clinical alert needs your attention. Sign in securely.",
+    "information_request": "ALTER: More information has been requested. Sign in to ALTER securely.",
 }
 
 # The one-segment templates are ASCII and use only this GSM-7 basic alphabet.
