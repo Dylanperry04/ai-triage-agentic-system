@@ -70,6 +70,7 @@ def create_notification_for_event(
     target_role: str,
     created_at: str,
     initial_active: bool = True,
+    case: dict[str, Any] | None = None,
 ) -> tuple[NotificationRecord, bool]:
     titles = {
         "overdue_vitals": "Vitals recheck due",
@@ -81,6 +82,18 @@ def create_notification_for_event(
         "escalation": "This case was escalated and needs a senior decision.",
         "clinical_alert": "A clinical alert needs review.",
     }
+
+    case_label = ""
+    if isinstance(case, dict):
+        case_label = str(case.get("display_name") or "").strip()
+
+    if case_label:
+        if kind == "escalation":
+            bodies[kind] = f"ALTER: {case_label} has been escalated and needs your attention."
+        elif kind == "overdue_vitals":
+            bodies[kind] = f"ALTER: {case_label} has overdue observations and needs review."
+        elif kind == "clinical_alert":
+            bodies[kind] = f"ALTER: {case_label} has a clinical alert requiring review."
     event = canonical_time_key(event_key)
     created = canonical_time_key(created_at)
     eligible, ineligible_reason = settings.sms_eligibility(case_uid, created)
@@ -174,6 +187,7 @@ def sync_workflow_state(
                 event_key=reference_key,
                 target_role=_target_role(state),
                 created_at=str(state.get("overdue_vitals_alert_created_at") or utc_iso()),
+                case=case,
             )
             results["notifications_created"] += int(created)
     else:
@@ -212,6 +226,7 @@ def sync_workflow_state(
             event_key=requested_at,
             target_role=_target_role(state, escalation=True),
             created_at=requested_at,
+            case=case,
         )
         results["notifications_created"] += int(created)
     else:

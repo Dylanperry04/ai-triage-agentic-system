@@ -394,7 +394,12 @@ def dispatch_notification(
             target_role=record.target_role,
             target_user_id=record.target_user_id,
         )
-        message = sms_template(record.kind)
+        notification_body = str(record.body or "").strip()
+        message = (
+            notification_body
+            if notification_body.startswith("ALTER:")
+            else sms_template(record.kind)
+        )
         assert_one_segment_gsm7(message)
     except Exception as exc:
         store.mark_preflight_failure(
