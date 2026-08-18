@@ -1,7 +1,7 @@
 """Strict configuration for notification persistence, queueing, and ACS SMS."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 import json
 import os
@@ -151,6 +151,9 @@ class NotificationSettings:
     worker_stale_seconds: int = 180
     build_id: str = "local"
     sms_rollout_policy_version: str = "00000000T000000000000000Z-local"
+    messaging_connect_api_key: str = field(default="", repr=False)
+    messaging_connect_partner: str = "infobip"
+    messaging_connect_api_version: str = "2025-05-29-preview"
 
     @classmethod
     def from_env(cls) -> "NotificationSettings":
@@ -213,6 +216,15 @@ class NotificationSettings:
             sms_rollout_policy_version=os.environ.get(
                 "SMS_ROLLOUT_POLICY_VERSION", "00000000T000000000000000Z-local"
             ).strip(),
+            messaging_connect_api_key=os.environ.get(
+                "MESSAGING_CONNECT_API_KEY", ""
+            ).strip(),
+            messaging_connect_partner=os.environ.get(
+                "MESSAGING_CONNECT_PARTNER", "infobip"
+            ).strip().lower(),
+            messaging_connect_api_version=os.environ.get(
+                "MESSAGING_CONNECT_API_VERSION", "2025-05-29-preview"
+            ).strip(),
         )
         value.validate()
         return value
@@ -226,8 +238,14 @@ class NotificationSettings:
             raise ValueError("NOTIFICATION_TABLE_NAME must contain only letters and numbers")
         if self.backend == "azure_table" and not self.table_endpoint:
             raise ValueError("NOTIFICATION_TABLE_ENDPOINT is required for azure_table")
-        if self.sms_sender != "ALTER":
-            raise ValueError("SMS_SENDER must be the approved sender ID ALTER")
+        if self.sms_sender not in {"ALTER", "ServiceSMS"}:
+            raise ValueError("SMS_SENDER must be ALTER or the Infobip trial sender ServiceSMS")
+        if self.messaging_connect_partner != "infobip":
+            raise ValueError("MESSAGING_CONNECT_PARTNER must be infobip")
+        if self.messaging_connect_api_version != "2025-05-29-preview":
+            raise ValueError(
+                "MESSAGING_CONNECT_API_VERSION must be 2025-05-29-preview"
+            )
         if self.sms_publish_enabled:
             missing_publish = [
                 name
@@ -269,6 +287,10 @@ class NotificationSettings:
             ]
             if missing:
                 raise ValueError("SMS_ENABLED=true requires " + ", ".join(missing))
+            if self.sms_sender == "ServiceSMS" and not self.messaging_connect_api_key:
+                raise ValueError(
+                    "SMS_ENABLED=true with ServiceSMS requires MESSAGING_CONNECT_API_KEY"
+                )
             if not self.sms_publish_enabled:
                 raise ValueError("SMS_ENABLED=true requires SMS_PUBLISH_ENABLED=true")
 

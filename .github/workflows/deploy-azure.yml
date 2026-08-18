@@ -20,8 +20,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  AZURE_WEBAPP_NAME: ai-triage-agentic-system
-  AZURE_RESOURCE_GROUP: Ai-triaging
+  AZURE_WEBAPP_NAME: Triage
+  AZURE_RESOURCE_GROUP: Triage_System
   PYTHON_VERSION: "3.11"
 
 jobs:
@@ -94,9 +94,9 @@ jobs:
         if: ${{ env.ROLLBACK_REQUESTED == 'true' }}
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_BD0090C04EFB406F8635DC9131E5EAC7 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_C617D75FF5BE4DC89A52C293A09788D4 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_AF58CC7D0B264843975E5FF090DEE3C6 }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_2B94629E82AA43D98825950AD42E01B5 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_3937CAF14CC74CAD9EAC49C6E9A6CE74 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_808E0EF24FFD4D20920164B3B173BF54 }}
 
       - name: Verify authoritative Azure rollback target
         if: ${{ env.ROLLBACK_REQUESTED == 'true' }}
@@ -547,9 +547,9 @@ jobs:
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_BD0090C04EFB406F8635DC9131E5EAC7 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_C617D75FF5BE4DC89A52C293A09788D4 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_AF58CC7D0B264843975E5FF090DEE3C6 }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_2B94629E82AA43D98825950AD42E01B5 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_3937CAF14CC74CAD9EAC49C6E9A6CE74 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_808E0EF24FFD4D20920164B3B173BF54 }}
 
       - name: Verify authoritative Azure deployment target
         shell: bash

@@ -1,7 +1,10 @@
 targetScope = 'resourceGroup'
 
 @description('Existing, authoritative App Service name. This template does not redeploy its application content.')
-param existingWebAppName string = 'ai-triage-agentic-system'
+param existingWebAppName string = 'Triage'
+
+@description('Existing Azure Communication Services resource already linked to Infobip Messaging Connect.')
+param existingCommunicationName string = 'Alter'
 
 @description('Azure region for the notification resources.')
 param location string = 'swedencentral'
@@ -34,8 +37,12 @@ param smsDailyLimit int = 100
 param notificationRetentionDays int = 90
 
 @description('Exact approved alphanumeric sender ID. Provisioning the resource does not register the sender.')
-@allowed(['ALTER'])
-param smsSender string = 'ALTER'
+@allowed(['ALTER', 'ServiceSMS'])
+param smsSender string = 'ServiceSMS'
+
+@description('Infobip Messaging Connect API key. Replace the synthetic placeholder before the live handset test.')
+@secure()
+param messagingConnectApiKey string = ''
 
 var token = toLower(take(uniqueString(subscription().id, resourceGroup().id, 'alter-notifications'), 8))
 var tags = {
@@ -50,7 +57,6 @@ var functionStorageName = take('stalterfunc${token}', 24)
 var serviceBusName = take('sb-alter-notify-${token}', 50)
 var functionPlanName = 'asp-alter-notify-${token}'
 var functionName = take('func-alter-notify-${token}', 60)
-var communicationName = take('acs-alter-${token}', 63)
 var keyVaultName = take('kv-alter-${token}', 24)
 var workspaceName = take('log-alter-notify-${token}', 63)
 var insightsName = take('appi-alter-notify-${token}', 260)
@@ -223,16 +229,8 @@ resource deliveryQueue 'Microsoft.ServiceBus/namespaces/queues@2024-01-01' = {
   }
 }
 
-resource communication 'Microsoft.Communication/communicationServices@2025-09-01' = {
-  name: communicationName
-  location: 'global'
-  tags: tags
-  properties: {
-    dataLocation: 'Europe'
-    disableLocalAuth: true
-    linkedDomains: []
-    publicNetworkAccess: 'Enabled'
-  }
+resource communication 'Microsoft.Communication/communicationServices@2025-09-01' existing = {
+  name: existingCommunicationName
 }
 
 resource keyVault 'Microsoft.KeyVault/vaults@2024-11-01' = {
@@ -321,6 +319,9 @@ module functionApp 'modules/function-flex.bicep' = {
       AZURE_CLIENT_ID: functionIdentity.properties.clientId
       NOTIFICATION_MANAGED_IDENTITY_CLIENT_ID: functionIdentity.properties.clientId
       ACS_ENDPOINT: 'https://${communication.name}.communication.azure.com'
+      MESSAGING_CONNECT_API_KEY: messagingConnectApiKey
+      MESSAGING_CONNECT_PARTNER: 'infobip'
+      MESSAGING_CONNECT_API_VERSION: '2025-05-29-preview'
       DEMO_SMS_RECIPIENT: '@Microsoft.KeyVault(VaultName=${keyVault.name};SecretName=alter-demo-sms-recipient)'
       NOTIFICATION_BACKEND: 'azure_table'
       NOTIFICATION_TABLE_ENDPOINT: notificationStorage.properties.primaryEndpoints.table

@@ -36,21 +36,117 @@ class SmsSubmissionResult:
     http_status_code: int = 0
 
 
+class _AcsHttpError(RuntimeError):
+    """HTTP failure carrying only status code for existing retry classification."""
+
+    def __init__(self, status_code: int):
+        super().__init__(f"acs_http_{int(status_code)}")
+        self.status_code = int(status_code)
+
+
 class AzureCommunicationSmsProvider:
     def __init__(self, settings: NotificationSettings):
         try:
-            from azure.communication.sms import SmsClient
             from azure.identity import DefaultAzureCredential, ManagedIdentityCredential
         except ImportError as exc:  # pragma: no cover - packaging guard
-            raise RuntimeError("Azure Communication Services dependencies are not installed") from exc
-        credential = (
+            raise RuntimeError("Azure identity dependency is not installed") from exc
+
+        self._settings = settings
+        self._credential = (
             ManagedIdentityCredential(client_id=settings.managed_identity_client_id)
             if settings.managed_identity_client_id
             else DefaultAzureCredential(exclude_interactive_browser_credential=True)
         )
-        self._client = SmsClient(settings.acs_endpoint, credential)
+        self._client = None
+
+        if not settings.messaging_connect_api_key:
+            try:
+                from azure.communication.sms import SmsClient
+            except ImportError as exc:  # pragma: no cover - packaging guard
+                raise RuntimeError("Azure Communication Services SMS dependency is not installed") from exc
+            self._client = SmsClient(settings.acs_endpoint, self._credential)
+
+    @staticmethod
+    def _result_from_payload(payload: Any, response_status: int) -> SmsSubmissionResult:
+        items = payload.get("value") if isinstance(payload, dict) else None
+        if not isinstance(items, list) or len(items) != 1 or not isinstance(items[0], dict):
+            raise RuntimeError("acs_unexpected_result_count")
+        item = items[0]
+        status = int(item.get("httpStatusCode") or response_status or 0)
+        return SmsSubmissionResult(
+            successful=bool(item.get("successful", False)),
+            message_id=str(item.get("messageId") or ""),
+            http_status_code=status,
+        )
+
+    def _send_messaging_connect(
+        self, *, sender: str, recipient: str, message: str, tag: str
+    ) -> SmsSubmissionResult:
+        try:
+            import requests
+        except ImportError as exc:  # pragma: no cover - packaging guard
+            raise RuntimeError("requests is required for Messaging Connect REST transport") from exc
+
+        token = self._credential.get_token(
+            "https://communication.azure.com/.default"
+        ).token
+        url = (
+            f"{self._settings.acs_endpoint.rstrip('/')}/sms"
+            f"?api-version={self._settings.messaging_connect_api_version}"
+        )
+        payload = {
+            "from": sender,
+            "smsRecipients": [{"to": recipient}],
+            "message": message,
+            "smsSendOptions": {
+                "enableDeliveryReport": True,
+                "tag": tag,
+                "messagingConnect": {
+                    "apiKey": self._settings.messaging_connect_api_key,
+                    "partner": self._settings.messaging_connect_partner,
+                },
+            },
+        }
+
+        try:
+            response = requests.post(
+                url,
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+                timeout=30,
+            )
+        except requests.RequestException as exc:
+            # The request may have reached ACS before the local transport failed.
+            # Existing dispatch logic treats this as ambiguous and never blindly retries.
+            raise RuntimeError("acs_transport_outcome_unknown") from exc
+
+        if response.status_code >= 400:
+            raise _AcsHttpError(response.status_code)
+
+        try:
+            body = response.json()
+        except ValueError:
+            return SmsSubmissionResult(
+                successful=True,
+                message_id="",
+                http_status_code=response.status_code,
+            )
+        return self._result_from_payload(body, response.status_code)
 
     def send(self, *, sender: str, recipient: str, message: str, tag: str) -> SmsSubmissionResult:
+        if self._settings.messaging_connect_api_key:
+            return self._send_messaging_connect(
+                sender=sender,
+                recipient=recipient,
+                message=message,
+                tag=tag,
+            )
+
+        if self._client is None:
+            raise RuntimeError("acs_sms_client_unavailable")
         results = self._client.send(
             from_=sender,
             to=[recipient],

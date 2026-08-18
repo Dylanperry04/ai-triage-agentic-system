@@ -11,12 +11,16 @@ def _read(relative: str) -> str:
 
 def test_infrastructure_is_secure_by_default_and_preserves_hard_limits():
     template = _read("infra/notifications/main.bicep")
-    assert "param existingWebAppName string = 'ai-triage-agentic-system'" in template
+    assert "param existingWebAppName string = 'Triage'" in template
+    assert "param existingCommunicationName string = 'Alter'" in template
+    assert "MESSAGING_CONNECT_API_KEY: messagingConnectApiKey" in template
+    assert "MESSAGING_CONNECT_PARTNER: 'infobip'" in template
+    assert "MESSAGING_CONNECT_API_VERSION: '2025-05-29-preview'" in template
     assert "param smsPublishEnabled bool = false" in template
     assert "param smsEnabled bool = false" in template
     assert "@maxValue(100)\nparam smsDailyLimit int = 100" in template
     assert "param notificationRetentionDays int = 90" in template
-    assert template.count("disableLocalAuth: true") >= 2
+    assert template.count("disableLocalAuth: true") >= 1
     assert template.count("allowSharedKeyAccess: false") >= 2
     assert "requiresDuplicateDetection: true" in template
     assert "duplicateDetectionHistoryTimeWindow: 'P7D'" in template
@@ -35,8 +39,8 @@ def test_infrastructure_is_secure_by_default_and_preserves_hard_limits():
 
 def test_notification_identity_does_not_overwrite_existing_app_identity_setting():
     script = _read("scripts/configure-notification-app.ps1")
-    assert "$ResourceGroup = 'Ai-triaging'" in script
-    assert "$WebAppName = 'ai-triage-agentic-system'" in script
+    assert "$ResourceGroup = 'Triage_System'" in script
+    assert "$WebAppName = 'Triage'" in script
     assert "NOTIFICATION_MANAGED_IDENTITY_CLIENT_ID=$clientId" in script
     assert '"AZURE_CLIENT_ID=$clientId"' not in script
     assert "$functionAppName = $outputs.functionAppName.value" in script
@@ -63,8 +67,8 @@ def test_resource_creation_is_manual_confirmed_and_sms_remains_disabled():
     workflow = _read(".github/workflows/notifications-infrastructure.yml")
     assert "workflow_dispatch:" in workflow
     assert "CREATE-NOTIFICATION-RESOURCES" in workflow
-    assert "RESOURCE_GROUP: Ai-triaging" in workflow
-    assert "AZURE_WEBAPP_NAME: ai-triage-agentic-system" in workflow
+    assert "RESOURCE_GROUP: Triage_System" in workflow
+    assert "AZURE_WEBAPP_NAME: Triage" in workflow
     assert "Verify authoritative Azure deployment target" in workflow
     assert "smsPublishEnabled=false smsEnabled=false" in workflow
     assert "SMS publication and chargeable submission remain disabled" in workflow
@@ -77,15 +81,15 @@ def test_single_authoritative_app_service_workflow_targets_college_app():
     assert not (workflow_dir / "main_ai-triage-agentic-system.yml").exists()
     deploy = _read(".github/workflows/deploy-azure.yml")
     infrastructure = _read(".github/workflows/notifications-infrastructure.yml")
-    assert "AZURE_WEBAPP_NAME: ai-triage-agentic-system" in deploy
-    assert "AZURE_RESOURCE_GROUP: Ai-triaging" in deploy
-    assert "Triage_System" not in deploy
-    assert "Triage_System" not in infrastructure
+    assert "AZURE_WEBAPP_NAME: Triage" in deploy
+    assert "AZURE_RESOURCE_GROUP: Triage_System" in deploy
+    assert "Ai-triaging" not in deploy
+    assert "Ai-triaging" not in infrastructure
     assert "Verify authoritative Azure deployment target" in deploy
     correct_credentials = (
-        "AZUREAPPSERVICE_CLIENTID_BD0090C04EFB406F8635DC9131E5EAC7",
-        "AZUREAPPSERVICE_TENANTID_C617D75FF5BE4DC89A52C293A09788D4",
-        "AZUREAPPSERVICE_SUBSCRIPTIONID_AF58CC7D0B264843975E5FF090DEE3C6",
+        "AZUREAPPSERVICE_CLIENTID_2B94629E82AA43D98825950AD42E01B5",
+        "AZUREAPPSERVICE_TENANTID_3937CAF14CC74CAD9EAC49C6E9A6CE74",
+        "AZUREAPPSERVICE_SUBSCRIPTIONID_808E0EF24FFD4D20920164B3B173BF54",
     )
     for secret_name in correct_credentials:
         assert secret_name in deploy

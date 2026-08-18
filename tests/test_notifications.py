@@ -620,3 +620,46 @@ def test_durable_due_notification_acknowledges_before_legacy_sweep(monkeypatch):
     assert canonical_time_key(
         persisted[0]["overdue_vitals_acknowledged_reference_at"]
     ) == canonical_time_key(reference)
+
+
+
+def test_servicesms_requires_messaging_connect_key_when_live(monkeypatch):
+    monkeypatch.setenv("NOTIFICATION_BACKEND", "azure_table")
+    monkeypatch.setenv("NOTIFICATION_TABLE_ENDPOINT", "https://example.table.core.windows.net")
+    monkeypatch.setenv("SERVICEBUS_FQDN", "example.servicebus.windows.net")
+    monkeypatch.setenv("SMS_PUBLISH_ENABLED", "true")
+    monkeypatch.setenv("SMS_ENABLED", "true")
+    monkeypatch.setenv("SMS_SENDER", "ServiceSMS")
+    monkeypatch.setenv("ACS_ENDPOINT", "https://example.communication.azure.com")
+    monkeypatch.setenv("DEMO_SMS_RECIPIENT", "+353851111111")
+    monkeypatch.setenv("SMS_ACTIVATED_AT_UTC", "2026-08-18T09:00:00Z")
+    monkeypatch.setenv("SMS_DEMO_CASE_UID_ALLOWLIST", "case-1")
+    monkeypatch.setenv("MESSAGING_CONNECT_PARTNER", "infobip")
+    monkeypatch.delenv("MESSAGING_CONNECT_API_KEY", raising=False)
+    with pytest.raises(ValueError, match="MESSAGING_CONNECT_API_KEY"):
+        NotificationSettings.from_env()
+
+    monkeypatch.setenv("MESSAGING_CONNECT_API_KEY", "synthetic-test-key")
+    settings = NotificationSettings.from_env()
+    assert settings.sms_sender == "ServiceSMS"
+    assert settings.messaging_connect_partner == "infobip"
+    assert settings.messaging_connect_api_version == "2025-05-29-preview"
+
+
+def test_messaging_connect_result_parser_accepts_preview_shape():
+    from app.notifications.worker import AzureCommunicationSmsProvider
+
+    result = AzureCommunicationSmsProvider._result_from_payload(
+        {
+            "value": [{
+                "to": "+353851111111",
+                "successful": True,
+                "messageId": "acs-preview-123",
+                "httpStatusCode": 202,
+            }]
+        },
+        202,
+    )
+    assert result.successful is True
+    assert result.message_id == "acs-preview-123"
+    assert result.http_status_code == 202

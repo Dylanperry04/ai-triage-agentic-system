@@ -5,3 +5,4 @@ azure-data-tables==12.7.0
 azure-servicebus==7.14.3
 azure-communication-sms==1.1.0
 phonenumbers==9.0.36
+requests==2.33.0

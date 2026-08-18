@@ -1,12 +1,13 @@
 param(
-    [Parameter(Mandatory = $false)][string]$ResourceGroup = 'Ai-triaging',
-    [Parameter(Mandatory = $false)][string]$WebAppName = 'ai-triage-agentic-system',
+    [Parameter(Mandatory = $false)][string]$ResourceGroup = 'Triage_System',
+    [Parameter(Mandatory = $false)][string]$WebAppName = 'Triage',
     [Parameter(Mandatory = $false)][string]$DeploymentName = 'alter-notifications',
     [Parameter(Mandatory = $false)][ValidateSet('true', 'false')][string]$SmsPublishEnabled = 'false',
     [Parameter(Mandatory = $false)][ValidateRange(1, 100)][int]$SmsDailyLimit = 100,
     [Parameter(Mandatory = $false)][string]$SmsActivatedAtUtc = '',
     [Parameter(Mandatory = $false)][string]$SmsDemoCaseUidAllowlist = '',
-    [Parameter(Mandatory = $false)][string]$SmsRolloutPolicyVersion = ''
+    [Parameter(Mandatory = $false)][string]$SmsRolloutPolicyVersion = '',
+    [Parameter(Mandatory = $false)][ValidateSet('ALTER', 'ServiceSMS')][string]$SmsSender = 'ServiceSMS'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -91,7 +92,7 @@ $settings = @(
     "SMS_ENABLED=false",
     "SMS_PUBLISH_ENABLED=$SmsPublishEnabled",
     "SMS_RECIPIENT_MODE=demo_allowlist",
-    "SMS_SENDER=ALTER",
+    "SMS_SENDER=$SmsSender",
     "NOTIFICATION_WORKER_STALE_SECONDS=180"
 )
 
@@ -103,6 +104,7 @@ $functionSettings = @(
     "SMS_ACTIVATED_AT_UTC=$SmsActivatedAtUtc",
     "SMS_DEMO_CASE_UID_ALLOWLIST=$SmsDemoCaseUidAllowlist",
     "SMS_ROLLOUT_POLICY_VERSION=$SmsRolloutPolicyVersion",
+    "SMS_SENDER=$SmsSender",
     "SMS_ENABLED=false",
     "SMS_PUBLISH_ENABLED=$SmsPublishEnabled",
     "AzureWebJobs.sms_dispatch.Disabled=true"
@@ -123,6 +125,8 @@ $webAllowlist = az webapp config appsettings list --resource-group $ResourceGrou
 $functionAllowlist = az functionapp config appsettings list --resource-group $ResourceGroup --name $functionAppName --query "[?name=='SMS_DEMO_CASE_UID_ALLOWLIST'].value | [0]" --output tsv
 $webPolicyVersion = az webapp config appsettings list --resource-group $ResourceGroup --name $WebAppName --query "[?name=='SMS_ROLLOUT_POLICY_VERSION'].value | [0]" --output tsv
 $functionPolicyVersion = az functionapp config appsettings list --resource-group $ResourceGroup --name $functionAppName --query "[?name=='SMS_ROLLOUT_POLICY_VERSION'].value | [0]" --output tsv
+$webSender = az webapp config appsettings list --resource-group $ResourceGroup --name $WebAppName --query "[?name=='SMS_SENDER'].value | [0]" --output tsv
+$functionSender = az functionapp config appsettings list --resource-group $ResourceGroup --name $functionAppName --query "[?name=='SMS_SENDER'].value | [0]" --output tsv
 
 if (
     $webPublish.ToLowerInvariant() -ne $SmsPublishEnabled -or
@@ -137,7 +141,9 @@ if (
     $webAllowlist -ne $SmsDemoCaseUidAllowlist -or
     $functionAllowlist -ne $SmsDemoCaseUidAllowlist -or
     $webPolicyVersion -ne $SmsRolloutPolicyVersion -or
-    $functionPolicyVersion -ne $SmsRolloutPolicyVersion
+    $functionPolicyVersion -ne $SmsRolloutPolicyVersion -or
+    $webSender -ne $SmsSender -or
+    $functionSender -ne $SmsSender
 ) {
     throw "Notification staging settings did not read back in the required fail-closed state."
 }
