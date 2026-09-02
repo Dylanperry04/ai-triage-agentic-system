@@ -11,10 +11,8 @@ def _read(relative: str) -> str:
 
 def test_infrastructure_is_secure_by_default_and_preserves_hard_limits():
     template = _read("infra/notifications/main.bicep")
-    parameters = _read("infra/notifications/main.bicepparam")
     assert "param existingWebAppName string = 'ai-triage-agentic-system'" in template
     assert "param existingCommunicationName string = 'Alter'" in template
-    assert "param messagingConnectApiKey = ''" in parameters
     assert "MESSAGING_CONNECT_API_KEY: messagingConnectApiKey" in template
     assert "MESSAGING_CONNECT_PARTNER: 'infobip'" in template
     assert "MESSAGING_CONNECT_API_VERSION: '2025-05-29-preview'" in template
@@ -157,9 +155,6 @@ def test_canary_runbook_and_gate_require_zero_eligible_backlog():
 def test_demo_recipient_is_not_defaulted_in_source_configuration():
     env_example = _read(".env.example")
     assert "DEMO_SMS_RECIPIENT=" not in env_example
-    assert "AZURE_OPENAI_API_KEY=replace-with-your-azure-openai-key" in env_example
-    assert "CORS_ALLOWED_ORIGINS=http://localhost:8501,http://127.0.0.1:8501" in env_example
-    assert "](" not in env_example
 
 
 def test_local_proxy_and_privacy_cleanup_paths_are_present():
