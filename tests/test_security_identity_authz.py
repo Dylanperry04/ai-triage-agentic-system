@@ -2,6 +2,7 @@
 import base64
 import json
 import importlib
+from pathlib import Path
 
 import pytest
 
@@ -10,8 +11,8 @@ from app.security import authz
 from app.security.identity import (
     AuthContext, AzureTrustedHeaderProvider, LocalStubProvider,
     resolve_auth_context, map_groups_to_roles,
-    ROLE_TRIAGE_NURSE, ROLE_ED_DOCTOR, ROLE_RESEARCHER, ROLE_SECURITY_ADMIN,
-    ROLE_GOVERNANCE_AUDITOR, ROLE_CLINICAL_SUPERVISOR,
+    ROLE_ED_NURSE, ROLE_TRIAGE_NURSE, ROLE_ED_DOCTOR, ROLE_RESEARCHER,
+    ROLE_SECURITY_ADMIN, ROLE_GOVERNANCE_AUDITOR,
 )
 
 
@@ -91,10 +92,27 @@ class TestAzureHeaderProvider:
 
 # ── RBAC matrix ─────────────────────────────────────────────────────────────
 class TestRBAC:
+    def test_frontend_role_fixture_matches_backend_contract(self):
+        fixture_path = (
+            Path(__file__).parents[1]
+            / "frontend-react" / "src" / "__tests__" / "fixtures" / "roles.json"
+        )
+        fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
+        assert set(fixture) == set(authz.ROLE_PERMISSIONS)
+        for role, permissions in authz.ROLE_PERMISSIONS.items():
+            assert set(fixture[role]["permissions"]) == permissions
+            ctx = AuthContext(authenticated=True, user_id="fixture-check", roles=[role])
+            assert set(fixture[role]["visible_tabs"]) == set(authz.visible_tabs_for(ctx))
+        assert "clinical_supervisor" not in fixture
+
     def test_nurse_permissions(self):
         ctx = AuthContext(authenticated=True, user_id="n", roles=[ROLE_TRIAGE_NURSE])
         assert authz.can_run_assessment(ctx)
-        assert authz.can_submit_review(ctx)
+        assert authz.can_accept_acuity(ctx)
+        assert authz.can_override_acuity(ctx)
+        assert authz.can_request_information(ctx)
+        assert authz.can_escalate_case(ctx)
+        assert not authz.can_update_vitals(ctx)
         assert authz.can_view_workflow_queue(ctx)
         assert authz.can_view_clinical_content(ctx)   # needs evidence to review
         assert not authz.can_ask_chatbot(ctx)
@@ -110,11 +128,22 @@ class TestRBAC:
         assert "cost_runtime" not in tabs
         assert "system_status" not in tabs
 
+    def test_ed_nurse_is_observation_only(self):
+        ctx = AuthContext(authenticated=True, user_id="edn", roles=[ROLE_ED_NURSE])
+        assert authz.can_record_vitals(ctx)
+        assert authz.can_update_vitals(ctx)
+        assert authz.can_provide_requested_information(ctx)
+        assert authz.can_acknowledge_overdue_vitals(ctx)
+        assert not authz.can_run_assessment(ctx)
+        assert not authz.can_accept_acuity(ctx)
+        assert not authz.can_override_acuity(ctx)
+        assert not authz.can_resolve_escalation(ctx)
+
     def test_researcher_export_is_deidentified_only(self):
         ctx = AuthContext(authenticated=True, user_id="r", roles=[ROLE_RESEARCHER])
         assert authz.can_export_deidentified(ctx)
         assert not authz.can_export_identifiable(ctx)   # never identifiable
-        assert not authz.can_submit_review(ctx)
+        assert not authz.can_accept_acuity(ctx)
         assert not authz.can_view_workflow_queue(ctx)
         assert not authz.can_view_clinical_content(ctx)  # de-identified view only
         assert not authz.can_view_audit_log(ctx)
@@ -129,7 +158,9 @@ class TestRBAC:
         assert authz.can_view_audit_log(ctx)
         assert authz.can_view_clinical_content(ctx)
         assert authz.can_run_assessment(ctx)
-        assert authz.can_submit_review(ctx)
+        assert authz.can_accept_acuity(ctx)
+        assert authz.can_update_vitals(ctx)
+        assert authz.can_resolve_escalation(ctx)
         assert authz.can_view_workflow_queue(ctx)
         assert authz.can_ask_chatbot(ctx)
         assert authz.role_display_name(ROLE_SECURITY_ADMIN) == "ITD"
@@ -145,19 +176,18 @@ class TestRBAC:
         assert authz.can_view_model_performance(ctx)
         assert "audit_dashboard" in authz.visible_tabs_for(ctx)
         assert not authz.can_run_assessment(ctx)
-        assert not authz.can_submit_review(ctx)
+        assert not authz.can_accept_acuity(ctx)
         assert not authz.can_view_security_status(ctx)
 
-    def test_clinical_supervisor_separate_from_security_admin(self):
-        sup = AuthContext(authenticated=True, user_id="c", roles=[ROLE_CLINICAL_SUPERVISOR])
-        assert authz.can_view_audit_log(sup)
-        assert authz.can_view_model_performance(sup)
-        assert authz.can_submit_review(sup)
-        assert authz.can_view_workflow_queue(sup)
-        assert "audit_dashboard" in authz.visible_tabs_for(sup)
-        # supervisor is a CLINICAL role, not an infra one:
-        assert not authz.can_view_security_status(sup)
-        assert not authz.can_export_identifiable(sup)
+    def test_ed_doctor_is_final_escalation_authority_not_observation_role(self):
+        doctor = AuthContext(authenticated=True, user_id="d", roles=[ROLE_ED_DOCTOR])
+        assert authz.can_review_escalation(doctor)
+        assert authz.can_resolve_escalation(doctor)
+        assert authz.can_request_information(doctor)
+        assert authz.can_view_workflow_queue(doctor)
+        assert not authz.can_update_vitals(doctor)
+        assert not authz.can_accept_acuity(doctor)
+        assert not authz.can_view_security_status(doctor)
 
     def test_require_permission_raises_when_absent(self):
         ctx = AuthContext(authenticated=True, user_id="n", roles=[ROLE_TRIAGE_NURSE])
@@ -168,7 +198,41 @@ class TestRBAC:
         assert authz.permissions_for(AuthContext(authenticated=False)) == set()
 
 
+class TestScheduledDemoDefaults:
+    @pytest.mark.parametrize(
+        "function_name",
+        ["_overdue_vitals_sweeper_enabled", "_monthly_retraining_exports_enabled"],
+    )
+    def test_background_jobs_are_on_in_azure_demo_but_off_in_plain_tests(
+        self, monkeypatch, function_name,
+    ):
+        from app import main
+
+        explicit = {
+            "_overdue_vitals_sweeper_enabled": "ENABLE_OVERDUE_VITALS_SWEEPER",
+            "_monthly_retraining_exports_enabled": "ENABLE_MONTHLY_RETRAINING_EXPORTS",
+        }[function_name]
+        monkeypatch.delenv(explicit, raising=False)
+        monkeypatch.delenv("PATIENT_DATA_MODE", raising=False)
+        monkeypatch.delenv("AZURE_SUPERVISOR_DEMO_MODE", raising=False)
+        monkeypatch.delenv("ALLOW_DEMO_ROLE_SWITCHER", raising=False)
+        function = getattr(main, function_name)
+        assert function() is False
+        monkeypatch.setenv("AZURE_SUPERVISOR_DEMO_MODE", "true")
+        assert function() is True
+        monkeypatch.setenv(explicit, "false")
+        assert function() is False
+
+
 class TestAccessAudit:
+    def test_access_audit_follows_alter_data_root_by_default(self, tmp_path, monkeypatch):
+        from app.security.access_audit import _audit_path
+
+        monkeypatch.delenv("ACCESS_AUDIT_DIR", raising=False)
+        monkeypatch.delenv("LOCAL_CREDENTIALED_RESEARCH", raising=False)
+        monkeypatch.setenv("ALTER_DATA_ROOT", str(tmp_path))
+        assert _audit_path() == tmp_path / "processed" / "access_audit.jsonl"
+
     def test_check_and_audit_logs_allowed_and_denied(self, tmp_path, monkeypatch):
         monkeypatch.setenv("ACCESS_AUDIT_DIR", str(tmp_path))
         from app.security.guard import check_and_audit
@@ -176,7 +240,7 @@ class TestAccessAudit:
         nurse = AuthContext(authenticated=True, user_id="n1", roles=[ROLE_TRIAGE_NURSE],
                             source="local_stub", is_demo_stub=True)
         # allowed action
-        assert check_and_audit(nurse, authz.PERM_RUN_ASSESSMENT, "run_assessment",
+        assert check_and_audit(nurse, authz.PERM_RUN_TRIAGE_ASSESSMENT, "run_assessment",
                                page="Triage Review", case_uid="MIMIC-IV-ED-Demo-v2.2:1") is True
         # denied action
         assert check_and_audit(nurse, authz.PERM_VIEW_AUDIT_LOG, "view_audit_log",
@@ -199,7 +263,7 @@ class TestAccessAudit:
 
         monkeypatch.setenv("ACCESS_AUDIT_DIR", str(tmp_path))
         client = TestClient(app)
-        r = client.get("/audit/events", headers={"X-Demo-Role": ROLE_CLINICAL_SUPERVISOR})
+        r = client.get("/audit/events", headers={"X-Demo-Role": ROLE_GOVERNANCE_AUDITOR})
         assert r.status_code == 200
         events = r.json()["events"]
         assert events

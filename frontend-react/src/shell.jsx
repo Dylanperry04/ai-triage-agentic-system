@@ -22,9 +22,9 @@ export function navForSession(session) {
   const perms = new Set(session?.permissions || []);
   const roles = new Set(session?.roles || []);
   const items = [];
-  if (tabs.has("triage_review")) items.push("triage");
-  if (tabs.has("review_queue")) items.push("review");
-  if (tabs.has("review_queue") && (roles.has("ed_doctor") || roles.has("clinical_supervisor") || roles.has("security_admin"))) items.push("escalations");
+  if (tabs.has("triage_review") && (roles.has("ed_nurse") || roles.has("triage_nurse") || roles.has("security_admin"))) items.push("triage");
+  if (tabs.has("review_queue") && (roles.has("triage_nurse") || roles.has("ed_doctor") || roles.has("security_admin"))) items.push("review");
+  if (tabs.has("review_queue") && (roles.has("ed_doctor") || roles.has("security_admin"))) items.push("escalations");
   if (tabs.has("audit_dashboard")) items.push("analytics", "audit");
   if (tabs.has("model_performance")) items.push("model");
   if (tabs.has("itd_ask_tools") && perms.has("can_ask_chatbot")) items.push("itd");
@@ -34,6 +34,13 @@ export function navForSession(session) {
 
 export function Sidebar({ session, tab, setTab, collapsed, setCollapsed, presentation }) {
   const items = navForSession(session);
+  const roles = new Set(session?.roles || []);
+  const labelFor = (key) => {
+    if (key === "triage" && roles.has("ed_nurse") && !roles.has("security_admin")) return "Observations Queue";
+    if (key === "review" && roles.has("ed_doctor") && !roles.has("security_admin")) return "Patient Disposition";
+    if (key === "escalations" && roles.has("ed_doctor") && !roles.has("security_admin")) return "Escalated Cases";
+    return NAV[key].label;
+  };
   const groups = ["Workspace", "Oversight", "System"];
   return (
     <aside style={{ width: collapsed ? 72 : 252, transition: "width .22s ease", background: `linear-gradient(180deg, ${T.green900}, #013A33)`, color: "#E9F5F1", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
@@ -56,11 +63,11 @@ export function Sidebar({ session, tab, setTab, collapsed, setCollapsed, present
               {keys.map((k) => {
                 const Ic = NAV[k].icon; const active = tab === k;
                 return (
-                  <button key={k} onClick={() => setTab(k)} title={NAV[k].label}
+                  <button key={k} onClick={() => setTab(k)} title={labelFor(k)}
                     style={{ width: "100%", display: "flex", alignItems: "center", gap: 11, padding: collapsed ? "11px 0" : "10px 11px", justifyContent: collapsed ? "center" : "flex-start", borderRadius: 9, border: "none", cursor: "pointer", fontFamily: T.font, fontSize: 13.5, fontWeight: 600, marginBottom: 2, background: active ? T.green500 : "transparent", color: active ? "#00332B" : "#D4EAE2" }}
                     onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = "rgba(255,255,255,0.07)"; }}
                     onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = "transparent"; }}>
-                    <Ic size={17} strokeWidth={2.1} /> {!collapsed && NAV[k].label}
+                    <Ic size={17} strokeWidth={2.1} /> {!collapsed && labelFor(k)}
                   </button>
                 );
               })}
@@ -110,7 +117,7 @@ export function Header({ identity, roleLabel, onSignOut, notifs, notifOpen, onTo
                   <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3 }}>{n.title}</div>
                   <div style={{ fontSize: 12.5, color: T.slate, lineHeight: 1.4, marginTop: 2 }}>{n.body}</div>
                   <div style={{ display: "flex", gap: 10, marginTop: 7, alignItems: "center" }}>
-                    {n.caseUid && <button onClick={() => onOpenCase(n)} style={{ fontFamily: T.font, fontSize: 12, fontWeight: 700, color: T.green700, background: "none", border: "none", cursor: "pointer", padding: 0 }}>{n.kind === "recheck" ? "Open & acknowledge" : "Open case"}</button>}
+                    {(n.caseUid || n.kind === "monthly_retraining") && <button onClick={() => onOpenCase(n)} style={{ fontFamily: T.font, fontSize: 12, fontWeight: 700, color: T.green700, background: "none", border: "none", cursor: "pointer", padding: 0 }}>{n.kind === "monthly_retraining" ? "Open ITD Console" : n.kind === "information_request" ? "Open observations" : "Open case"}</button>}
                     <button onClick={() => onDismissNotif(n.id)} style={{ fontFamily: T.font, fontSize: 12, fontWeight: 600, color: T.grey500, background: "none", border: "none", cursor: "pointer", padding: 0 }}>Dismiss</button>
                     <span style={{ marginLeft: "auto", fontSize: 11.5, color: T.grey500, fontFamily: T.mono }}>{fmtTime(n.at)}</span>
                   </div>

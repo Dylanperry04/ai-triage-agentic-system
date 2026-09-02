@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { BadgeCheck, Undo2, Activity } from "lucide-react";
+import { BadgeCheck, Undo2 } from "lucide-react";
 import { T, MTS, catOf, NEUTRAL_CAT, priorityFromCategory, patientWithEncounter, acuityLabel, fmtTime, fmtDate } from "../theme.js";
 import { Btn, Eyebrow, Modal, Pill, EmptyState, ErrorNote } from "../atoms.jsx";
 import { api, decisions } from "../api.js";
-import { isQueueRow, ReassessModal } from "./Triage.jsx";
+import { isQueueRow } from "./Triage.jsx";
 
 const CLOSED = new Set(["discharged", "closed", "case_closed"]);
 const QUEUEISH = new Set(["new_unreviewed", "request_more_info", "", "reopened"]);
@@ -34,12 +34,16 @@ export default function ReviewQueue({ cases, casesError, refresh, decisionMap, t
   const [rows, setRows] = useState(null);          // authoritative worklist rows
   const [rowsFailed, setRowsFailed] = useState(false);
   const [fetchedCases, setFetchedCases] = useState({}); // lazy details for rows outside the loaded page
-  const [reassessTarget, setReassessTarget] = useState(null);
+  const [finalAcuity, setFinalAcuity] = useState(3);
   const busy = useRef(false);
   const roles = new Set(session?.roles || []);
-  const senior = roles.has("ed_doctor") || roles.has("clinical_supervisor") || roles.has("security_admin");
-  const canDecide = (session?.permissions || []).includes("can_submit_review");
-  const canAssess = (session?.permissions || []).includes("can_run_assessment");
+  const senior = roles.has("ed_doctor") || roles.has("security_admin");
+  const permissions = new Set(session?.permissions || []);
+  const canRequestInfo = permissions.has("can_request_information");
+  const canReviewEscalation = permissions.has("can_review_escalation");
+  const canResolveEscalation = permissions.has("can_resolve_escalation");
+  const canClose = permissions.has("can_close_case") && senior;
+  const canAct = canRequestInfo || canReviewEscalation || canResolveEscalation || canClose;
 
   /* Worklist membership comes from the backend workflow queue (bounded 500),
      NOT from whichever page of cases happens to be loaded — otherwise an
@@ -127,6 +131,16 @@ export default function ReviewQueue({ cases, casesError, refresh, decisionMap, t
     if (target) { setOpen(target); onFocusHandled?.(); }
   }, [focusUid, pool, onFocusHandled]);
 
+  /* A notification may open an off-page worklist row before its case detail has
+     loaded. Keep the modal joined to the fresh pool object so the exact current
+     workflow-run link and clinical details appear as soon as that fetch lands,
+     instead of leaving a permanently stale snapshot that cannot be actioned. */
+  useEffect(() => {
+    if (!open?.case_uid) return;
+    const fresh = pool.find((c) => c.case_uid === open.case_uid);
+    if (fresh && fresh !== open) setOpen(fresh);
+  }, [pool, open?.case_uid]);
+
   /* Card colour comes from the acuity the backend PERSISTED with the decision
      (workflow_state.assigned_acuity). decisionMap is only an optimistic
      in-session fallback for a decision made moments ago whose queue reload has
@@ -149,20 +163,18 @@ export default function ReviewQueue({ cases, casesError, refresh, decisionMap, t
     catch (e) { toast("Action failed", e.detail || e.message, "err"); }
     finally { busy.current = false; }
   };
-  const onReassessDone = (result) => {
-    const target = reassessTarget;
-    setReassessTarget(null);
-    setOpen(null);
-    refresh();
-    reloadRows();
-    toast("Observations updated", `${patientWithEncounter(target)}: ${result.change_summary || "advisory refreshed on the updated observations."}`);
-  };
+  useEffect(() => {
+    if (!open) return;
+    const system = priorityFromCategory(open.workflow_state?.latest_system_acuity, null);
+    const assigned = prioOf(open);
+    setFinalAcuity(system || assigned || 3);
+  }, [open?.case_uid, open?.workflow_state?.latest_system_acuity]);
 
   return (
     <div>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
         <div>
-          <div style={{ fontSize: 19, fontWeight: 700 }}>{escalationsOnly ? "Escalations awaiting senior review" : "Review queue"}</div>
+          <div style={{ fontSize: 19, fontWeight: 700 }}>{escalationsOnly ? "Escalations awaiting senior review" : senior ? "Patient disposition" : "Review queue"}</div>
           <div style={{ fontSize: 13, color: T.slate, marginTop: 2 }}>{pool.length} case{pool.length === 1 ? "" : "s"} · sorted by latest review time</div>
         </div>
         {!escalationsOnly && (
@@ -214,30 +226,38 @@ export default function ReviewQueue({ cases, casesError, refresh, decisionMap, t
             {open.workflow_state?.overdue_vitals_alert_active && <Pill colour={T.red} bg={T.red50} border="#EFC5D1">Vitals recheck overdue</Pill>}
           </div>
           <div style={{ fontSize: 13.5, lineHeight: 1.6, color: T.ink, textTransform: "capitalize" }}>{open.triage?.chiefcomplaint || "Chief complaint withheld for this role"}.</div>
-          <div style={{ fontSize: 12.5, color: T.slate, marginTop: 8, fontFamily: T.mono }}>Review state: {String(open.workflow_state?.review_status || open.workflow_state?.case_status || "recorded").replace(/_/g, " ")}</div>
-          {canDecide && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(115px, 1fr))", gap: 7, marginTop: 12 }}>
+            {[
+              ["HR", open.triage?.heartrate, "bpm"], ["RR", open.triage?.resprate, "/min"],
+              ["SpO₂", open.triage?.o2sat, "%"], ["BP", open.triage?.sbp != null ? `${open.triage.sbp}/${open.triage.dbp ?? "—"}` : null, "mmHg"],
+              ["Temp", open.triage?.temperature, open.triage?.temperature_unit || ""], ["Pain", open.triage?.pain, "/10"],
+            ].map(([label, value, unit]) => <div key={label} style={{ background: "#F5F7F7", border: `1px solid ${T.borderSoft}`, borderRadius: 8, padding: "7px 9px" }}><Eyebrow>{label}</Eyebrow><div style={{ fontFamily: T.mono, fontSize: 14, fontWeight: 700, marginTop: 3 }}>{value ?? "—"} <span style={{ fontSize: 10.5, color: T.grey500 }}>{unit}</span></div></div>)}
+          </div>
+          <div style={{ fontSize: 12.5, color: T.slate, marginTop: 10, fontFamily: T.mono }}>Review state: {String(open.workflow_state?.review_status || open.workflow_state?.case_status || "recorded").replace(/_/g, " ")}</div>
+          {open.workflow_state?.escalation_reason && <div style={{ fontSize: 12.5, color: T.ink, background: T.yellow50, border: "1px solid #EEDD9A", borderRadius: 8, padding: "9px 11px", marginTop: 10, lineHeight: 1.5 }}><b>Triage Nurse escalation reason:</b> {open.workflow_state.escalation_reason}</div>}
+          {open.workflow_state?.latest_system_acuity != null && <div style={{ fontSize: 12.5, color: T.slate, marginTop: 10 }}>Linked AI recommendation: <b>{acuityLabel(open.workflow_state.latest_system_acuity)} · {catOf(open.workflow_state.latest_system_acuity).name}</b></div>}
+          {!open.workflow_state?.latest_workflow_run_id && canAct && <ErrorNote>This historical case has no exact workflow-run link. Record a new assessment before taking a new clinical action.</ErrorNote>}
+          {canAct && open.workflow_state?.latest_workflow_run_id && (
             <div style={{ borderTop: `1px solid ${T.borderSoft}`, marginTop: 16, paddingTop: 16 }}>
-              <Eyebrow style={{ marginBottom: 10 }}>Disposition</Eyebrow>
-              <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Note for the audit record (required for escalation actions)…" style={{ width: "100%", boxSizing: "border-box", fontFamily: T.font, fontSize: 13, padding: 10, borderRadius: 9, border: `1px solid ${T.border}`, resize: "vertical", marginBottom: 12 }} />
+              <Eyebrow style={{ marginBottom: 10 }}>{activeEscalation(open) ? "ED Doctor final review" : "Clinical disposition"}</Eyebrow>
+              {activeEscalation(open) && canResolveEscalation && <>
+                <div style={{ fontSize: 12.5, color: T.slate, marginBottom: 8 }}>Select the final acuity. Keeping the linked AI acuity confirms it; selecting another acuity records the doctor's change.</div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6, marginBottom: 12 }}>
+                  {[1, 2, 3, 4, 5].map((n) => <button key={n} onClick={() => setFinalAcuity(n)} style={{ fontFamily: T.mono, fontWeight: 800, padding: "8px 0", cursor: "pointer", borderRadius: 8, border: `2px solid ${finalAcuity === n ? MTS[n].colour : T.border}`, color: finalAcuity === n ? MTS[n].text : T.ink, background: finalAcuity === n ? MTS[n].colour : T.surface }}>{n}</button>)}
+                </div>
+              </>}
+              <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Reason/comment for the audit record…" style={{ width: "100%", boxSizing: "border-box", fontFamily: T.font, fontSize: 13, padding: 10, borderRadius: 9, border: `1px solid ${T.border}`, resize: "vertical", marginBottom: 12 }} />
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                {/* Discharge/close are senior decisions: the backend enforces
-                    _CASE_CLOSE_ROLES (ED doctor / clinical supervisor) with a
-                    403, and clinically a triage nurse does not discharge — so
-                    the buttons only render for those roles. */}
-                {senior && <Btn onClick={() => act(() => decisions.discharge(open.case_uid, { comment: note.trim() || undefined }), "Patient discharged", `${patientWithEncounter(open)} removed from live queues; the full record stays in the audit trail.`)}><BadgeCheck size={15} style={{ verticalAlign: -3, marginRight: 6 }} />Discharge patient</Btn>}
-                {senior && <Btn kind="quiet" onClick={() => act(() => decisions.closeAdmitted(open.case_uid, { comment: note.trim() || "Case closed — admitted to ward." }), "Case closed — admitted", `${patientWithEncounter(open)} removed from live queues; recorded as admitted, not discharged.`)}>Close case (admitted)</Btn>}
-                {canAssess && <Btn kind="quiet" onClick={() => setReassessTarget(open)}><Activity size={14} style={{ verticalAlign: -2, marginRight: 6 }} />Update vitals</Btn>}
-                {senior && ["requested", "pending"].includes(escState(open)) && <Btn kind="quiet" disabled={!note.trim()} onClick={() => act(() => decisions.confirmEscalation(open.case_uid, { note: note.trim() }), "Escalation confirmed", `You have taken ownership of ${patientWithEncounter(open)}.`)}>Confirm escalation</Btn>}
-                {senior && ["requested", "pending", "confirmed"].includes(escState(open)) && <Btn kind="quiet" disabled={!note.trim()} onClick={() => act(() => decisions.resolveEscalation(open.case_uid, { note: note.trim() }), "Escalation resolved", `${patientWithEncounter(open)} returns to the standard review flow.`)}>Resolve escalation</Btn>}
-                <Btn kind="danger" onClick={() => act(() => decisions.requestInfo(open.case_uid, { fields: [], comment: note.trim() || "Returned for further information before disposition." }), "Returned to triage", `${patientWithEncounter(open)} is back with the triage nurse for more information.`)}><Undo2 size={14} style={{ verticalAlign: -2, marginRight: 6 }} />Request more info</Btn>
+                {canReviewEscalation && ["requested", "pending"].includes(escState(open)) && <Btn kind="quiet" disabled={!note.trim()} onClick={() => act(() => decisions.confirmEscalation(open.case_uid, { workflowRunId: open.workflow_state.latest_workflow_run_id, note: note.trim() }), "Escalation accepted", `You have taken ownership of ${patientWithEncounter(open)}.`)}>Take ownership</Btn>}
+                {canResolveEscalation && activeEscalation(open) && <Btn disabled={!note.trim()} onClick={() => act(() => decisions.resolveEscalation(open.case_uid, { workflowRunId: open.workflow_state.latest_workflow_run_id, note: note.trim(), decision: `Acuity ${finalAcuity}`, finalAcuity }), "Final acuity recorded", `${patientWithEncounter(open)} escalation resolved at Acuity ${finalAcuity}.`)}>{finalAcuity === priorityFromCategory(open.workflow_state.latest_system_acuity, null) ? "Confirm acuity & resolve" : "Change acuity & resolve"}</Btn>}
+                {canRequestInfo && <Btn kind="danger" onClick={() => act(() => decisions.requestInfo(open.case_uid, { workflowRunId: open.workflow_state.latest_workflow_run_id, fields: [], comment: note.trim() || "Further information required before the final decision." }), "Information requested", `The ED Nurse has been notified to update ${patientWithEncounter(open)}.`)}><Undo2 size={14} style={{ verticalAlign: -2, marginRight: 6 }} />Request more info</Btn>}
+                {canClose && !activeEscalation(open) && <Btn onClick={() => act(() => decisions.discharge(open.case_uid, { workflowRunId: open.workflow_state.latest_workflow_run_id, comment: note.trim() || undefined }), "Patient discharged", `${patientWithEncounter(open)} removed from live queues; the full record stays in the audit trail.`)}><BadgeCheck size={15} style={{ verticalAlign: -3, marginRight: 6 }} />Discharge patient</Btn>}
+                {canClose && !activeEscalation(open) && <Btn kind="quiet" onClick={() => act(() => decisions.closeAdmitted(open.case_uid, { workflowRunId: open.workflow_state.latest_workflow_run_id, comment: note.trim() || "Case closed — admitted to ward." }), "Case closed — admitted", `${patientWithEncounter(open)} removed from live queues; recorded as admitted, not discharged.`)}>Close case (admitted)</Btn>}
               </div>
-              <div style={{ fontSize: 11.5, color: T.grey500, marginTop: 10, lineHeight: 1.45 }}>{senior ? "Discharge and case-closure remove the patient from live queues. " : "Discharge and case-closure are ED-doctor / supervisor decisions. "}Every disposition is written to the audit trail with your authenticated identity.</div>
+              <div style={{ fontSize: 11.5, color: T.grey500, marginTop: 10, lineHeight: 1.45 }}>Every action is linked to the exact model assessment and written to the audit trail with your authenticated identity and role.</div>
             </div>
           )}
         </Modal>
-      )}
-      {reassessTarget && (
-        <ReassessModal c={reassessTarget} onClose={() => setReassessTarget(null)} onDone={onReassessDone} toast={toast} />
       )}
     </div>
   );

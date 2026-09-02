@@ -30,13 +30,33 @@ class _Session:
         path = "/" + url.split("/", 3)[-1] if url.count("/") >= 3 else "/"
         return self.responses[path]
 
+    def post(self, url, **kwargs):
+        self.calls.append((url, kwargs))
+        path = "/" + url.split("/", 3)[-1] if url.count("/") >= 3 else "/"
+        return self.responses[path]
+
 
 def _responses(*, heartbeat=True):
     return {
         "/": _Response(text="<html>ALTER</html>"),
         "/health": _Response({"status": "ok"}),
-        "/status/uhl": _Response({"active": True}),
-        "/runtime/status": _Response({"status": "ok"}),
+        "/status/uhl": _Response({
+            "dataset_ready": True, "model_ready": True,
+            "data_hash_verified": True, "model_hash_verified": True,
+        }),
+        "/runtime/status": _Response({
+            "model": {"loadable": True},
+            "uhl": {"case_count": azure_smoke_test.EXPECTED_SOURCE_ROWS},
+        }),
+        "/ready": _Response({
+            "ready": True, "model_loadable": True,
+            "runtime_storage_writable": True,
+            "source_rows": azure_smoke_test.EXPECTED_SOURCE_ROWS,
+            "model_scope_rows": azure_smoke_test.EXPECTED_MODEL_SCOPE_ROWS,
+        }),
+        "/system/assistant": _Response({
+            "answer": "0 unique patient cases were escalated today; no staff member submitted one."
+        }),
         "/notifications": _Response({"source": "durable_notification_store"}),
         "/notifications/system/health": _Response(
             {
@@ -116,3 +136,31 @@ def test_smoke_check_rejects_rollout_policy_that_has_not_converged(monkeypatch):
             check_notifications=True,
             require_notification_worker=False,
         )
+
+
+def test_smoke_check_rejects_http_200_with_unusable_assets(monkeypatch):
+    responses = _responses()
+    responses["/status/uhl"] = _Response({
+        "dataset_ready": False, "model_ready": False,
+        "data_hash_verified": False, "model_hash_verified": False,
+    })
+    monkeypatch.setattr(azure_smoke_test.requests, "Session", lambda: _Session(responses))
+    with pytest.raises(RuntimeError, match="not ready"):
+        azure_smoke_test._attempt(
+            base_url="https://triage.example", timeout=1,
+            demo_role="security_admin", expected_build_id="",
+            check_notifications=False, require_notification_worker=False,
+        )
+
+
+def test_smoke_can_exercise_exact_itd_assistant_question(monkeypatch):
+    session = _Session(_responses())
+    monkeypatch.setattr(azure_smoke_test.requests, "Session", lambda: session)
+    result = azure_smoke_test._attempt(
+        base_url="https://triage.example", timeout=1,
+        demo_role="security_admin", expected_build_id="",
+        check_notifications=False, require_notification_worker=False,
+        check_assistant=True,
+    )
+    assert result["assistant_checked"] is True
+    assert any(url.endswith("/system/assistant") for url, _ in session.calls)

@@ -8,8 +8,11 @@ import re
 from typing import Any
 
 
-ALLOWED_NOTIFICATION_KINDS = {"overdue_vitals", "escalation", "clinical_alert", "information_request"}
-ALLOWED_TARGET_ROLES = {"triage_nurse", "ed_doctor", "clinical_supervisor", "security_admin"}
+ALLOWED_NOTIFICATION_KINDS = {
+    "overdue_vitals", "escalation", "clinical_alert", "information_request",
+    "triage_review", "monthly_retraining",
+}
+ALLOWED_TARGET_ROLES = {"ed_nurse", "triage_nurse", "ed_doctor", "security_admin"}
 TERMINAL_SMS_STATES = {
     "submitted", "delivered", "failed_permanent", "ambiguous",
     "cap_blocked", "disabled", "cancelled",
@@ -19,6 +22,8 @@ SMS_TEMPLATES = {
     "escalation": "ALTER: A clinical alert needs your attention. Sign in securely.",
     "clinical_alert": "ALTER: A clinical alert needs your attention. Sign in securely.",
     "information_request": "ALTER: More information has been requested. Sign in to ALTER securely.",
+    "triage_review": "ALTER: A reassessment is ready for review. Sign in securely.",
+    "monthly_retraining": "ALTER: Monthly retraining data is ready. Sign in securely.",
 }
 
 # The one-segment templates are ASCII and use only this GSM-7 basic alphabet.

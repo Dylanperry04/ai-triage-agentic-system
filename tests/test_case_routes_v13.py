@@ -20,6 +20,15 @@ def _principal(groups):
     return base64.b64encode(json.dumps({"claims": claims}).encode()).decode()
 
 
+def _run_assessment(case_uid, headers):
+    response = client.post(f"/cases/{case_uid}/assessments", headers=headers)
+    assert response.status_code == 200, response.text
+    run_id = response.json()["workflow_run_id"]
+    current = client.get(f"/cases/{case_uid}", headers=headers).json()["workflow_state"]
+    assert current["latest_workflow_run_id"] == run_id
+    return run_id
+
+
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch, tmp_path):
     for v in ("PATIENT_DATA_MODE", "AUTH_REQUIRED", "TRUSTED_AUTH_PROXY",
@@ -56,7 +65,7 @@ class TestCaseUidRouting:
 
     def test_get_and_assessment_round_trip_no_raw_id(self, monkeypatch):
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
-        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-doctors"])}
+        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["triage-nurses"])}
         cuid = client.get("/cases", headers=headers).json()["cases"][0]["case_uid"]
         assert client.get(f"/cases/{cuid}", headers=headers).status_code == 200
         a = client.post(f"/cases/{cuid}/assessments", headers=headers)
@@ -243,14 +252,16 @@ class TestRbacOnCaseRoutes:
 
     def test_accept_review_persists_case_state_and_audit(self, monkeypatch):
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
-        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-doctors"])}
+        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["triage-nurses"])}
         cuid = client.get("/cases", headers=headers).json()["cases"][0]["case_uid"]
+        run_id = _run_assessment(cuid, headers)
 
         r = client.post(
             f"/cases/{cuid}/reviews",
             headers=headers,
             json={
                 "review_status": "ACCEPTED_AS_PRESENTED",
+                "workflow_run_id": run_id,
                 "review_comment": "Accepted for this individual case review.",
             },
         )
@@ -268,14 +279,16 @@ class TestRbacOnCaseRoutes:
 
     def test_request_more_information_persists_requested_fields(self, monkeypatch):
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
-        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-doctors"])}
+        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["triage-nurses"])}
         cuid = client.get("/cases", headers=headers).json()["cases"][0]["case_uid"]
+        run_id = _run_assessment(cuid, headers)
 
         r = client.post(
             f"/cases/{cuid}/reviews",
             headers=headers,
             json={
                 "review_status": "REQUEST_MORE_INFORMATION",
+                "workflow_run_id": run_id,
                 "review_comment": "Need confirmation before review.",
                 "requested_fields": ["repeat vitals", "clarify pain score"],
             },
@@ -292,14 +305,16 @@ class TestRbacOnCaseRoutes:
 
     def test_review_escalation_persists_requested_state(self, monkeypatch):
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
-        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-doctors"])}
+        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["triage-nurses"])}
         cuid = client.get("/cases", headers=headers).json()["cases"][0]["case_uid"]
+        run_id = _run_assessment(cuid, headers)
 
         r = client.post(
             f"/cases/{cuid}/reviews",
             headers=headers,
             json={
                 "review_status": "ESCALATION_REQUIRED",
+                "workflow_run_id": run_id,
                 "review_comment": "Needs senior review before disposition.",
                 "escalation_target_role": "ed_doctor",
                 "system_prediction": "Acuity 3",
@@ -324,14 +339,16 @@ class TestRbacOnCaseRoutes:
 
     def test_review_escalation_rejects_invalid_target_role(self, monkeypatch):
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
-        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-doctors"])}
+        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["triage-nurses"])}
         cuid = client.get("/cases", headers=headers).json()["cases"][0]["case_uid"]
+        run_id = _run_assessment(cuid, headers)
 
         r = client.post(
             f"/cases/{cuid}/reviews",
             headers=headers,
             json={
                 "review_status": "ESCALATION_REQUIRED",
+                "workflow_run_id": run_id,
                 "review_comment": "Needs senior review before disposition.",
                 "escalation_target_role": "emergency_physician",
             },
@@ -339,9 +356,9 @@ class TestRbacOnCaseRoutes:
         assert r.status_code == 422
         assert "Invalid escalation_target_role" in r.json()["detail"]
 
-    def test_followup_escalation_persists_state_and_rerun_audit(self, monkeypatch):
+    def test_followup_deterioration_returns_to_clinical_reviewer_without_auto_escalation(self, monkeypatch):
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
-        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-doctors"])}
+        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-nurses"])}
         cuid = client.get("/cases", headers=headers).json()["cases"][0]["case_uid"]
 
         class _Workflow:
@@ -360,6 +377,20 @@ class TestRbacOnCaseRoutes:
 
         import app.api.case_routes as case_routes
         monkeypatch.setattr(case_routes, "_run_followup_workflows", _fake_followup)
+        from app.schemas.workflow_run import WorkflowRunRecord
+
+        def _fake_record(result, run_id, timestamp_utc, app_version=None, ctx=None):
+            return WorkflowRunRecord(
+                workflow_run_id=run_id,
+                timestamp_utc=timestamp_utc,
+                case_uid=cuid,
+                source_dataset="MIMIC-IV-ED-Full-v2.2",
+                final_acuity=result.acuity,
+                predicted_mimic_acuity=result.acuity,
+                model_version="test-model",
+            )
+
+        monkeypatch.setattr("app.schemas.workflow_run.build_workflow_run_record", _fake_record)
 
         r = client.post(
             f"/cases/{cuid}/followups",
@@ -368,27 +399,85 @@ class TestRbacOnCaseRoutes:
         )
         assert r.status_code == 200
         payload = r.json()
-        assert payload["change_direction"] == "escalation"
-        assert payload["escalation_required"] is True
-        assert payload["workflow_state"]["escalation_state"] == "requested"
-        assert payload["workflow_state"]["escalation_status"] == "requested"
+        assert payload["ai_advisory_visible"] is False
+        assert "change_direction" not in payload
+        assert "previous_acuity" not in payload
+        assert "new_acuity" not in payload
+        assert payload["review_target_role"] == "triage_nurse"
+        assert payload["workflow_state"]["reassessment_target_role"] == "triage_nurse"
+        assert "advisory_trend" not in payload["workflow_state"]
+        assert "latest_workflow_run_id" not in payload["workflow_state"]
 
         from app.config import settings
         assert (settings.processed_dir / "workflow_reruns.jsonl").exists()
         refreshed = client.get(f"/cases/{cuid}", headers=headers).json()
-        assert refreshed["workflow_state"]["escalation_required"] is True
-        assert refreshed["workflow_state"]["escalation_target_role"] == "clinical_supervisor"
+        assert refreshed["workflow_state"].get("escalation_required") is not True
+        assert "latest_workflow_run_id" not in refreshed["workflow_state"]
+        triage_headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["triage-nurses"])}
+        triage_view = client.get(f"/cases/{cuid}", headers=triage_headers).json()
+        assert triage_view["workflow_state"]["latest_workflow_run_id"]
+        assert triage_view["workflow_state"]["assessment_run_by_role"] == "system"
+        assert triage_view["workflow_state"]["assessment_triggered_by_role"] == "ed_nurse"
+        assert triage_view["workflow_state"]["assessment_execution_mode"] == (
+            "automatic_followup_after_observations"
+        )
+        from app.storage.workflow_run_repository import read_workflow_runs
+        runs = read_workflow_runs(settings.processed_dir / "workflow_runs.jsonl")
+        automatic = next(
+            row for row in reversed(runs)
+            if row.workflow_run_id == triage_view["workflow_state"]["latest_workflow_run_id"]
+        )
+        assert automatic.performed_by_role == "system"
+        assert automatic.performed_by_actor_type == "system"
+        assert automatic.assessment_triggered_by_role == "ed_nurse"
+
+    def test_repeat_observations_reopen_an_accepted_case_on_the_new_exact_run(self, monkeypatch):
+        monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
+        triage_headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["triage-nurses"])}
+        ed_nurse_headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-nurses"])}
+        cuid = client.get("/cases", headers=triage_headers).json()["cases"][0]["case_uid"]
+        original_run = _run_assessment(cuid, triage_headers)
+        accepted = client.post(
+            f"/cases/{cuid}/reviews", headers=triage_headers,
+            json={
+                "review_status": "ACCEPTED_AS_PRESENTED",
+                "workflow_run_id": original_run,
+                "review_comment": "Accepted before repeat observations.",
+            },
+        )
+        assert accepted.status_code == 200
+
+        followup = client.post(
+            f"/cases/{cuid}/followups", headers=ed_nurse_headers,
+            json={"updated_vitals": {"pain": 5}},
+        )
+        assert followup.status_code == 200
+        assert followup.json()["ai_advisory_visible"] is False
+
+        triage_view = client.get(f"/cases/{cuid}", headers=triage_headers).json()
+        state = triage_view["workflow_state"]
+        assert state["case_status"] == "reopened"
+        assert state["review_status"] == "reassessment_complete"
+        assert state["latest_workflow_run_id"] != original_run
+        assert state["prior_decision_superseded_by_reassessment"] is True
+        preview = client.post(
+            f"/cases/{cuid}/assessments?preview=true", headers=triage_headers,
+        )
+        assert preview.status_code == 200
 
     def test_escalation_confirm_requires_requested_state_and_persists(self, monkeypatch):
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
-        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-doctors"])}
-        cuid = client.get("/cases", headers=headers).json()["cases"][0]["case_uid"]
+        triage_headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["triage-nurses"])}
+        doctor_headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-doctors"])}
+        cuid = client.get("/cases", headers=triage_headers).json()["cases"][0]["case_uid"]
+        run_id = _run_assessment(cuid, triage_headers)
 
         no_active = client.post(
             f"/cases/{cuid}/reviews",
-            headers=headers,
+            headers=doctor_headers,
             json={
                 "review_status": "ESCALATION_CONFIRMED",
+                "workflow_run_id": run_id,
                 "review_comment": "Confirm without request.",
             },
         )
@@ -396,9 +485,10 @@ class TestRbacOnCaseRoutes:
 
         requested = client.post(
             f"/cases/{cuid}/reviews",
-            headers=headers,
+            headers=triage_headers,
             json={
                 "review_status": "ESCALATION_REQUIRED",
+                "workflow_run_id": run_id,
                 "review_comment": "Needs senior review.",
             },
         )
@@ -406,9 +496,10 @@ class TestRbacOnCaseRoutes:
 
         confirmed = client.post(
             f"/cases/{cuid}/reviews",
-            headers=headers,
+            headers=doctor_headers,
             json={
                 "review_status": "ESCALATION_CONFIRMED",
+                "workflow_run_id": run_id,
                 "review_comment": "Senior clinician accepted escalation.",
             },
         )
@@ -424,12 +515,14 @@ class TestRbacOnCaseRoutes:
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
         nurse_headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["triage-nurses"])}
         cuid = client.get("/cases", headers=nurse_headers).json()["cases"][0]["case_uid"]
+        run_id = _run_assessment(cuid, nurse_headers)
 
         requested = client.post(
             f"/cases/{cuid}/reviews",
             headers=nurse_headers,
             json={
                 "review_status": "ESCALATION_REQUIRED",
+                "workflow_run_id": run_id,
                 "review_comment": "Needs senior review.",
             },
         )
@@ -440,6 +533,7 @@ class TestRbacOnCaseRoutes:
             headers=nurse_headers,
             json={
                 "review_status": "ESCALATION_CONFIRMED",
+                "workflow_run_id": run_id,
                 "review_comment": "Nurse should not confirm escalation.",
             },
         )
@@ -450,6 +544,7 @@ class TestRbacOnCaseRoutes:
             headers=nurse_headers,
             json={
                 "review_status": "DISCHARGED",
+                "workflow_run_id": run_id,
                 "review_comment": "Nurse should not close case.",
             },
         )
@@ -463,7 +558,7 @@ class TestRbacOnCaseRoutes:
 
     def test_patient_mode_workflow_queue_fails_closed_when_state_read_hits_cap(self, monkeypatch):
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
-        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["clinical-supervisors"])}
+        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-doctors"])}
 
         import app.storage.case_state_repository as repo
         import app.api.case_routes as case_routes
@@ -481,14 +576,17 @@ class TestRbacOnCaseRoutes:
 
     def test_terminal_escalation_and_discharge_actions_are_idempotent_conflicts(self, monkeypatch):
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
-        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-doctors"])}
-        cuid = client.get("/cases", headers=headers).json()["cases"][0]["case_uid"]
+        triage_headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["triage-nurses"])}
+        doctor_headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-doctors"])}
+        cuid = client.get("/cases", headers=triage_headers).json()["cases"][0]["case_uid"]
+        run_id = _run_assessment(cuid, triage_headers)
 
         requested = client.post(
             f"/cases/{cuid}/reviews",
-            headers=headers,
+            headers=triage_headers,
             json={
                 "review_status": "ESCALATION_REQUIRED",
+                "workflow_run_id": run_id,
                 "review_comment": "Needs senior review.",
             },
         )
@@ -496,9 +594,10 @@ class TestRbacOnCaseRoutes:
 
         first_confirm = client.post(
             f"/cases/{cuid}/reviews",
-            headers=headers,
+            headers=doctor_headers,
             json={
                 "review_status": "ESCALATION_CONFIRMED",
+                "workflow_run_id": run_id,
                 "review_comment": "First confirmation.",
             },
         )
@@ -506,9 +605,10 @@ class TestRbacOnCaseRoutes:
 
         second_confirm = client.post(
             f"/cases/{cuid}/reviews",
-            headers=headers,
+            headers=doctor_headers,
             json={
                 "review_status": "ESCALATION_CONFIRMED",
+                "workflow_run_id": run_id,
                 "review_comment": "Second confirmation should not overwrite.",
             },
         )
@@ -516,9 +616,10 @@ class TestRbacOnCaseRoutes:
 
         discharge_case = client.post(
             f"/cases/{cuid}/reviews",
-            headers=headers,
+            headers=doctor_headers,
             json={
                 "review_status": "DISCHARGED",
+                "workflow_run_id": run_id,
                 "review_comment": "Close once.",
             },
         )
@@ -526,9 +627,10 @@ class TestRbacOnCaseRoutes:
 
         repeat_discharge = client.post(
             f"/cases/{cuid}/reviews",
-            headers=headers,
+            headers=doctor_headers,
             json={
                 "review_status": "DISCHARGED",
+                "workflow_run_id": run_id,
                 "review_comment": "Second close should not overwrite.",
             },
         )
@@ -538,12 +640,15 @@ class TestRbacOnCaseRoutes:
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
         headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-doctors"])}
         cuid = client.get("/cases", headers=headers).json()["cases"][0]["case_uid"]
+        triage_headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["triage-nurses"])}
+        run_id = _run_assessment(cuid, triage_headers)
 
         r = client.post(
             f"/cases/{cuid}/reviews",
             headers=headers,
             json={
                 "review_status": "DISCHARGED",
+                "workflow_run_id": run_id,
                 "review_comment": "No longer active in triage queue.",
             },
         )
@@ -556,14 +661,14 @@ class TestRbacOnCaseRoutes:
 
         followup = client.post(
             f"/cases/{cuid}/followups",
-            headers=headers,
+            headers={"X-MS-CLIENT-PRINCIPAL": _principal(["ed-nurses"])},
             json={"updated_vitals": {"heartrate": 90}},
         )
         assert followup.status_code == 409
 
     def test_overdue_vitals_alert_can_be_created_once_and_acknowledged(self, monkeypatch):
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
-        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["triage-nurses"])}
+        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-nurses"])}
         cuid = client.get("/cases", headers=headers).json()["cases"][0]["case_uid"]
         from app.config import settings
         from app.storage.case_state_repository import append_case_state
@@ -596,7 +701,7 @@ class TestRbacOnCaseRoutes:
 
     def test_overdue_vitals_sweep_creates_due_alert_without_case_button(self, monkeypatch):
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
-        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["clinical-supervisors"])}
+        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-nurses"])}
         cuid = client.get("/cases", headers=headers).json()["cases"][0]["case_uid"]
         from app.config import settings
         from app.storage.case_state_repository import append_case_state
@@ -619,7 +724,7 @@ class TestRbacOnCaseRoutes:
 
     def test_overdue_vitals_acknowledge_requires_active_alert(self, monkeypatch):
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
-        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["triage-nurses"])}
+        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-nurses"])}
         cuid = client.get("/cases", headers=headers).json()["cases"][0]["case_uid"]
 
         ack = client.post(f"/cases/{cuid}/vitals/acknowledge-overdue", headers=headers)
@@ -628,7 +733,7 @@ class TestRbacOnCaseRoutes:
 
     def test_overdue_vitals_alert_rejects_fresh_vitals_clock(self, monkeypatch):
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
-        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["triage-nurses"])}
+        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-nurses"])}
         cuid = client.get("/cases", headers=headers).json()["cases"][0]["case_uid"]
         from datetime import datetime, timezone
         from app.config import settings
@@ -649,7 +754,7 @@ class TestRbacOnCaseRoutes:
 
     def test_followup_updated_vitals_are_visible_on_subsequent_case_read(self, monkeypatch):
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
-        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-doctors"])}
+        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-nurses"])}
         cuid = client.get("/cases", headers=headers).json()["cases"][0]["case_uid"]
 
         r = client.post(
@@ -665,7 +770,7 @@ class TestRbacOnCaseRoutes:
         assert refreshed.json()["triage"]["heartrate"] == 140
 
     def test_followup_additional_info_and_scan_metadata_persist(self, monkeypatch, tmp_path):
-        headers = {"X-Demo-Role": "ed_doctor"}
+        headers = {"X-Demo-Role": "ed_nurse"}
         cuid = client.get("/cases", headers=headers).json()["cases"][0]["case_uid"]
         monkeypatch.setenv("ACCESS_AUDIT_DIR", str(tmp_path))
         monkeypatch.setattr("app.config.settings.processed_dir", tmp_path)
@@ -682,6 +787,20 @@ class TestRbacOnCaseRoutes:
 
         import app.api.case_routes as case_routes
         monkeypatch.setattr(case_routes, "_run_followup_workflows", _fake_followup)
+        from app.schemas.workflow_run import WorkflowRunRecord
+
+        def _fake_record(result, run_id, timestamp_utc, app_version=None, ctx=None):
+            return WorkflowRunRecord(
+                workflow_run_id=run_id,
+                timestamp_utc=timestamp_utc,
+                case_uid=cuid,
+                source_dataset="MIMIC-IV-ED-Full-v2.2",
+                final_acuity=result.acuity,
+                predicted_mimic_acuity=result.acuity,
+                model_version="test-model",
+            )
+
+        monkeypatch.setattr("app.schemas.workflow_run.build_workflow_run_record", _fake_record)
 
         r = client.post(
             f"/cases/{cuid}/followups",

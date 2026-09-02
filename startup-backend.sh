@@ -11,6 +11,18 @@ else
     IS_AZURE_APP_SERVICE=false
 fi
 
+# Azure's deployed package is read-only, while a 777k-row SQLite case index is
+# substantially faster on instance-local storage than on the shared /home
+# mount. Use /home only for durable workflow state and a verified cache seed;
+# restore the active cache to /tmp before Uvicorn starts. Explicit operator
+# settings still take precedence.
+if [ "${IS_AZURE_APP_SERVICE}" = "true" ]; then
+    export ALTER_DATA_ROOT="${ALTER_DATA_ROOT:-/home/data}"
+    export UHL_CASE_CACHE_PATH="${UHL_CASE_CACHE_PATH:-/tmp/alter-uhl-cache/uhl_cases.sqlite3}"
+    export UHL_CASE_CACHE_SEED_PATH="${UHL_CASE_CACHE_SEED_PATH:-/home/data/cache/uhl_cases.sqlite3}"
+    export PREWARM_UHL_CACHE_ON_STARTUP="${PREWARM_UHL_CACHE_ON_STARTUP:-true}"
+fi
+
 if [ -z "${BACKEND_BIND_HOST:-}" ]; then
     if [ "${LOCAL_CREDENTIALED_RESEARCH:-false}" = "true" ] && [ "${IS_AZURE_APP_SERVICE}" != "true" ]; then
         export BACKEND_BIND_HOST="127.0.0.1"

@@ -60,28 +60,35 @@ the app is configured to refuse (fail closed) in patient-data mode.
   only (`AUTH_PROVIDER=demo`), and is disabled in patient-data mode.
 
 ### 2.2 App-level RBAC (`app/security/authz.py`)
-Six roles with a least-privilege permission matrix:
+Six active roles use explicit, least-privilege capabilities:
 
-| Permission | nurse | ed_doctor | clin_supervisor | researcher | security_admin | gov_auditor |
-|---|---|---|---|---|---|---|
-| view_case | ✓ | ✓ | ✓ | ✓ | | |
-| view_clinical_content | ✓ | ✓ | ✓ | | | |
-| run_assessment | ✓ | ✓ | ✓ | ✓ | | |
-| submit_review | ✓ | ✓ | ✓ | | | |
-| ask_chatbot | | | | | ✓ | |
-| view_model_performance | | ✓ | ✓ | ✓ | | ✓ |
-| view_audit_log | | | ✓ | | ✓ | ✓ |
-| view_security_status | | | | | ✓ | |
-| export_deidentified | | | | ✓ | | |
-| export_identifiable | | | | | ✓ | |
+| Role | Clinical/system responsibility | Principal permissions |
+|---|---|---|
+| `ed_nurse` | Record and repeat observations; provide requested information | `can_record_vitals`, `can_update_vitals`, `can_provide_requested_information`, `can_acknowledge_overdue_vitals` |
+| `triage_nurse` | Run/review AI-supported triage and make the initial triage decision | `can_run_triage_assessment`, `can_review_ai_prediction`, `can_accept_acuity`, `can_override_acuity`, `can_request_information`, `can_escalate_case` |
+| `ed_doctor` | Final escalation review and ordinary patient disposition | `can_review_escalation`, `can_resolve_escalation`, `can_request_information`, `can_close_case`, plus read-only model evidence |
+| `researcher` | De-identified research/model analysis | `can_view_model_performance`, `can_export_deidentified` |
+| `security_admin` (ITD) | Controlled system/security/audit administration in this demo | all explicit application capabilities, including retraining-data export |
+| `governance_auditor` | Read-only governance oversight | audit, workflow-history, and model-evidence viewing only |
 
-Key least-privilege decisions: a **triage_nurse** cannot access the Ask/chatbot
-surface; that capability is held by **security_admin**, displayed as **ITD** in
-the app. A **researcher** can export de-identified research outputs only (never
-identifiable patient data) and cannot submit clinical reviews. A
-**clinical_supervisor** has clinical oversight, audit visibility, and model
-performance summaries, while ITD has full controlled-system access for the
-research/demo environment.
+The ED Nurse cannot accept/override acuity or resolve escalation. The Triage
+Nurse and ED Doctor cannot record routine observations. The ED Doctor is the
+final clinical escalation authority. The retired supervisor value is retained
+only as readable historical audit data; it cannot be assigned to a new user or
+used for a new action.
+
+The ITD free-text assistant is unavailable to clinical roles. A researcher can
+export de-identified research outputs only and cannot submit clinical actions.
+The exact permission and visible-tab sets are defined once in `authz.py` and are
+verified against the packaged frontend role fixture by automated tests.
+
+The ITD assistant's optional Foundry call receives only the question and an
+allowlisted audit-field/query-language description. It does not receive audit
+rows, patient content, credentials, SQL, filesystem access or write tools. The
+backend validates the returned read-only plan, calculates all figures over
+redacted evidence, caps result sizes, and records the planner/outcome using a
+question hash rather than retaining the free-text question. Facts not represented
+in the audit schema are reported as unavailable instead of being approximated.
 
 ### 2.3 Agent Security Gateway (`app/security/agent_gateway.py`)
 The four LLM agents (Intake, Validation, SafetyReview, Explanation) are **read-only
@@ -253,7 +260,7 @@ should back this with a shared store (e.g. Redis).
 
 ## 9. Environment-variable profiles
 
-**Public research demo (supervisor demo; public/demo data only):**
+**Public research demo (role-switcher demo; public/demo data only):**
 
 | Var | Value |
 |---|---|
@@ -304,7 +311,7 @@ Never set `CORS_ALLOWED_ORIGINS=*`.
   **retention period** and, where available, immutable/tamper-resistant storage
   (e.g. append-only / WORM, or Log Analytics with retention).
 - Who may read audit logs is governed by RBAC (`view_audit_log`:
-  clinical_supervisor, security_admin, governance_auditor).
+  security_admin and governance_auditor).
 
 ### 10.3 Incident response (process, owned by hospital + research lead)
 - Defined breach/incident response process and on-call contact.

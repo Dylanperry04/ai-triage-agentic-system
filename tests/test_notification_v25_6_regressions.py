@@ -5,7 +5,7 @@ from dataclasses import replace
 
 import pytest
 
-from app.notifications.models import NotificationRecord
+from app.notifications.models import NotificationRecord, ScheduleRecord, utc_iso
 from app.notifications.worker import SmsSubmissionResult, dispatch_notification
 from tests.test_notification_adversarial import _MemoryTableClient, _settings
 from app.notifications.repository import (
@@ -38,7 +38,7 @@ def _queued_record(case_uid: str = "former-canary") -> NotificationRecord:
         kind="escalation",
         case_uid=case_uid,
         event_key="2026-08-14T12:01:00Z",
-        target_role="clinical_supervisor",
+        target_role="ed_doctor",
         title="Escalation awaiting review",
         body="This case needs review.",
         created_at="2026-08-14T12:01:00Z",
@@ -78,6 +78,34 @@ def test_current_allowlist_revocation_cancels_previously_eligible_work(
     assert current.cancel_reason == "rollout_policy_revoked"
     assert current.attempt_count == 0
     assert current.claim_owner == ""
+
+
+@pytest.mark.parametrize("repository_kind", ["sqlite", "azure_table"])
+def test_demo_reset_deactivates_notifications_and_schedules_on_both_backends(
+    tmp_path, repository_kind
+):
+    repository = _repository(tmp_path, repository_kind)
+    record = _queued_record("reset-case")
+    repository.create_notification(record)
+    schedule = ScheduleRecord.create(
+        case_uid="reset-case", reference_at=utc_iso(), due_minutes=210,
+        target_role="ed_nurse", sms_eligible=True,
+    )
+    repository.upsert_schedule(schedule)
+
+    result = repository.reset_demo_state(
+        now=utc_iso(),
+        archive_path=(tmp_path / "notification-backup.sqlite3")
+        if repository_kind == "sqlite" else None,
+    )
+
+    assert result["notifications_deactivated"] == 1
+    assert result["schedules_deactivated"] == 1
+    assert repository.list_notifications(
+        roles=["ed_doctor"], user_id="doctor", limit=10
+    ) == []
+    assert repository.get_schedule(schedule.schedule_id).active is False
+    assert repository.get_notification(record.notification_id).sms_state == "cancelled"
 
 
 class _PolicyRevokedImmediatelyBeforeSend:

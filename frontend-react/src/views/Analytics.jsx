@@ -20,6 +20,8 @@ export default function Analytics() {
   const [base, setBase] = useState(null);           // unfiltered window query (for donut + KPIs)
   const [drilled, setDrilled] = useState(null);     // server-filtered query for the drill panels
   const [err, setErr] = useState(null);
+  const [trendCaseUid, setTrendCaseUid] = useState("");
+  const [trendVital, setTrendVital] = useState("");
 
   const startUtc = useMemo(() => { const d = new Date(); d.setUTCDate(d.getUTCDate() - RANGES[range]); return d.toISOString(); }, [range]);
 
@@ -66,14 +68,34 @@ export default function Analytics() {
      workflow run and the workflow-state rows for the same event, so a single
      override could be listed two or three times. */
   const overrides = useMemo(() => ((active?.entries) || [])
-    .filter((e) => e.record_kind === "human_review"
-      /* Must match the Overrides KPI exactly. override_status is "yes" whenever
-         an override_reason exists, which an UNCERTAIN review also carries, so
-         this list showed rows the KPI (correctly) excludes — the panel and the
-         number above it disagreed about the same window. */
-      && String(e.decision_type || "").toUpperCase() === "OVERRIDDEN"
-      && e.clinician_acuity != null), [active]);
+    .filter((e) => {
+      if (e.record_kind !== "human_review" || e.clinician_acuity == null) return false;
+      const status = String(e.decision_type || "").toUpperCase();
+      if (status === "OVERRIDDEN") {
+        return e.system_acuity == null || Number(e.system_acuity) !== Number(e.clinician_acuity);
+      }
+      /* ESCALATION_RESOLVED is used for both "confirm" and "change". It is an
+         override only when the ED Doctor's final value differs from the exact
+         linked system assessment. */
+      return status === "ESCALATION_RESOLVED"
+        && e.system_acuity != null
+        && Number(e.system_acuity) !== Number(e.clinician_acuity);
+    }), [active]);
   const escWork = base?.aggregations?.escalation_worklist || [];
+  const patientTrends = base?.aggregations?.patient_trends || [];
+  const trendSummary = base?.aggregations?.patient_trend_summary || {};
+  const selectedTrend = patientTrends.find((row) => row.case_uid === trendCaseUid) || patientTrends[0] || null;
+  const selectedVital = selectedTrend?.vital_series?.find((row) => row.field === trendVital) || selectedTrend?.vital_series?.[0] || null;
+
+  useEffect(() => {
+    if (!patientTrends.length) { setTrendCaseUid(""); return; }
+    if (!patientTrends.some((row) => row.case_uid === trendCaseUid)) setTrendCaseUid(patientTrends[0].case_uid);
+  }, [base, trendCaseUid]);
+  useEffect(() => {
+    const series = selectedTrend?.vital_series || [];
+    if (!series.length) { setTrendVital(""); return; }
+    if (!series.some((row) => row.field === trendVital)) setTrendVital(series[0].field);
+  }, [selectedTrend?.case_uid, trendVital]);
 
   const clearDrill = () => { setDrillCat(null); setDrillRole(null); };
 
@@ -109,6 +131,39 @@ export default function Analytics() {
             <KPI label="Discharged / closed" value={s.discharged_cases} accent={T.blue} />
             <KPI label="Overdue vitals alerts" value={s.overdue_vitals_alerts} accent="#8A4B00" />
           </div>
+          <Card style={{ padding: 16, marginTop: 14 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 800 }}>Patient observation and advisory trends</div>
+                <div style={{ fontSize: 12.5, color: T.slate, marginTop: 3 }}>Reconstructed from timestamped reassessment audit records. Lower acuity numbers mean a more urgent model estimate.</div>
+              </div>
+              <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
+                {[["Improving", trendSummary.improving, "#2E7D32"], ["Deteriorating", trendSummary.deteriorating, T.red], ["Unchanged", trendSummary.unchanged, T.blue], ["Insufficient data", trendSummary.insufficient_data, T.grey500]].map(([label, value, colour]) => <span key={label} style={{ fontSize: 11.5, fontWeight: 700, color: colour, background: "#F5F7F7", border: `1px solid ${T.borderSoft}`, borderRadius: 999, padding: "4px 8px" }}>{label}: {value || 0}</span>)}
+              </div>
+            </div>
+            {!selectedTrend ? <EmptyState>No reassessment history exists in this time window yet. Trends appear after an ED Nurse records repeat observations.</EmptyState> : <>
+              <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
+                <select aria-label="Patient trend" value={selectedTrend.case_uid} onChange={(e) => setTrendCaseUid(e.target.value)} style={{ minWidth: 260, flex: 1, fontFamily: T.font, fontSize: 13, padding: "8px 10px", borderRadius: 8, border: `1px solid ${T.border}`, background: T.surface }}>
+                  {patientTrends.map((row) => <option key={row.case_uid} value={row.case_uid}>{patientWithEncounter(row)} · {row.reassessment_count} reassessment{row.reassessment_count === 1 ? "" : "s"}</option>)}
+                </select>
+                <select aria-label="Vital trend" value={selectedVital?.field || ""} onChange={(e) => setTrendVital(e.target.value)} disabled={!selectedTrend.vital_series?.length} style={{ minWidth: 190, fontFamily: T.font, fontSize: 13, padding: "8px 10px", borderRadius: 8, border: `1px solid ${T.border}`, background: T.surface }}>
+                  {(selectedTrend.vital_series || []).map((row) => <option key={row.field} value={row.field}>{row.label}</option>)}
+                </select>
+              </div>
+              <div style={{ fontSize: 12.5, fontWeight: 700, marginTop: 10, color: selectedTrend.latest_direction === "deteriorating" ? T.red : selectedTrend.latest_direction === "improving" ? "#2E7D32" : T.slate }}>Latest model-advisory direction: {String(selectedTrend.latest_direction).replace(/_/g, " ")}</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 14, marginTop: 10 }}>
+                <div style={{ border: `1px solid ${T.borderSoft}`, borderRadius: 10, padding: "10px 10px 2px" }}>
+                  <Eyebrow>Model acuity estimate over reassessments</Eyebrow>
+                  {selectedTrend.advisory_acuity_series?.length ? <div style={{ height: 210 }}><ResponsiveContainer><LineChart data={selectedTrend.advisory_acuity_series} margin={{ left: -20, right: 12, top: 12, bottom: 4 }}><CartesianGrid stroke={T.borderSoft} vertical={false} /><XAxis dataKey="sequence" tick={{ fontSize: 11 }} label={{ value: "Reassessment sequence", position: "insideBottom", offset: -1, fontSize: 10 }} /><YAxis domain={[1, 5]} ticks={[1, 2, 3, 4, 5]} reversed allowDecimals={false} tick={{ fontSize: 11 }} /><Tooltip formatter={(v) => [`Acuity ${v}`, "Model estimate"]} labelFormatter={(v) => `Sequence ${v}`} /><Line type="linear" dataKey="acuity" stroke={T.green700} strokeWidth={2.5} dot={{ r: 4 }} /></LineChart></ResponsiveContainer></div> : <EmptyState>No comparable numeric advisory estimates were recorded.</EmptyState>}
+                </div>
+                <div style={{ border: `1px solid ${T.borderSoft}`, borderRadius: 10, padding: "10px 10px 2px" }}>
+                  <Eyebrow>{selectedVital ? `${selectedVital.label} (${selectedVital.unit})` : "Recorded vital changes"}</Eyebrow>
+                  {selectedVital?.points?.length ? <div style={{ height: 210 }}><ResponsiveContainer><LineChart data={selectedVital.points} margin={{ left: -5, right: 12, top: 12, bottom: 4 }}><CartesianGrid stroke={T.borderSoft} vertical={false} /><XAxis dataKey="sequence" tick={{ fontSize: 11 }} label={{ value: "Reassessment sequence", position: "insideBottom", offset: -1, fontSize: 10 }} /><YAxis domain={["auto", "auto"]} tick={{ fontSize: 11 }} /><Tooltip formatter={(v) => [`${v} ${selectedVital.unit}`, selectedVital.label]} labelFormatter={(v) => `Sequence ${v}`} /><Line type="linear" dataKey="value" stroke={T.blue} strokeWidth={2.5} dot={{ r: 4 }} /></LineChart></ResponsiveContainer></div> : <EmptyState>No numeric vital changes were available for this reassessment.</EmptyState>}
+                </div>
+              </div>
+              <div style={{ fontSize: 11.5, color: "#8A4B00", background: T.yellow50, border: "1px solid #EEDD9A", borderRadius: 8, padding: "8px 10px", marginTop: 10, lineHeight: 1.5 }}><b>Advisory only:</b> “Improving” and “deteriorating” describe movement in the recorded model acuity estimate. They are not diagnoses, outcomes, or a substitute for clinical review.</div>
+            </>}
+          </Card>
           {(drillCat || drillRole) && (
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
               <span style={{ fontSize: 12.5, fontWeight: 700, color: T.slate }}>Drilled into:</span>

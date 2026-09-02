@@ -202,7 +202,7 @@ def get_governance_report():
                 "Default and only prediction dataset is full MIMIC-IV-ED v2.2 "
                 "(credentialed), read from MIMIC_FULL_ED_DIR on an approved "
                 "environment. Synthetic MIMIC-shaped fixtures are used only for "
-                "tests and the Azure supervisor demo, never as a clinical or "
+                "tests and the Azure role-switcher demo, never as a clinical or "
                 "patient-data source."
             ),
             "scope": (

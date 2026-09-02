@@ -58,7 +58,7 @@ def test_governance_report_endpoint_returns_required_shape(monkeypatch, tmp_path
     monkeypatch.delenv("RULESET_DRIVEN_TRIAGE_ENABLED", raising=False)
     monkeypatch.setattr("app.config.settings.processed_dir", tmp_path)
     client = TestClient(app)
-    r = client.get("/governance/report", headers={"X-Demo-Role": "clinical_supervisor"})
+    r = client.get("/governance/report", headers={"X-Demo-Role": "governance_auditor"})
     assert r.status_code == 200
     payload = r.json()
     assert isinstance(payload, dict)
@@ -78,7 +78,7 @@ def test_governance_report_blocks_on_manchester_only_when_ruleset_mode_claimed(m
     monkeypatch.setenv("REQUIRE_CLINICIAN_APPROVED_RULESET", "true")
     monkeypatch.setattr("app.config.settings.processed_dir", tmp_path)
     client = TestClient(app)
-    r = client.get("/governance/report", headers={"X-Demo-Role": "clinical_supervisor"})
+    r = client.get("/governance/report", headers={"X-Demo-Role": "governance_auditor"})
     assert r.status_code == 200
     payload = r.json()
     issues = " ".join(payload["blocking_issues"]).lower()
@@ -107,7 +107,7 @@ def test_governance_report_uses_model_report_dir_fallback(monkeypatch, tmp_path)
     monkeypatch.setattr("app.config.settings.processed_dir", tmp_path / "processed")
 
     client = TestClient(app)
-    r = client.get("/governance/report", headers={"X-Demo-Role": "clinical_supervisor"})
+    r = client.get("/governance/report", headers={"X-Demo-Role": "governance_auditor"})
     assert r.status_code == 200
     controls = r.json()["controls"]
     assert controls["full_mimic_schema_report"]["status"] == "PASS"
@@ -118,7 +118,7 @@ def test_governance_report_uses_model_report_dir_fallback(monkeypatch, tmp_path)
 
 def test_audit_records_endpoint_returns_backend_record_shape(monkeypatch, tmp_path):
     monkeypatch.setenv("LOCAL_CREDENTIALED_RESEARCH", "true")
-    monkeypatch.setenv("LOCAL_RESEARCH_ROLE", "clinical_supervisor")
+    monkeypatch.setenv("LOCAL_RESEARCH_ROLE", "governance_auditor")
     monkeypatch.setenv("PSEUDONYM_SECRET", "test-pseudonym-secret")
     monkeypatch.setenv("LOCAL_CREDENTIALED_OUTPUT_DIR", str(tmp_path / "out"))
     monkeypatch.setattr("app.config.settings.processed_dir", tmp_path / "repo_processed")
@@ -138,7 +138,7 @@ def test_governance_wandb_logging_goes_through_backend(monkeypatch):
     monkeypatch.delenv("LOCAL_CREDENTIALED_RESEARCH", raising=False)
     monkeypatch.delenv("WANDB_API_KEY", raising=False)
     client = TestClient(app)
-    headers = {"X-Demo-Role": "clinical_supervisor"}
+    headers = {"X-Demo-Role": "security_admin"}
     status = client.get("/governance/wandb-status", headers=headers)
     assert status.status_code == 200
     assert "available" in status.json()

@@ -59,7 +59,9 @@ def _gone():
     )
 
 
-@router.post("/review/submit", dependencies=[Depends(requires(authz.PERM_SUBMIT_REVIEW, "submit_review"))])
+@router.post("/review/submit", dependencies=[Depends(requires(
+    authz.PERM_ACCEPT_ACUITY, "submit_legacy_review"
+))])
 def submit_human_review(request: HumanReviewRequest):
     _gone()
 

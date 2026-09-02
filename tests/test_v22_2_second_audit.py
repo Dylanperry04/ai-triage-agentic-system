@@ -55,9 +55,11 @@ class TestExplanationLengthIsActuallyBounded:
         out = condense_explanation(huge)
         assert len(out) <= MAX_EXPLANATION_CHARS + 1
 
-    def test_compliant_text_is_untouched(self):
+    def test_body_receives_the_required_plain_language_opening(self):
         good = " ".join(f"Finding number {i} is recorded." for i in range(1, 5))
-        assert condense_explanation(good) == good
+        assert condense_explanation(good).startswith(
+            "The main reason this acuity level was suggested was "
+        )
 
     def test_sentence_cap_still_applies(self):
         many = " ".join(f"Sentence {i} here." for i in range(1, 12))
@@ -119,8 +121,8 @@ class TestAgentTurnsGetTheSameTreatmentAsTheSummary:
                 "safety_failures": [],
             },
         )
-        turn_text = dto["agent_turns"][0]["text"]
-        assert "aspirin" not in turn_text.lower(), "directive advice reached the clinician"
+        assert "agent_turns" not in dto, "internal agent transcripts reached the clinician"
+        assert "aspirin" not in dto["final_explanation"].lower()
         assert dto["safety_failures"], "the finding must be recorded, not silently dropped"
 
     def test_safe_turns_survive_but_are_length_capped(self):
@@ -132,5 +134,5 @@ class TestAgentTurnsGetTheSameTreatmentAsTheSummary:
                          "agent_turns": [{"agent": "Validation", "text": long_turn}],
                          "safety_failures": []},
         )
-        assert len(dto["agent_turns"][0]["text"]) <= MAX_EXPLANATION_CHARS + 1
-        assert "heart rate" in dto["agent_turns"][0]["text"].lower()
+        assert "agent_turns" not in dto
+        assert len(dto["final_explanation"]) <= MAX_EXPLANATION_CHARS + 1

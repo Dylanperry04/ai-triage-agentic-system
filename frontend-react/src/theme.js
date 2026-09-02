@@ -59,9 +59,9 @@ export const patientWithEncounter = (c) => {
 };
 
 export const ROLE_META = {
+  ed_nurse:           { icon: "Activity",    blurb: "Patient observations & requested information" },
   triage_nurse:       { icon: "HeartPulse",  blurb: "Front-line triage decisions" },
   ed_doctor:          { icon: "Stethoscope", blurb: "Senior review & escalations" },
-  clinical_supervisor:{ icon: "Users",       blurb: "Oversight & audit dashboards" },
   researcher:         { icon: "FlaskConical",blurb: "Aggregate model evidence" },
   security_admin:     { icon: "ShieldCheck", blurb: "ITD — security & governance" },
   governance_auditor: { icon: "ScrollText",  blurb: "Read-only governance audit" },
@@ -70,20 +70,20 @@ export const ROLE_META = {
 /* Configured staff personas for the role-selector profile. Sent as X-Demo-User
    so audit entries are attributed to the selected staff member. */
 export const DEMO_STAFF = {
-  triage_nurse: [
-    { name: "Sinéad Hartigan", grade: "CNM1, Emergency Dept" },
+  ed_nurse: [
     { name: "Dara Ó Cinnéide", grade: "Staff Nurse, ED" },
     { name: "Roisín Culhane", grade: "Staff Nurse, ED" },
     { name: "Marcus Adeyemi", grade: "Staff Nurse, ED" },
+  ],
+  triage_nurse: [
+    { name: "Sinéad Hartigan", grade: "CNM1, Emergency Dept" },
+    { name: "Orlaith Keane", grade: "Triage Nurse, ED" },
+    { name: "Fergal O'Mahony", grade: "Triage Nurse, ED" },
   ],
   ed_doctor: [
     { name: "Prof. Éilis Moloney", grade: "Consultant in EM" },
     { name: "Tomás Gleeson", grade: "Consultant in EM" },
     { name: "Priya Raghavan", grade: "Consultant in EM" },
-  ],
-  clinical_supervisor: [
-    { name: "Bernadette Ryan-Frawley", grade: "CNM3, ED" },
-    { name: "Colm Stack", grade: "ADON, ED Directorate" },
   ],
   researcher: [
     { name: "Fionnuala Meade", grade: "Clinical Data Science" },

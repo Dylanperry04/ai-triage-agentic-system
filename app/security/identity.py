@@ -29,14 +29,14 @@ from typing import List, Optional, Protocol
 
 # ── Internal role model ─────────────────────────────────────────────────────
 ROLE_TRIAGE_NURSE = "triage_nurse"
+ROLE_ED_NURSE = "ed_nurse"
 ROLE_ED_DOCTOR = "ed_doctor"
-ROLE_CLINICAL_SUPERVISOR = "clinical_supervisor"
 ROLE_RESEARCHER = "researcher"
 ROLE_SECURITY_ADMIN = "security_admin"
 ROLE_GOVERNANCE_AUDITOR = "governance_auditor"
 
 ALL_ROLES = {
-    ROLE_TRIAGE_NURSE, ROLE_ED_DOCTOR, ROLE_CLINICAL_SUPERVISOR,
+    ROLE_ED_NURSE, ROLE_TRIAGE_NURSE, ROLE_ED_DOCTOR,
     ROLE_RESEARCHER, ROLE_SECURITY_ADMIN, ROLE_GOVERNANCE_AUDITOR,
 }
 
@@ -71,9 +71,9 @@ class AuthContextProvider(Protocol):
 # Maps identity-provider group names / app roles to internal roles. The mapping
 # is intentionally explicit and configurable; unknown groups grant NO role.
 DEFAULT_GROUP_ROLE_MAP = {
+    "ed-nurses": ROLE_ED_NURSE,
     "triage-nurses": ROLE_TRIAGE_NURSE,
     "ed-doctors": ROLE_ED_DOCTOR,
-    "clinical-supervisors": ROLE_CLINICAL_SUPERVISOR,
     "researchers": ROLE_RESEARCHER,
     "security-admins": ROLE_SECURITY_ADMIN,
     "governance-auditors": ROLE_GOVERNANCE_AUDITOR,
@@ -87,8 +87,12 @@ def map_groups_to_roles(groups: List[str], group_role_map: Optional[dict] = None
     roles = []
     for g in groups or []:
         key = str(g).strip().lower()
-        if key in m and m[key] not in roles:
-            roles.append(m[key])
+        mapped = m.get(key)
+        # Removed/unknown roles fail closed even if a stale deployment-specific
+        # mapping still mentions them. Historical audit rows remain readable;
+        # this boundary controls only roles that may be assigned now.
+        if mapped in ALL_ROLES and mapped not in roles:
+            roles.append(mapped)
     return roles
 
 
@@ -423,6 +427,8 @@ def resolve_auth_context(request_headers: Optional[dict] = None) -> AuthContext:
     # pretending it is the hospital production auth boundary.
     if local_credentialed_research_mode():
         role = os.environ.get("LOCAL_RESEARCH_ROLE", ROLE_TRIAGE_NURSE)
+        if role not in ALL_ROLES:
+            role = ROLE_TRIAGE_NURSE
         return LocalStubProvider(
             demo_roles=[role],
             source="local_fixed_role",
@@ -459,7 +465,9 @@ def resolve_auth_context(request_headers: Optional[dict] = None) -> AuthContext:
         )
     if not demo_role:
         demo_role = os.environ.get("DEMO_ROLE") or None
-    roles = [demo_role] if demo_role else None
+    # Never reflect an arbitrary/retired client-supplied role into an effective
+    # session. Unknown roles receive the normal read-only demo default instead.
+    roles = [demo_role] if demo_role in ALL_ROLES else None
     if azure_supervisor_demo_mode():
         ctx = LocalStubProvider(
             demo_roles=roles,
@@ -467,7 +475,7 @@ def resolve_auth_context(request_headers: Optional[dict] = None) -> AuthContext:
             display_name=(
                 f"{demo_user} (demo persona - not real auth)"
                 if demo_user
-                else "AZURE SUPERVISOR DEMO USER (not real auth)"
+                else "AZURE ROLE-SWITCHER DEMO USER (not real auth)"
             ),
         ).get_context(request_headers)
         if demo_user:

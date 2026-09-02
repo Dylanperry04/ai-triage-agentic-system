@@ -57,7 +57,7 @@ def auth_session(ctx: AuthContext = Depends(get_auth_context)) -> Dict[str, Any]
     demo_role_switcher_available = demo_role_switcher_allowed()
     if demo_role_switcher_available and azure_demo:
         demo_role_switcher_label = (
-            "Demo role selector - not real authentication (Azure supervisor demo)"
+            "Demo role selector - not real authentication (Azure role-switcher demo)"
         )
     elif demo_role_switcher_available:
         demo_role_switcher_label = "Demo role selector - not real authentication"
@@ -75,7 +75,7 @@ def auth_session(ctx: AuthContext = Depends(get_auth_context)) -> Dict[str, Any]
     elif os.environ.get("TRUSTED_AUTH_PROXY", "").lower() == "true":
         demo_role_switcher_reason = "disabled behind trusted authentication proxy"
     elif demo_role_switcher_available:
-        demo_role_switcher_reason = "enabled for public/supervisor demo only"
+        demo_role_switcher_reason = "enabled for the public role-switcher demo only"
     else:
         demo_role_switcher_reason = "disabled by configuration"
     return {
@@ -89,8 +89,8 @@ def auth_session(ctx: AuthContext = Depends(get_auth_context)) -> Dict[str, Any]
         "demo_role_switcher_label": demo_role_switcher_label,
         "demo_role_switcher_reason": demo_role_switcher_reason,
         "local_role_change_instruction": (
-            "Set LOCAL_RESEARCH_ROLE to triage_nurse, ed_doctor, "
-            "clinical_supervisor, researcher, security_admin, or "
+            "Set LOCAL_RESEARCH_ROLE to ed_nurse, triage_nurse, ed_doctor, "
+            "researcher, security_admin, or "
             "governance_auditor, then restart FastAPI and Streamlit."
             if local_research
             else ""
@@ -102,7 +102,7 @@ def auth_session(ctx: AuthContext = Depends(get_auth_context)) -> Dict[str, Any]
             if patient
             else "local_credentialed_research"
             if local_research
-            else "azure_supervisor_demo"
+            else "azure_role_switcher_demo"
             if azure_demo
             else "public_demo"
         ),

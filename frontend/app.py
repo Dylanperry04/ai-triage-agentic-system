@@ -337,11 +337,11 @@ def render_workflow_state_banner(record: dict) -> None:
     if state.get("escalation_required"):
         st.error(
             "Escalation pending: "
-            f"{state.get('escalation_reason') or 'supervisor/doctor review required.'}"
+            f"{state.get('escalation_reason') or 'ED Doctor review required.'}"
         )
         st.caption(
             "Target role: "
-            f"{state.get('escalation_target_role') or 'clinical_supervisor'}; "
+            f"{state.get('escalation_target_role') or 'ed_doctor'}; "
             f"status: {state.get('escalation_status') or 'pending'}"
         )
         return
@@ -1415,8 +1415,8 @@ st.caption("Backend-driven ED acuity workflow.")
 from frontend import api_client as _session_api_client
 
 PERM_VIEW_CASE = "can_view_case"
-PERM_RUN_ASSESSMENT = "can_run_assessment"
-PERM_SUBMIT_REVIEW = "can_submit_review"
+PERM_RUN_ASSESSMENT = "can_run_triage_assessment"
+PERM_SUBMIT_REVIEW = "can_accept_acuity"
 PERM_VIEW_WORKFLOW_QUEUE = "can_view_workflow_queue"
 PERM_ASK_CHATBOT = "can_ask_chatbot"
 PERM_VIEW_AUDIT_LOG = "can_view_audit_log"
@@ -1627,7 +1627,7 @@ def _render_triage_review_submission(
         return
     _roles = set(auth_session.get("roles") or [])
     _can_resolve_escalation = bool(
-        _roles.intersection({"ed_doctor", "clinical_supervisor", "security_admin"})
+        _roles.intersection({"ed_doctor", "security_admin"})
     )
     _escalation_state = str(
         workflow_state.get("escalation_state") or workflow_state.get("escalation_status") or ""
@@ -1655,7 +1655,7 @@ def _render_triage_review_submission(
                           key=f"role_ro_{key_prefix}_{case_uid}")
         else:
             c1.selectbox("Reviewer role",
-                         ["triage_nurse", "ed_doctor", "clinical_supervisor", "researcher"],
+                         ["triage_nurse", "ed_doctor", "researcher"],
                          key=f"role_{key_prefix}_{case_uid}")
         review_status = c2.selectbox(
             "Review decision",
@@ -1672,7 +1672,7 @@ def _render_triage_review_submission(
         )
         target_role = st.selectbox(
             "Escalation target",
-            ["clinical_supervisor", "ed_doctor"],
+            ["ed_doctor"],
             key=f"target_role_{key_prefix}_{case_uid}",
         )
         if st.form_submit_button(" Save Review State"):
@@ -3008,7 +3008,7 @@ with st.sidebar:
                 _mode_label = {
                     "secured_research": "Secured research",
                     "local_credentialed_research": "Local credentialed research",
-                    "azure_supervisor_demo": "Supervisor review",
+                    "azure_role_switcher_demo": "Role-switcher demo",
                     "public_demo": "Public review",
                 }.get(_ss.get("current_mode"), str(_ss.get("current_mode", "unknown")))
                 st.markdown(f"**Mode:** {_mode_label}")

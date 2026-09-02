@@ -40,28 +40,28 @@ app = _appmain.app
 
 # The review routes now enforce RBAC server-side. These tests exercise the route
 # logic (validation, source_dataset threading), so the client carries a verified
-# clinical_supervisor identity (can submit/view reviews) and runs behind a
+# security_admin identity (can inspect retired compatibility routes) and runs behind a
 # trusted proxy. A separate suite (test_api_auth_boundary.py) covers the
 # auth/RBAC behaviour itself.
 import base64 as _b64
 import json as _json
 
 
-def _supervisor_principal():
+def _admin_principal():
     claims = [
-        {"typ": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier", "val": "test-supervisor"},
-        {"typ": "name", "val": "Test Supervisor"},
-        {"typ": "groups", "val": "clinical-supervisors"},
+        {"typ": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier", "val": "test-admin"},
+        {"typ": "name", "val": "Test ITD Admin"},
+        {"typ": "groups", "val": "security-admins"},
     ]
     return _b64.b64encode(_json.dumps({"claims": claims}).encode()).decode()
 
 
-client = TestClient(app, headers={"X-MS-CLIENT-PRINCIPAL": _supervisor_principal()})
+client = TestClient(app, headers={"X-MS-CLIENT-PRINCIPAL": _admin_principal()})
 
 
 @pytest.fixture(autouse=True)
 def _trusted_proxy_for_review_tests(monkeypatch):
-    """The supervisor header is only trusted behind a trusted proxy."""
+    """The ITD admin header is only trusted behind a trusted proxy."""
     monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
 
 

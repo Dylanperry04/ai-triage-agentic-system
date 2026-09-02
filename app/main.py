@@ -40,10 +40,48 @@ def _overdue_vitals_sweeper_enabled() -> bool:
     raw = _os.environ.get("ENABLE_OVERDUE_VITALS_SWEEPER")
     if raw is not None:
         return raw.lower() == "true"
-    # Patient-data deployments need server-side notification creation. Local
-    # tests/demo runs keep it off unless explicitly enabled to avoid background
-    # mutations during deterministic test execution.
-    return _os.environ.get("PATIENT_DATA_MODE", "").lower() == "true"
+    # Patient-data and the explicit Azure role-switcher demo both need alerts to
+    # be created independently of whichever clinical browser happens to be open.
+    # Plain local/unit-test runs remain mutation-free unless explicitly enabled.
+    return any(
+        _os.environ.get(name, "").lower() == "true"
+        for name in (
+            "PATIENT_DATA_MODE", "AZURE_SUPERVISOR_DEMO_MODE",
+            "ALLOW_DEMO_ROLE_SWITCHER",
+        )
+    )
+
+
+def _monthly_retraining_exports_enabled() -> bool:
+    """Enable scheduled export preparation in deployed profiles, not unit tests."""
+    raw = _os.environ.get("ENABLE_MONTHLY_RETRAINING_EXPORTS")
+    if raw is not None:
+        return raw.lower() == "true"
+    return any(
+        _os.environ.get(name, "").lower() == "true"
+        for name in (
+            "PATIENT_DATA_MODE", "AZURE_SUPERVISOR_DEMO_MODE",
+            "ALLOW_DEMO_ROLE_SWITCHER",
+        )
+    )
+
+
+async def _to_thread_and_finish_on_cancel(function, /, *args, **kwargs):
+    """Run blocking background work without abandoning it during shutdown.
+
+    Cancelling ``asyncio.to_thread`` stops the awaiting coroutine but cannot
+    stop the worker thread.  TestClient/App Service shutdown could therefore
+    remove or rotate SQLite files while a reconciliation thread was still
+    writing to them.  Shield the worker and, if the loop is cancelled, wait for
+    the bounded call to finish before allowing lifespan teardown to continue.
+    """
+    worker = asyncio.create_task(asyncio.to_thread(function, *args, **kwargs))
+    try:
+        return await asyncio.shield(worker)
+    except asyncio.CancelledError:
+        with suppress(asyncio.CancelledError, Exception):
+            await worker
+        raise
 
 
 @asynccontextmanager
@@ -51,6 +89,7 @@ async def _app_lifespan(app: FastAPI):
     task = None
     notification_task = None
     notification_backfill_task = None
+    monthly_retraining_task = None
     if _overdue_vitals_sweeper_enabled():
         try:
             interval = max(60, int(_os.environ.get("OVERDUE_VITALS_SWEEP_INTERVAL_SECONDS", "300")))
@@ -65,7 +104,9 @@ async def _app_lifespan(app: FastAPI):
             while True:
                 try:
                     from app.api.case_routes import sweep_overdue_vitals_once
-                    result = await asyncio.to_thread(sweep_overdue_vitals_once, limit=limit)
+                    result = await _to_thread_and_finish_on_cancel(
+                        sweep_overdue_vitals_once, limit=limit
+                    )
                     app.state.overdue_vitals_sweeper_status = {
                         "state": "complete", "last_success_at": datetime.now(timezone.utc).isoformat(),
                         "errors": len(result.get("errors") or []),
@@ -120,7 +161,9 @@ async def _app_lifespan(app: FastAPI):
                 from app.notifications.models import utc_iso
                 from app.notifications.service import reconcile_current_workflow_states
 
-                result = await asyncio.to_thread(reconcile_current_workflow_states, limit=50000)
+                result = await _to_thread_and_finish_on_cancel(
+                    reconcile_current_workflow_states, limit=50000
+                )
                 unresolved = int(result.get("failures") or 0) + int(
                     result.get("publication_failures") or 0
                 )
@@ -155,13 +198,55 @@ async def _app_lifespan(app: FastAPI):
 
     notification_backfill_task = asyncio.create_task(_backfill_notifications())
     app.state.notification_backfill_task = notification_backfill_task
+    if _monthly_retraining_exports_enabled():
+        try:
+            monthly_interval = max(
+                300,
+                min(int(_os.environ.get("MONTHLY_RETRAINING_CHECK_INTERVAL_SECONDS", "3600")), 86400),
+            )
+        except ValueError:
+            monthly_interval = 3600
+
+        async def _monthly_retraining_loop() -> None:
+            while True:
+                try:
+                    from app.retraining.monthly_export import reconcile_completed_month_exports
+                    reconciliation = await _to_thread_and_finish_on_cancel(
+                        reconcile_completed_month_exports
+                    )
+                    manifest = reconciliation["previous_month_manifest"]
+                    failures = reconciliation.get("failures", [])
+                    app.state.monthly_retraining_export_status = {
+                        "state": "degraded" if failures else "ready",
+                        "reporting_month": manifest.get("reporting_month"),
+                        "generated_at_utc": manifest.get("generated_at_utc"),
+                        "eligible_cases": manifest.get("eligible_cases", 0),
+                        "reconciled_months": reconciliation.get("reconciled_months", []),
+                        "reconciliation_failures": failures,
+                        "automatic_training": False,
+                    }
+                except Exception as exc:
+                    app.state.monthly_retraining_export_status = {
+                        "state": "retry_pending",
+                        "last_error_at": datetime.now(timezone.utc).isoformat(),
+                        "error": exc.__class__.__name__,
+                        "automatic_training": False,
+                    }
+                    _notification_logger.error(
+                        "monthly retraining export check failed error=%s",
+                        exc.__class__.__name__,
+                    )
+                await asyncio.sleep(monthly_interval)
+
+        monthly_retraining_task = asyncio.create_task(_monthly_retraining_loop())
+        app.state.monthly_retraining_export_task = monthly_retraining_task
     if notification_settings.sms_publish_enabled:
         async def _notification_loop() -> None:
             while True:
                 try:
                     from app.notifications.publisher import reconcile_outbox
 
-                    result = await asyncio.to_thread(
+                    result = await _to_thread_and_finish_on_cancel(
                         reconcile_outbox,
                         notification_repository,
                         notification_settings,
@@ -199,6 +284,10 @@ async def _app_lifespan(app: FastAPI):
             notification_backfill_task.cancel()
             with suppress(asyncio.CancelledError, Exception):
                 await notification_backfill_task
+        if monthly_retraining_task is not None:
+            monthly_retraining_task.cancel()
+            with suppress(asyncio.CancelledError, Exception):
+                await monthly_retraining_task
 
 
 app = FastAPI(
@@ -353,10 +442,12 @@ from app.api.case_routes import router as case_router
 from app.api.status_routes import router as status_router
 from app.api.session_routes import router as session_router
 from app.api.notification_routes import router as notification_router
+from app.api.retraining_routes import router as retraining_router
 app.include_router(case_router)
 app.include_router(status_router)
 app.include_router(session_router)
 app.include_router(notification_router)
+app.include_router(retraining_router)
 app.include_router(governance_router)
 
 # ── Legacy raw-ID routers (triage/review/explanation/chat/followup) ──────────

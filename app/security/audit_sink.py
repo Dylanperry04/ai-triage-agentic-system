@@ -172,6 +172,11 @@ class EncryptedDurableAuditSink:
                         )
                     )
                 except TypeError:
+                    if since_utc:
+                        raise AuditSinkReadError(
+                            "Durable audit client read_recent() does not accept "
+                            "the since_utc bound required for this read."
+                        )
                     raw_records = list(self.client.read_recent(limit))
             elif hasattr(self.client, "query_entities"):
                 query_filter = _audit_read_query_filter(

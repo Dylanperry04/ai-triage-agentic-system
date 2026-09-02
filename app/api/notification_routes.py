@@ -76,20 +76,23 @@ def list_notifications(
     )
     output = []
     for row in rows:
-        labels = _display_labels(str(row.get("case_uid") or ""))
+        kind = str(row.get("kind") or "")
+        system_notification = kind == "monthly_retraining"
+        labels = {} if system_notification else _display_labels(str(row.get("case_uid") or ""))
         label = labels.get("display_identifier") or labels.get("encounter_display_label") or "Case"
         body = str(row.get("body") or "")
         output.append({
             "notification_id": row.get("notification_id"),
-            "kind": "recheck" if row.get("kind") == "overdue_vitals" else row.get("kind"),
-            "case_uid": row.get("case_uid"),
-            "case_label": label,
+            "kind": "recheck" if kind == "overdue_vitals" else kind,
+            "case_uid": None if system_notification else row.get("case_uid"),
+            "case_label": "" if system_notification else label,
             "title": row.get("title"),
-            "body": f"{label} — {body}",
+            "body": body if system_notification else f"{label} — {body}",
             "created_at": row.get("created_at"),
             "event_key": row.get("event_key"),
             "event_time_ms": _event_time_ms(row.get("event_key")),
             "read": bool(row.get("is_read")),
+            "action": "open_itd_retraining" if system_notification else "open_case",
         })
     reconciliation = getattr(
         request.app.state, "notification_backfill_status", {"state": "unknown", "complete": False}
@@ -123,7 +126,9 @@ def mark_notification_read(
 @router.post("/{notification_id}/acknowledge")
 def acknowledge_notification(
     notification_id: str,
-    ctx: AuthContext = Depends(requires(authz.PERM_SUBMIT_REVIEW, "acknowledge_notification")),
+    ctx: AuthContext = Depends(requires(
+        authz.PERM_ACKNOWLEDGE_OVERDUE_VITALS, "acknowledge_notification"
+    )),
 ) -> dict[str, Any]:
     settings = NotificationSettings.from_env()
     repository = get_notification_repository(settings)

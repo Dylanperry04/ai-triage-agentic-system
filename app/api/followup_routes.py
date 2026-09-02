@@ -24,7 +24,9 @@ def _gone() -> None:
     )
 
 
-@router.post("/followup/link", dependencies=[Depends(requires(authz.PERM_RUN_ASSESSMENT, "followup_link"))])
+@router.post("/followup/link", dependencies=[Depends(requires(
+    authz.PERM_PROVIDE_REQUESTED_INFORMATION, "followup_link"
+))])
 def link_followup(link: FollowUpLinkRequest):
     _gone()
 

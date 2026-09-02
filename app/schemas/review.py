@@ -90,6 +90,8 @@ class HumanReviewRecord(BaseModel):
     model_config = {"protected_namespaces": ()}
 
     review_id: str
+    action_id: Optional[str] = None
+    workflow_run_id: Optional[str] = None
     # stay_id is accepted for internal use but redacted before persistence.
     stay_id: Optional[int] = None
     source_dataset: Optional[str] = None
@@ -111,6 +113,9 @@ class HumanReviewRecord(BaseModel):
     clinician_decision: Optional[str] = None
     clinician_override: Optional[str] = None
     override_reason: Optional[str] = None
+    previous_acuity: Optional[int] = None
+    final_clinician_acuity: Optional[int] = None
+    action_type: Optional[str] = None
     created_at_utc: str
     app_version: Optional[str] = None
     package_checkpoint: Optional[str] = None

@@ -21,9 +21,12 @@ Routes:
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import re
+import threading
 import uuid
+from functools import wraps
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
@@ -39,6 +42,31 @@ from app.agents.orchestrator import run_workflow
 
 router = APIRouter()
 _notification_logger = logging.getLogger("alter.notifications.workflow")
+_case_transition_locks_guard = threading.Lock()
+_case_transition_locks: Dict[str, threading.RLock] = {}
+
+
+def _case_transition_lock(case_uid: str) -> threading.RLock:
+    key = str(case_uid or "")
+    with _case_transition_locks_guard:
+        return _case_transition_locks.setdefault(key, threading.RLock())
+
+
+def _serialized_case_transition(function):
+    """Serialize one case's read-check-write transition in the demo process.
+
+    The supported Azure demo profile is one instance/one Uvicorn worker. This
+    makes the entire stale-run validation plus append sequence atomic in that
+    profile; the append-only JSONL file lock alone only protected individual
+    lines and allowed contradictory simultaneous decisions.
+    """
+    @wraps(function)
+    def wrapped(case_uid: str, *args, **kwargs):
+        from app.storage.demo_reset_coordination import demo_state_guard
+
+        with demo_state_guard(), _case_transition_lock(case_uid):
+            return function(case_uid, *args, **kwargs)
+    return wrapped
 
 
 def _sensitive_audit_mode() -> bool:
@@ -171,9 +199,9 @@ _ACTIVE_ESCALATION_STATES = {"requested", "confirmed"}
 _REQUESTED_ESCALATION_STATES = {"requested", "pending"}
 _TERMINAL_ESCALATION_STATES = {"rejected", "closed", "resolved"}
 _OVERDUE_VITALS_MINUTES = 210
-_ESCALATION_RESOLUTION_ROLES = {"ed_doctor", "clinical_supervisor", "security_admin"}
-_CASE_CLOSE_ROLES = {"ed_doctor", "clinical_supervisor", "security_admin"}
-_ESCALATION_TARGET_ROLES = {"ed_doctor", "clinical_supervisor"}
+_ESCALATION_RESOLUTION_ROLES = {"ed_doctor", "security_admin"}
+_CASE_CLOSE_ROLES = {"ed_doctor", "security_admin"}
+_ESCALATION_TARGET_ROLES = {"ed_doctor"}
 
 
 def _is_case_closed(state: Dict[str, Any]) -> bool:
@@ -215,22 +243,82 @@ def _ctx_role_set(ctx: AuthContext) -> set[str]:
     return {str(role) for role in (getattr(ctx, "roles", []) or [])}
 
 
-def _require_review_action_authorised(status: str, ctx: AuthContext) -> None:
+def _require_action_permission(
+    ctx: AuthContext,
+    permission: str,
+    action: str,
+    *,
+    case_uid: str | None = None,
+) -> None:
+    """Dynamically authorise body-dependent clinical actions and audit them."""
+    from app.security.guard import check_and_audit
+    allowed = check_and_audit(
+        ctx, permission, action, page="/cases/{case_uid}/clinical-action",
+        case_uid=case_uid,
+    )
+    if not allowed:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Role(s) {getattr(ctx, 'roles', None) or 'none'} lack permission '{permission}'.",
+        )
+
+
+_REVIEW_STATUS_PERMISSION = {
+    "ACCEPTED_AS_PRESENTED": authz.PERM_ACCEPT_ACUITY,
+    "OVERRIDDEN": authz.PERM_OVERRIDE_ACUITY,
+    "REQUEST_MORE_INFORMATION": authz.PERM_REQUEST_INFORMATION,
+    "UNCERTAIN": authz.PERM_REQUEST_INFORMATION,
+    "ESCALATION_REQUIRED": authz.PERM_ESCALATE_CASE,
+    "OVERRIDE_REQUIRED": authz.PERM_ESCALATE_CASE,
+    "ESCALATION_CONFIRMED": authz.PERM_REVIEW_ESCALATION,
+    "ESCALATION_REJECTED": authz.PERM_RESOLVE_ESCALATION,
+    "ESCALATION_CLOSED": authz.PERM_RESOLVE_ESCALATION,
+    "ESCALATION_RESOLVED": authz.PERM_RESOLVE_ESCALATION,
+    "DISCHARGED": authz.PERM_CLOSE_CASE,
+    "CASE_CLOSED": authz.PERM_CLOSE_CASE,
+}
+
+
+def _require_review_action_authorised(
+    status: str,
+    ctx: AuthContext,
+    previous_state: Dict[str, Any],
+    *,
+    case_uid: str,
+) -> None:
+    permission = _REVIEW_STATUS_PERMISSION.get(status)
+    if permission is None:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Review status '{status}' is not a supported clinical workflow action.",
+        )
+    _require_action_permission(ctx, permission, status.lower(), case_uid=case_uid)
     roles = _ctx_role_set(ctx)
     if status in (_ESCALATION_CONFIRM_STATUSES | _ESCALATION_CLOSE_STATUSES):
         if roles.isdisjoint(_ESCALATION_RESOLUTION_ROLES):
             raise HTTPException(
                 status_code=403,
                 detail=(
-                    "Escalation confirmation/resolution requires an ED doctor "
-                    "or clinical supervisor role."
+                    "Escalation confirmation/resolution requires an ED doctor role."
                 ),
             )
     if status in _CASE_CLOSE_STATUSES:
         if roles.isdisjoint(_CASE_CLOSE_ROLES):
             raise HTTPException(
                 status_code=403,
-                detail="Discharge/close-case requires an ED doctor or clinical supervisor role.",
+                detail="Discharge/close-case requires an ED doctor role.",
+            )
+    if status in {"ACCEPTED_AS_PRESENTED", "OVERRIDDEN"}:
+        active = _active_escalation_exists(previous_state)
+        if "triage_nurse" in roles and active and "security_admin" not in roles:
+            raise HTTPException(
+                status_code=403,
+                detail="An active escalation requires the ED Doctor's final acuity decision.",
+            )
+        if "ed_doctor" in roles and not active and "security_admin" not in roles:
+            raise HTTPException(
+                status_code=409,
+                detail="ED Doctor final acuity actions require an active escalation.",
             )
 
 
@@ -249,6 +337,7 @@ def _merge_workflow_state(
     history = list(merged.get("escalation_history") or [])
     terminal_review = bool(update.pop("_terminal_review_decision", False))
     supersede_acceptance = bool(update.pop("_supersede_prior_acceptance", False))
+    reopen_for_reassessment = bool(update.pop("_reopen_for_reassessment", False))
     # A terminal review decision also resolves any active escalation.
     resolve_escalation = bool(update.pop("_resolve_active_escalation", False)) or (
         terminal_review and _active_escalation_exists(merged)
@@ -318,6 +407,22 @@ def _merge_workflow_state(
             merged["escalation_status"] = "resolved"
             merged["escalation_resolved_by_terminal_review"] = True
 
+    if reopen_for_reassessment:
+        # A new exact model run has no clinical label yet. Preserve the old
+        # decision in the append-only review history, but do not let its current
+        # projection make the reassessed case look final or keep it off the
+        # Triage Nurse's queue.
+        for stale in (
+            "assigned_acuity", "final_clinician_acuity", "new_acuity",
+            "assigned_acuity_source", "assigned_acuity_set_at",
+        ):
+            merged.pop(stale, None)
+        if previous.get("case_level_clinician_acceptance"):
+            merged["case_level_clinician_acceptance"] = False
+        merged["prior_decision_superseded_by_reassessment"] = True
+        merged["prior_decision_case_status"] = previous.get("case_status")
+        merged["prior_decision_superseded_at"] = update.get("updated_at_utc")
+
     if close_case:
         # Preserve the disposition chosen by the state builder: CASE_CLOSED
         # (admitted) and DISCHARGED are both terminal but must stay distinct.
@@ -331,6 +436,11 @@ def _merge_workflow_state(
             "overdue_vitals_alert_active": False,
             "notifications_suppressed": True,
         })
+    try:
+        prior_revision = int((previous or {}).get("state_revision") or 0)
+    except (TypeError, ValueError):
+        prior_revision = 0
+    merged["state_revision"] = prior_revision + 1
     return merged
 
 
@@ -345,7 +455,18 @@ def _case_dict_with_workflow_updates(
     triage = dict(case_dict.get("triage") or {})
     for key in set(_ALLOWED_FOLLOWUP_VITALS) | {"chiefcomplaint"}:
         if key in updates and updates[key] not in (None, ""):
-            triage[key] = updates[key]
+            value = updates[key]
+            # EDTriageCase follows the source UHL/MIMIC contract where pain is
+            # a string. Observation forms deliberately normalise numeric input,
+            # so convert at the schema boundary whenever persisted updates are
+            # reapplied for previews, logged assessments, follow-ups or views.
+            if key == "pain":
+                try:
+                    numeric = float(value)
+                    value = str(int(numeric)) if numeric.is_integer() else str(numeric)
+                except (TypeError, ValueError):
+                    value = str(value)
+            triage[key] = value
     case_dict["triage"] = triage
     return case_dict
 
@@ -395,28 +516,13 @@ def _notification_target_role(
     ctx: AuthContext,
     workflow_state: Dict[str, Any],
 ) -> str:
-    target = str(
-        workflow_state.get("assigned_staff_role")
-        or workflow_state.get("escalation_target_role")
-        or ""
-    ).strip()
-    if target in _ESCALATION_TARGET_ROLES or target == "triage_nurse":
-        return target
-    role = _primary_role(ctx)
-    if role in {"triage_nurse", "ed_doctor", "clinical_supervisor"}:
-        return role
-    return "triage_nurse"
+    del ctx, workflow_state
+    return "ed_nurse"
 
 
 def _notification_target_role_for_state(workflow_state: Dict[str, Any]) -> str:
-    target = str(
-        workflow_state.get("assigned_staff_role")
-        or workflow_state.get("escalation_target_role")
-        or ""
-    ).strip()
-    if target in _ESCALATION_TARGET_ROLES or target == "triage_nurse":
-        return target
-    return "triage_nurse"
+    del workflow_state
+    return "ed_nurse"
 
 
 def _canonical_escalation_target(value: Optional[str]) -> Optional[str]:
@@ -478,7 +584,7 @@ def _overdue_vitals_alert_update(
     }, "due", elapsed_minutes
 
 
-def sweep_overdue_vitals_once(*, limit: int = 50000) -> Dict[str, Any]:
+def _sweep_overdue_vitals_once_locked(*, limit: int = 50000) -> Dict[str, Any]:
     """Backend-authoritative overdue-vitals sweep for scheduled execution.
 
     The sweep acts only on cases that already have workflow state. In a governed
@@ -530,6 +636,14 @@ def sweep_overdue_vitals_once(*, limit: int = 50000) -> Dict[str, Any]:
         "errors": errors[:20],
         "limit": limit,
     }
+
+
+def sweep_overdue_vitals_once(*, limit: int = 50000) -> Dict[str, Any]:
+    """Run the sweep without racing a demo reset in the supported demo profile."""
+    from app.storage.demo_reset_coordination import demo_state_guard
+
+    with demo_state_guard():
+        return _sweep_overdue_vitals_once_locked(limit=limit)
 
 
 def _require_multiagent_acuity_explanation_enabled(ctx: AuthContext) -> None:
@@ -585,15 +699,43 @@ def _require_patient_explanation_route_enabled(ctx: AuthContext) -> None:
     )
 
 
-def _public_case_view(rc: case_resolver.ResolvedCase, *, clinical: bool) -> Dict[str, Any]:
+_AI_WORKFLOW_STATE_FIELDS = {
+    "latest_workflow_run_id", "workflow_run_id", "latest_assessment_at",
+    "latest_system_acuity", "latest_system_prediction", "latest_model_version",
+    "latest_model_sha256", "assessment_previous_system_acuity",
+    "assessment_new_system_acuity", "advisory_trend", "escalation_evidence",
+}
+
+
+def _workflow_state_for_caller(
+    state: Dict[str, Any], ctx: AuthContext,
+) -> Dict[str, Any]:
+    """Apply the AI-review permission to operational case responses.
+
+    An ED Nurse needs the case status, requested fields and observation clock,
+    but must not receive the model estimate merely because saving observations
+    automatically creates the next assessment for the reviewing clinician.
+    """
+    if authz.has_permission(ctx, authz.PERM_REVIEW_AI_PREDICTION):
+        return dict(state or {})
+    return {
+        key: value for key, value in dict(state or {}).items()
+        if key not in _AI_WORKFLOW_STATE_FIELDS
+    }
+
+
+def _public_case_view(
+    rc: case_resolver.ResolvedCase, *, clinical: bool, ctx: AuthContext,
+) -> Dict[str, Any]:
     """Build a response that never includes raw identifiers or retrospective data.
     Clinical content (triage-time vitals/chief complaint) only when the caller
     holds can_view_clinical_content; otherwise a minimal non-clinical summary."""
     from app.api import safe_dto
     workflow_state = _latest_workflow_state(rc.case_uid)
+    public_workflow_state = _workflow_state_for_caller(workflow_state, ctx)
     if not clinical:
         out = safe_dto.safe_case_summary(
-            rc.case_uid, rc.source_dataset, workflow_state=workflow_state)
+            rc.case_uid, rc.source_dataset, workflow_state=public_workflow_state)
         out.update(safe_dto.safe_display_identity(
             _case_dict_with_workflow_updates(rc.case, workflow_state)
         ))
@@ -618,7 +760,7 @@ def _public_case_view(rc: case_resolver.ResolvedCase, *, clinical: bool) -> Dict
         rc.case_uid,
         rc.source_dataset,
         _case_dict_with_workflow_updates(rc.case, workflow_state),
-        workflow_state=workflow_state,
+        workflow_state=public_workflow_state,
     )
 
 
@@ -655,7 +797,7 @@ def list_cases(dataset: Optional[str] = None,
             if rc is not None:
                 clinical = authz.has_permission(ctx, authz.PERM_VIEW_CLINICAL_CONTENT)
                 return {
-                    "cases": [_public_case_view(rc, clinical=clinical)],
+                    "cases": [_public_case_view(rc, clinical=clinical, ctx=ctx)],
                     "pagination": {
                         "total": 1,
                         "limit": 1,
@@ -696,7 +838,7 @@ def list_cases(dataset: Optional[str] = None,
     if q and search_meta.get("search_truncated"):
         has_more = True
     return {
-        "cases": [_public_case_view(rc, clinical=clinical) for rc in cases],
+        "cases": [_public_case_view(rc, clinical=clinical, ctx=ctx) for rc in cases],
         "pagination": {
             "total": total,
             "limit": effective_limit,
@@ -747,6 +889,8 @@ def workflow_queue(
     from collections import Counter
     from app.storage.case_state_repository import read_case_states
 
+    can_review_ai = authz.has_permission(ctx, authz.PERM_REVIEW_AI_PREDICTION)
+
     # The worklist is a retention surface, not a paged feed: an active case that
     # falls outside the window disappears from the queue entirely rather than
     # moving to a second page. A 1000 clamp silently truncated it regardless of
@@ -787,7 +931,7 @@ def workflow_queue(
                 )
         except Exception:
             identity_labels = {}
-        rows.append({
+        row = {
             "case_uid": case_uid,
             "source_dataset": state.get("source_dataset"),
             **identity_labels,
@@ -809,13 +953,28 @@ def workflow_queue(
             "escalation_confirmed_by_role": state.get("escalation_confirmed_by_role"),
             "escalation_requested_at": state.get("escalation_requested_at"),
             "escalation_confirmed_at": state.get("escalation_confirmed_at"),
+            "escalation_reason": state.get("escalation_reason"),
             "discharged_at": state.get("discharged_at"),
             "last_vitals_updated_at": state.get("last_vitals_updated_at"),
             "last_vitals_checked_at": state.get("last_vitals_checked_at"),
             "overdue_vitals_alert_active": bool(state.get("overdue_vitals_alert_active")),
             "notification_target_role": state.get("notification_target_role"),
+            "information_response_received_at": state.get(
+                "information_response_received_at"
+            ),
+            "reassessment_target_role": state.get("reassessment_target_role"),
             "updated_at_utc": state.get("updated_at_utc"),
-        })
+        }
+        # The exact current assessment link is required for a Triage Nurse or
+        # ED Doctor to act on an off-page notification. Do not expose the model
+        # link or estimate to an ED Nurse, whose role is observations only.
+        if can_review_ai:
+            row.update({
+                "latest_workflow_run_id": state.get("latest_workflow_run_id"),
+                "latest_system_acuity": state.get("latest_system_acuity"),
+                "latest_system_prediction": state.get("latest_system_prediction"),
+            })
+        rows.append(row)
 
     # Include a bounded page of never-actioned cases as new/unreviewed outside
     # patient-data mode. Patient-data mode should use an indexed workflow table,
@@ -857,13 +1016,14 @@ def get_case(case_uid: str,
              ctx: AuthContext = Depends(requires(authz.PERM_VIEW_CASE, "get_case"))):
     rc = _resolve_or_404(case_uid)
     clinical = authz.has_permission(ctx, authz.PERM_VIEW_CLINICAL_CONTENT)
-    return _public_case_view(rc, clinical=clinical)
+    return _public_case_view(rc, clinical=clinical, ctx=ctx)
 
 
 @router.post("/cases/{case_uid}/assessments")
+@_serialized_case_transition
 def run_assessment(case_uid: str,
                    preview: bool = False,
-                   ctx: AuthContext = Depends(requires(authz.PERM_RUN_ASSESSMENT, "run_assessment"))):
+                   ctx: AuthContext = Depends(requires(authz.PERM_RUN_TRIAGE_ASSESSMENT, "run_assessment"))):
     """Run the deterministic assessment workflow for a case.
 
     ``preview=true`` computes the advisory acuity for read-only purposes (queue
@@ -885,23 +1045,50 @@ def run_assessment(case_uid: str,
         # Read-only preview: no audit-run record, no compute attribution.
         out["preview"] = True
         return out
-    # Persist the workflow-run audit record (redacted, guarded, fail-closed).
-    try:
-        import uuid as _uuid
-        from datetime import datetime, timezone
-        from app.schemas.workflow_run import build_workflow_run_record
-        from app.storage.workflow_run_repository import append_workflow_run
-        from app.config import settings as _settings
-        _rec = build_workflow_run_record(
-            result, run_id=str(_uuid.uuid4()),
-            timestamp_utc=datetime.now(timezone.utc).isoformat())
-        append_workflow_run(_settings.processed_dir / "workflow_runs.jsonl", _rec)
-    except Exception:
-        # In patient-data and local credentialed research modes the guarded
-        # writer raises; let it surface so the action fails closed. In public
-        # demo mode, audit-write issues are non-fatal.
-        if _sensitive_audit_mode():
-            raise
+    # Persist the exact workflow run before exposing a run identifier. A real
+    # assessment without its audit row cannot later be linked safely to a
+    # clinician label, so this is fail-closed in every runtime profile.
+    import uuid as _uuid
+    from datetime import datetime, timezone
+    from app.schemas.workflow_run import build_workflow_run_record
+    from app.storage.workflow_run_repository import append_workflow_run
+    from app.config import settings as _settings
+    _rec = build_workflow_run_record(
+        result, run_id=str(_uuid.uuid4()),
+        timestamp_utc=datetime.now(timezone.utc).isoformat(), ctx=ctx)
+    append_workflow_run(_settings.processed_dir / "workflow_runs.jsonl", _rec)
+    previous_state = _latest_workflow_state(rc.case_uid)
+    system_acuity = _rec.final_acuity or _rec.predicted_mimic_acuity
+    system_prediction = _rec.final_category or (
+        f"Acuity {system_acuity}" if system_acuity is not None else None
+    )
+    assessment_state = _append_workflow_state(_merge_workflow_state(
+        previous_state,
+        {
+            "case_uid": rc.case_uid,
+            "source_dataset": rc.source_dataset,
+            "updated_at_utc": _rec.timestamp_utc,
+            "last_action": "ASSESSMENT_RUN",
+            "case_status": previous_state.get("case_status") or "new_unreviewed",
+            "review_status": previous_state.get("review_status") or "assessment_complete",
+            "latest_workflow_run_id": _rec.workflow_run_id,
+            "latest_assessment_at": _rec.timestamp_utc,
+            "latest_system_acuity": system_acuity,
+            "latest_system_prediction": system_prediction,
+            "latest_model_version": _rec.model_version,
+            "latest_model_sha256": _rec.model_sha256,
+            "assessment_previous_system_acuity": previous_state.get("latest_system_acuity"),
+            "assessment_new_system_acuity": system_acuity,
+            "assessment_run_by_role": _primary_role(ctx),
+            "reassessment_notification_pending": False,
+            **_actor_identity(ctx),
+        },
+    ))
+    out.update({
+        "workflow_run_id": _rec.workflow_run_id,
+        "assessment_timestamp_utc": _rec.timestamp_utc,
+        "workflow_state": assessment_state,
+    })
     return out
 
 
@@ -1014,7 +1201,9 @@ async def multiagent_explain_case(
 
 
 class ReviewBody(BaseModel):
+    action_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
     review_status: str
+    workflow_run_id: Optional[str] = None
     review_comment: str = ""
     clinician_decision: Optional[str] = None
     clinician_override: Optional[str] = None
@@ -1022,6 +1211,7 @@ class ReviewBody(BaseModel):
     system_prediction: Optional[str] = None
     requested_fields: list[str] = Field(default_factory=list)
     escalation_target_role: Optional[str] = None
+    final_clinician_acuity: Optional[int] = Field(default=None, ge=1, le=5)
 
     @field_validator("review_status")
     @classmethod
@@ -1067,6 +1257,16 @@ class ReviewBody(BaseModel):
             if value:
                 out.append(value[:120])
         return out[:20]
+
+    @field_validator("action_id")
+    @classmethod
+    def _check_action_id(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        value = str(v).strip()
+        if not re.fullmatch(r"[A-Za-z0-9._:~-]{1,128}", value):
+            raise ValueError("action_id must use the safe identifier alphabet")
+        return value
 
 
 from app.rules.acuity_mts_mapping import acuity_from_text as _acuity_from_text  # noqa: E402
@@ -1123,6 +1323,9 @@ def _review_workflow_state(
         "review_status": status.lower(),
         "review_state_updated_at": now,
         "reviewer_role": role,
+        "workflow_run_id": body.workflow_run_id,
+        "previous_acuity": _acuity_from_text(body.system_prediction),
+        "reassessment_notification_pending": False,
         **_actor_identity(ctx),
     }
     # Persist the acuity this decision settled on, so the review queue can
@@ -1132,14 +1335,22 @@ def _review_workflow_state(
     # field carries a readable acuity the key is simply absent and the card
     # renders as pending.
     assigned = None
-    if status == "OVERRIDDEN":
+    if status in {"ACCEPTED_AS_PRESENTED", "OVERRIDDEN", "ESCALATION_RESOLVED"}:
+        assigned = body.final_clinician_acuity
+    if assigned is None and status == "OVERRIDDEN":
         assigned = _acuity_from_text(body.clinician_override or body.clinician_decision)
-    if assigned is None:
+    if assigned is None and status == "ACCEPTED_AS_PRESENTED":
         assigned = _acuity_from_text(body.system_prediction)
     if assigned is not None:
         state["assigned_acuity"] = assigned
+        state["final_clinician_acuity"] = assigned
+        state["new_acuity"] = assigned
         state["assigned_acuity_source"] = (
-            "clinician_override" if status == "OVERRIDDEN" else "system_prediction_accepted"
+            "clinician_override"
+            if status == "OVERRIDDEN"
+            else "ed_doctor_final"
+            if status == "ESCALATION_RESOLVED"
+            else "system_prediction_accepted"
         )
         state["assigned_acuity_set_at"] = now
     if status == "ACCEPTED_AS_PRESENTED":
@@ -1184,7 +1395,7 @@ def _review_workflow_state(
     if status in _ESCALATION_REQUEST_STATUSES:
         target_role = _canonical_escalation_target(
             body.escalation_target_role
-        ) or "clinical_supervisor"
+        ) or "ed_doctor"
         state.update({
             "case_status": "escalation_requested",
             "escalation_required": True,
@@ -1235,6 +1446,24 @@ def _review_workflow_state(
             "escalation_resolution_note": body.review_comment,
             "_resolve_active_escalation": True,
         })
+        if body.final_clinician_acuity is not None:
+            changed_model_acuity = (
+                _acuity_from_text(body.system_prediction) is not None
+                and body.final_clinician_acuity
+                != _acuity_from_text(body.system_prediction)
+            )
+            state.update({
+                "assigned_acuity": body.final_clinician_acuity,
+                "final_clinician_acuity": body.final_clinician_acuity,
+                "new_acuity": body.final_clinician_acuity,
+                "assigned_acuity_source": "ed_doctor_final",
+                "assigned_acuity_set_at": now,
+                "doctor_changed_model_acuity": changed_model_acuity,
+                "override_reason": (
+                    body.override_reason or body.review_comment
+                    if changed_model_acuity else None
+                ),
+            })
     if status in _CASE_CLOSE_STATUSES:
         # DISCHARGED and CASE_CLOSED are both terminal, but they are different
         # dispositions (home vs admitted). Persist them distinctly — collapsing
@@ -1262,8 +1491,9 @@ def _review_workflow_state(
 
 
 @router.post("/cases/{case_uid}/reviews")
+@_serialized_case_transition
 def submit_review(case_uid: str, body: ReviewBody,
-                  ctx: AuthContext = Depends(requires(authz.PERM_SUBMIT_REVIEW, "submit_review"))):
+                  ctx: AuthContext = Depends(requires(authz.PERM_VIEW_CASE, "submit_review_identity"))):
     rc = _resolve_or_404(case_uid)
     # Reviewer identity comes from the AUTHENTICATED context, never the client.
     from app.schemas.review import HumanReviewRecord
@@ -1273,7 +1503,6 @@ def submit_review(case_uid: str, body: ReviewBody,
     from uuid import uuid4
 
     status = (body.review_status or "").upper()
-    _require_review_action_authorised(status, ctx)
     # A reason is required only for a genuine override or an explicitly uncertain
     # decision (item C). "Request more information" is a routing action, not an
     # override, so it does not require an override reason.
@@ -1285,11 +1514,76 @@ def submit_review(case_uid: str, body: ReviewBody,
         raise HTTPException(status_code=422,
                             detail="override_reason is required for an override/uncertain decision")
     previous_state = _latest_workflow_state(rc.case_uid)
+    action_id = str(body.action_id or "").strip()
+    action_payload = body.model_dump(mode="json", exclude={"action_id"})
+    action_payload_hash = hashlib.sha256(
+        json.dumps(action_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    if action_id and action_id == str(previous_state.get("last_action_id") or ""):
+        if action_payload_hash != str(previous_state.get("last_action_payload_hash") or ""):
+            raise HTTPException(
+                status_code=409,
+                detail="action_id was already used with a different clinical action",
+            )
+        existing_review_id = str(previous_state.get("last_review_id") or "")
+        if existing_review_id:
+            return {
+                "review_id": existing_review_id,
+                "case_uid": rc.case_uid,
+                "status": "already_recorded",
+                "workflow_state": previous_state,
+            }
+    _require_review_action_authorised(
+        status, ctx, previous_state, case_uid=rc.case_uid,
+    )
     if _is_case_closed(previous_state):
         raise HTTPException(
             status_code=409,
             detail="case is discharged/closed and cannot receive further clinical workflow actions",
         )
+    expected_run_id = str(previous_state.get("latest_workflow_run_id") or "").strip()
+    supplied_run_id = str(body.workflow_run_id or "").strip()
+    if not supplied_run_id:
+        raise HTTPException(
+            status_code=422,
+            detail="workflow_run_id is required so the action is linked to the exact assessment reviewed",
+        )
+    if not expected_run_id or supplied_run_id != expected_run_id:
+        raise HTTPException(
+            status_code=409,
+            detail="workflow_run_id is stale, unknown, or belongs to a different current assessment",
+        )
+    if (
+        status in {"ACCEPTED_AS_PRESENTED", "OVERRIDDEN"}
+        and str(previous_state.get("decision_finalized_workflow_run_id") or "") == supplied_run_id
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="the current assessment already has a final triage decision",
+        )
+    if status in _ESCALATION_REQUEST_STATUSES and _active_escalation_exists(previous_state):
+        raise HTTPException(
+            status_code=409,
+            detail="an escalation is already active for the current case",
+        )
+    system_acuity = _acuity_from_text(previous_state.get("latest_system_acuity"))
+    trusted_system_prediction = previous_state.get("latest_system_prediction")
+    final_acuity = body.final_clinician_acuity
+    if status == "ACCEPTED_AS_PRESENTED":
+        if system_acuity is None:
+            raise HTTPException(status_code=409, detail="the linked assessment has no usable system acuity")
+        final_acuity = system_acuity
+    elif status == "OVERRIDDEN":
+        if final_acuity is None:
+            final_acuity = _acuity_from_text(body.clinician_override or body.clinician_decision)
+        if final_acuity is None:
+            raise HTTPException(status_code=422, detail="final_clinician_acuity (1-5) is required for an override")
+        if system_acuity is not None and final_acuity == system_acuity:
+            raise HTTPException(status_code=422, detail="an override must differ from the linked system acuity")
+    elif status == "ESCALATION_RESOLVED" and final_acuity is None:
+        final_acuity = _acuity_from_text(body.clinician_decision)
+        if final_acuity is None:
+            raise HTTPException(status_code=422, detail="final_clinician_acuity (1-5) is required to resolve an escalation")
     if status in _ESCALATION_CONFIRM_STATUSES:
         if _escalation_confirmed_state(previous_state):
             raise HTTPException(
@@ -1323,8 +1617,26 @@ def submit_review(case_uid: str, body: ReviewBody,
                 detail="a confirmation/resolution note is required for escalation workflow actions",
             )
 
+    doctor_changed_model_acuity = (
+        status == "ESCALATION_RESOLVED"
+        and system_acuity is not None
+        and final_acuity is not None
+        and final_acuity != system_acuity
+    )
+    effective_override_reason = body.override_reason
+    if status == "ESCALATION_RESOLVED" and not doctor_changed_model_acuity:
+        effective_override_reason = None
+    if doctor_changed_model_acuity and not effective_override_reason:
+        # The escalation-resolution note is already mandatory and is the ED
+        # Doctor's reason for changing the linked model acuity. Store it in the
+        # structured override field as well so monitoring/export counts and
+        # provenance do not silently omit doctor-made changes.
+        effective_override_reason = body.review_comment
+
     rec = HumanReviewRecord(
         review_id=str(uuid4()),
+        action_id=action_id or None,
+        workflow_run_id=supplied_run_id,
         stay_id=rc.stay_id,                       # redacted before persistence
         source_dataset=rc.source_dataset,
         case_uid=rc.case_uid,
@@ -1342,22 +1654,38 @@ def submit_review(case_uid: str, body: ReviewBody,
         reviewer_role=(list(getattr(ctx, "roles", []) or []) or [None])[0],
         review_status=body.review_status,
         review_comment=body.review_comment,
-        system_prediction=body.system_prediction,
+        system_prediction=(
+            str(trusted_system_prediction) if trusted_system_prediction is not None
+            else body.system_prediction
+        ),
         clinician_decision=body.clinician_decision,
         clinician_override=body.clinician_override,
-        override_reason=body.override_reason,
+        override_reason=effective_override_reason,
+        previous_acuity=system_acuity,
+        final_clinician_acuity=final_acuity,
+        action_type=status.lower(),
         created_at_utc=datetime.now(timezone.utc).isoformat(),
     )
-    workflow_state = _append_workflow_state(
-        _merge_workflow_state(
-            previous_state,
-            _review_workflow_state(rc, body, ctx),
-        )
-    )
-    # Operational state is the safety-critical readback surface. Persist it
-    # before the append-only review evidence so a review/audit write cannot claim
-    # a transition that is absent from the current case state.
+    trusted_body = body.model_copy(update={
+        "system_prediction": rec.system_prediction,
+        "final_clinician_acuity": final_acuity,
+        "override_reason": effective_override_reason,
+    })
+    # The append-only human action is the durable source event. Write it before
+    # updating the current-state projection so an accepted HTTP action can never
+    # exist without its actor, role, reason and exact workflow-run audit record.
     append_human_review(settings.processed_dir / "human_reviews.jsonl", rec)
+    state_update = _review_workflow_state(rc, trusted_body, ctx)
+    state_update.update({
+        "last_action_id": action_id,
+        "last_action_payload_hash": action_payload_hash,
+        "last_review_id": rec.review_id,
+    })
+    if status in {"ACCEPTED_AS_PRESENTED", "OVERRIDDEN", "ESCALATION_RESOLVED"}:
+        state_update["decision_finalized_workflow_run_id"] = supplied_run_id
+    workflow_state = _append_workflow_state(
+        _merge_workflow_state(previous_state, state_update)
+    )
     return {
         "review_id": rec.review_id,
         "case_uid": rc.case_uid,
@@ -1557,7 +1885,9 @@ def _final_acuity_from_workflow(result) -> Any:
 async def upload_supporting_scan(
     case_uid: str,
     file: UploadFile = File(...),
-    ctx: AuthContext = Depends(requires(authz.PERM_RUN_ASSESSMENT, "upload_supporting_scan")),
+    ctx: AuthContext = Depends(requires(
+        authz.PERM_PROVIDE_REQUESTED_INFORMATION, "upload_supporting_scan"
+    )),
 ):
     if _patient_data_mode():
         raise HTTPException(
@@ -1624,8 +1954,20 @@ async def upload_supporting_scan(
 
 
 @router.post("/cases/{case_uid}/followups")
+@_serialized_case_transition
 def followup_case(case_uid: str, body: FollowupBody,
-                  ctx: AuthContext = Depends(requires(authz.PERM_RUN_ASSESSMENT, "followup_case"))):
+                  ctx: AuthContext = Depends(requires(authz.PERM_VIEW_CASE, "followup_case_identity"))):
+    if body.updated_vitals:
+        _require_action_permission(
+            ctx, authz.PERM_UPDATE_VITALS, "update_vitals", case_uid=case_uid,
+        )
+    if body.updated_complaint or body.updated_context or body.scan_uploads:
+        _require_action_permission(
+            ctx,
+            authz.PERM_PROVIDE_REQUESTED_INFORMATION,
+            "provide_requested_information",
+            case_uid=case_uid,
+        )
     rc = _resolve_or_404(case_uid)
     previous_state = _latest_workflow_state(rc.case_uid)
     if _is_case_closed(previous_state):
@@ -1644,6 +1986,49 @@ def followup_case(case_uid: str, body: FollowupBody,
         _final_acuity_from_workflow(prev_result),
         _final_acuity_from_workflow(new_result),
     )
+    # The automatic recomputation caused by new observations is a real model
+    # assessment. Persist its exact UHL input row and make it the current linked
+    # run, otherwise the next Triage Nurse / ED Doctor action would be attached
+    # to the stale pre-observation assessment.
+    import uuid as _uuid
+    from datetime import datetime, timezone
+    from app.config import settings as _settings
+    from app.schemas.workflow_run import build_workflow_run_record
+    from app.storage.workflow_run_repository import append_workflow_run
+
+    now = datetime.now(timezone.utc).isoformat()
+    new_workflow_run_id = str(_uuid.uuid4())
+    new_run_record = build_workflow_run_record(
+        new_result, new_workflow_run_id, now, ctx=ctx,
+    )
+    # The ED Nurse performed the observation update; ALTER automatically ran
+    # the dependent advisory. Preserve both facts instead of attributing the
+    # protected assessment action to a role that cannot run assessments.
+    new_run_record.assessment_triggered_by_user_id = getattr(ctx, "user_id", None)
+    new_run_record.assessment_triggered_by_display_name = (
+        getattr(ctx, "display_name", None) or getattr(ctx, "user_id", None)
+    )
+    new_run_record.assessment_triggered_by_role = _primary_role(ctx)
+    new_run_record.assessment_triggered_by_identity_verified = bool(
+        getattr(ctx, "authenticated", False)
+    ) and not bool(getattr(ctx, "is_demo_stub", False))
+    new_run_record.assessment_trigger_auth_source = getattr(ctx, "source", None)
+    new_run_record.performed_by_user_id = "alter-system"
+    new_run_record.performed_by_display_name = "ALTER automatic reassessment"
+    new_run_record.performed_by_role = "system"
+    new_run_record.performed_by_identity_verified = False
+    new_run_record.performed_by_actor_type = "system"
+    new_run_record.auth_source = "internal_automatic_workflow"
+    new_run_record.assessment_execution_mode = "automatic_followup_after_observations"
+    try:
+        append_workflow_run(
+            _settings.processed_dir / "workflow_runs.jsonl", new_run_record,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Updated observations could not be linked to a durable assessment record.",
+        ) from exc
     from app.api import safe_dto
     changed_fields = list(body.updated_vitals.keys())
     if body.updated_complaint:
@@ -1689,8 +2074,6 @@ def followup_case(case_uid: str, body: FollowupBody,
     workflow_state = None
     # Persist a rerun audit record (redacted, guarded, fail-closed).
     try:
-        import uuid as _uuid
-        from datetime import datetime, timezone
         from app.schemas.rerun import (
             ScanUploadMetadata,
             WorkflowRerunRecord,
@@ -1698,14 +2081,13 @@ def followup_case(case_uid: str, body: FollowupBody,
             compute_movement,
         )
         from app.storage.rerun_repository import append_rerun
-        from app.config import settings as _settings
         base_case_dict = _case_dict_with_workflow_updates(rc.case, previous_state)
         base_triage = base_case_dict.get("triage") or {}
         changed = [VitalChange(field=k, previous=base_triage.get(k),
                                new=v) for k, v in body.updated_vitals.items()]
         _rec = WorkflowRerunRecord(
             rerun_id=str(_uuid.uuid4()),
-            timestamp_utc=datetime.now(timezone.utc).isoformat(),
+            timestamp_utc=now,
             case_uid=rc.case_uid, source_dataset=rc.source_dataset, stay_id=rc.stay_id,
             previous_final_acuity=prev_a, new_final_acuity=new_a,
             previous_category=None, new_category=None,
@@ -1716,37 +2098,74 @@ def followup_case(case_uid: str, body: FollowupBody,
             updated_context=body.updated_context,
             scan_uploads=[ScanUploadMetadata(**item) for item in body.scan_uploads],
             movement=compute_movement(prev_a, new_a),
-            reason=out["change"])
+            reason=out["change"],
+            performed_by_user_id=getattr(ctx, "user_id", None),
+            performed_by_display_name=(
+                getattr(ctx, "display_name", None) or getattr(ctx, "user_id", None)
+            ),
+            performed_by_role=_primary_role(ctx),
+            performed_by_identity_verified=bool(getattr(ctx, "authenticated", False))
+            and not bool(getattr(ctx, "is_demo_stub", False)),
+            auth_source=getattr(ctx, "source", None))
         append_rerun(_settings.processed_dir / "workflow_reruns.jsonl", _rec)
     except Exception:
         if _sensitive_audit_mode():
             raise
-    now = _timestamp_utc()
-    followup_escalates = out.get("change_direction") == "escalation"
+    advisory_deteriorated = out.get("change_direction") == "escalation"
+    reassessment_target = str(previous_state.get("requesting_role") or "").strip()
+    if reassessment_target not in {"triage_nurse", "ed_doctor"}:
+        reassessment_target = (
+            "ed_doctor" if _active_escalation_exists(previous_state) else "triage_nurse"
+        )
     workflow_state_payload = {
         "case_uid": rc.case_uid,
         "source_dataset": rc.source_dataset,
         "updated_at_utc": now,
-        "last_action": (
-            "FOLLOWUP_ESCALATION"
-            if followup_escalates
-            else "FOLLOWUP_REASSESSMENT"
-        ),
+        "last_action": "FOLLOWUP_REASSESSMENT",
         "review_status": (
-            "escalation_pending"
-            if followup_escalates
-            else (
-                "reassessment_complete_escalation_still_active"
-                if _active_escalation_exists(previous_state)
-                else "reassessment_complete"
-            )
+            "reassessment_complete_escalation_still_active"
+            if _active_escalation_exists(previous_state)
+            else "reassessment_complete"
         ),
+        "latest_workflow_run_id": new_workflow_run_id,
+        "latest_assessment_at": now,
+        "latest_system_acuity": new_run_record.final_acuity or new_run_record.predicted_mimic_acuity,
+        "latest_system_prediction": (
+            f"Acuity {new_run_record.final_acuity or new_run_record.predicted_mimic_acuity}"
+            if (new_run_record.final_acuity or new_run_record.predicted_mimic_acuity) is not None
+            else None
+        ),
+        "latest_model_version": new_run_record.model_version,
+        "latest_model_sha256": new_run_record.model_sha256,
+        "assessment_run_by_role": "system",
+        "assessment_triggered_by_role": _primary_role(ctx),
+        "assessment_execution_mode": "automatic_followup_after_observations",
         "changed_fields": changed_fields,
         "changed_vitals": changed_vitals,
         "additional_information": out["additional_information"],
         "information_response_received_at": now,
         "information_response_by_role": _primary_role(ctx),
+        "reassessment_target_role": reassessment_target,
+        "reassessment_notification_pending": True,
+        "advisory_trend": (
+            "deteriorating" if advisory_deteriorated
+            else "improving" if out.get("change_direction") == "de-escalation"
+            else "unchanged"
+        ),
+        **_actor_identity(ctx),
     }
+    previous_case_status = str(previous_state.get("case_status") or "").lower()
+    if not _active_escalation_exists(previous_state):
+        if previous_case_status == "request_more_info":
+            # Keep the request context visible until the reviewing clinician
+            # makes the new decision; information_response_received_at below
+            # distinguishes supplied from still awaited.
+            workflow_state_payload["case_status"] = "request_more_info"
+        else:
+            workflow_state_payload.update({
+                "case_status": "reopened",
+                "_reopen_for_reassessment": True,
+            })
     if body.updated_vitals:
         workflow_state_payload.update({
             "last_vitals_checked_at": now,
@@ -1766,28 +2185,10 @@ def followup_case(case_uid: str, body: FollowupBody,
         })
     if body.scan_uploads:
         workflow_state_payload["scan_uploads"] = body.scan_uploads
-    if followup_escalates:
-        workflow_state_payload.update({
-            "case_status": "escalation_requested",
-            "escalation_required": True,
-            "escalation_state": "requested",
-            "escalation_status": "requested",
-            "escalation_target_role": "clinical_supervisor",
-            "escalation_timestamp": now,
-            "escalation_requested_at": now,
-            "escalation_requested_by_role": _primary_role(ctx),
-            "escalation_reason": out.get("change_summary"),
-            "escalation_evidence": {
-                "previous_acuity": prev_a,
-                "new_acuity": new_a,
-                "changed_fields": changed_fields,
-                "changed_vitals": changed_vitals,
-            },
-        })
     workflow_state = _append_workflow_state(
         _merge_workflow_state(previous_state, workflow_state_payload)
     )
-    if followup_escalates or _active_escalation_exists(workflow_state):
+    if _active_escalation_exists(workflow_state):
         out.update({
             "escalation_required": True,
             "escalation_status": workflow_state.get("escalation_status"),
@@ -1799,16 +2200,40 @@ def followup_case(case_uid: str, body: FollowupBody,
             "workflow_state": workflow_state,
         })
     else:
+        out["advisory_deteriorated"] = advisory_deteriorated
+        out["review_target_role"] = reassessment_target
         out["workflow_state"] = workflow_state
+    if not authz.has_permission(ctx, authz.PERM_REVIEW_AI_PREDICTION):
+        # Saving observations may automatically calculate the next advisory so
+        # it is ready for the Triage Nurse/ED Doctor, but that does not grant the
+        # ED Nurse permission to see the model result. Return an observations-
+        # only receipt while keeping the exact run and estimate in the protected
+        # workflow state for the reviewing clinician.
+        for key in (
+            "previous_acuity", "previous_manchester_equivalent", "new_acuity",
+            "new_manchester_equivalent", "change", "change_direction",
+            "change_summary", "advisory_deteriorated", "escalation_reason",
+            "escalation_evidence",
+        ):
+            out.pop(key, None)
+        out["workflow_state"] = _workflow_state_for_caller(workflow_state, ctx)
+        out["ai_advisory_visible"] = False
+        out["result_summary"] = (
+            "Observations saved. The automatic reassessment is ready for the "
+            + ("ED Doctor." if reassessment_target == "ed_doctor" else "Triage Nurse.")
+        )
+    else:
+        out["ai_advisory_visible"] = True
     safe_dto.assert_no_raw_identifiers(out)
     return out
 
 
 @router.post("/cases/{case_uid}/vitals/mark-overdue-alert")
+@_serialized_case_transition
 def mark_overdue_vitals_alert(
     case_uid: str,
     ctx: AuthContext = Depends(
-        requires(authz.PERM_SUBMIT_REVIEW, "mark_overdue_vitals_alert")
+        requires(authz.PERM_ACKNOWLEDGE_OVERDUE_VITALS, "mark_overdue_vitals_alert")
     ),
 ):
     """Persist creation of an overdue-vitals staff notification once."""
@@ -1878,7 +2303,7 @@ def sweep_overdue_vitals_alerts(
     ctx: AuthContext = Depends(
         # The sweep WRITES alert state; a read-only workflow permission
         # (governance auditor) must not be able to mutate cases.
-        requires(authz.PERM_RUN_ASSESSMENT, "sweep_overdue_vitals_alerts")
+        requires(authz.PERM_ACKNOWLEDGE_OVERDUE_VITALS, "sweep_overdue_vitals_alerts")
     ),
 ):
     return sweep_overdue_vitals_once(limit=limit)
@@ -1888,7 +2313,7 @@ def sweep_overdue_vitals_alerts(
 def acknowledge_overdue_vitals(
     case_uid: str,
     ctx: AuthContext = Depends(
-        requires(authz.PERM_SUBMIT_REVIEW, "acknowledge_overdue_vitals")
+        requires(authz.PERM_ACKNOWLEDGE_OVERDUE_VITALS, "acknowledge_overdue_vitals")
     ),
 ):
     """Acknowledge an overdue-vitals notification without mutating triage data.
@@ -1900,6 +2325,7 @@ def acknowledge_overdue_vitals(
     return acknowledge_overdue_vitals_event(case_uid, expected_reference=None, ctx=ctx)
 
 
+@_serialized_case_transition
 def acknowledge_overdue_vitals_event(
     case_uid: str,
     *,
@@ -1961,7 +2387,7 @@ def acknowledge_overdue_vitals_event(
             detail="the overdue-vitals event clock changed; refresh notifications and retry",
         )
     # The alert is raised FOR a specific role and acknowledging it clears the
-    # alert for everyone. Any holder of PERM_SUBMIT_REVIEW could therefore
+    # alert for everyone. A broadly authorised workflow role could therefore
     # silence a notification addressed to a different role, and the staff member
     # actually responsible would never see it. Enforce the target the sweeper
     # recorded; only clear it if you are who it was raised for.

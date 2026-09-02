@@ -720,6 +720,7 @@ jobs:
               --base-url "https://${host}"
               --expected-build-id "${DEPLOY_SHA}"
               --check-notifications
+              --check-assistant
               --attempts 30
               --retry-seconds 10
             )

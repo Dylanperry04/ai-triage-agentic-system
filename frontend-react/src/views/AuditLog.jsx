@@ -7,17 +7,23 @@ import { api } from "../api.js";
 const toneFor = (a) => /DENIED/i.test(a) ? { c: T.red, bg: T.red50, b: "#EFC5D1" } : /overrid/i.test(a) ? { c: "#8A4B00", bg: T.yellow50, b: "#EEDD9A" } : /escalat/i.test(a) ? { c: T.red, bg: T.red50, b: "#EFC5D1" } : { c: T.slate, bg: "#F1F4F5", b: T.borderSoft };
 const fmtAt = (x) => String(x || "").replace("T", " ").slice(0, 16);
 
-const ROLES = ["", "triage_nurse", "ed_doctor", "clinical_supervisor", "researcher", "security_admin", "governance_auditor"];
+const ROLES = ["", "ed_nurse", "triage_nurse", "ed_doctor", "researcher", "security_admin", "governance_auditor"];
 const DECISIONS = ["", "ACCEPTED_AS_PRESENTED", "OVERRIDDEN", "REQUEST_MORE_INFORMATION", "ESCALATION_REQUIRED", "ESCALATION_CONFIRMED", "ESCALATION_RESOLVED", "DISCHARGED", "CASE_CLOSED", "UNCERTAIN"];
 const ESCALATIONS = ["", "requested", "pending", "confirmed", "resolved", "rejected", "closed"];
 const RANGES = [["24h", 1], ["7d", 7], ["30d", 30], ["all", null]];
 
 const sel = { fontFamily: "inherit", fontSize: 12.5, padding: "7px 9px", borderRadius: 8, border: `1px solid ${T.border}`, background: T.surface, color: T.ink };
 
-function csvOf(entries) {
-  const cols = ["timestamp_utc", "display_identifier", "reviewer_role", "decision_type", "action_type", "triage_level", "escalation_status", "override_status", "review_comment"];
-  const esc = (v) => { const s = v == null ? "" : Array.isArray(v) ? v.join("; ") : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
-  return [cols.join(","), ...entries.map((e) => cols.map((c) => esc(e[c] ?? (c === "reviewer_role" ? e.reviewer_roles : undefined))).join(","))].join("\n");
+function auditParams(f, includeLimit = false) {
+  const params = includeLimit ? { limit: 1000 } : {};
+  if (f.patient_or_case.trim()) params.patient_or_case = f.patient_or_case.trim();
+  if (f.reviewer_role) params.reviewer_role = f.reviewer_role;
+  if (f.decision_type) params.decision_type = f.decision_type;
+  if (f.triage_level) params.triage_level = f.triage_level;
+  if (f.escalation_status) params.escalation_status = f.escalation_status;
+  if (f.override_status) params.override_status = f.override_status;
+  if (f.days) params.start_utc = new Date(Date.now() - f.days * 86400000).toISOString();
+  return params;
 }
 
 /* Decisions & workflow view: bound to /audit/dashboard, which supports the
@@ -27,19 +33,14 @@ function DecisionsView() {
   const [data, setData] = useState(null);
   const [err, setErr] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [exportBusy, setExportBusy] = useState(false);
+  const [exportErr, setExportErr] = useState(null);
   const [f, setF] = useState({ patient_or_case: "", reviewer_role: "", decision_type: "", triage_level: "", escalation_status: "", override_status: "", days: 30 });
 
   useEffect(() => {
     let dead = false;
     setBusy(true);
-    const params = { limit: 1000 };
-    if (f.patient_or_case.trim()) params.patient_or_case = f.patient_or_case.trim();
-    if (f.reviewer_role) params.reviewer_role = f.reviewer_role;
-    if (f.decision_type) params.decision_type = f.decision_type;
-    if (f.triage_level) params.triage_level = f.triage_level;
-    if (f.escalation_status) params.escalation_status = f.escalation_status;
-    if (f.override_status) params.override_status = f.override_status;
-    if (f.days) params.start_utc = new Date(Date.now() - f.days * 86400000).toISOString();
+    const params = auditParams(f, true);
     const t = setTimeout(() => {
       api.auditDashboard(params)
         .then((d) => { if (!dead) { setData(d); setErr(null); } })
@@ -50,13 +51,19 @@ function DecisionsView() {
   }, [f]);
 
   const entries = data?.entries || [];
-  const exportCsv = () => {
-    const blob = new Blob([csvOf(entries)], { type: "text/csv" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `audit-decisions-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(a.href);
+  const exportCsv = async () => {
+    setExportBusy(true); setExportErr(null);
+    try {
+      const result = await api.downloadAuditJourney(auditParams(f));
+      const url = URL.createObjectURL(result.blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = result.filename; a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setExportErr(e.detail || e.message);
+    } finally {
+      setExportBusy(false);
+    }
   };
   const set = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.value }));
 
@@ -75,14 +82,16 @@ function DecisionsView() {
               <button key={label} onClick={() => setF((x) => ({ ...x, days }))} style={{ ...sel, cursor: "pointer", fontWeight: 700, padding: "7px 11px", background: f.days === days ? T.green700 : T.surface, color: f.days === days ? "#fff" : T.ink, border: `1px solid ${f.days === days ? T.green700 : T.border}` }}>{label}</button>
             ))}
           </div>
-          <Btn kind="quiet" onClick={exportCsv} disabled={!entries.length} style={{ marginLeft: "auto" }}><Download size={14} style={{ verticalAlign: -2, marginRight: 6 }} />Export CSV ({entries.length})</Btn>
+          <Btn kind="quiet" onClick={exportCsv} disabled={!entries.length || exportBusy} style={{ marginLeft: "auto" }}><Download size={14} style={{ verticalAlign: -2, marginRight: 6 }} />{exportBusy ? "Preparing complete journey…" : `Download complete journey CSV (${data?.matched ?? entries.length})`}</Btn>
         </div>
+        <div style={{ fontSize: 11.5, color: T.slate, marginTop: 8, lineHeight: 1.45 }}>One chronological row per recorded event, with every safe audit field, complete model-input/vital snapshots, explicit previous/new/delta observations, decisions, reasons, escalation state and exact workflow-run linkage.</div>
       </Card>
       {err && <div style={{ marginTop: 12 }}><ErrorNote>{err}</ErrorNote></div>}
+      {exportErr && <div style={{ marginTop: 12 }}><ErrorNote>{exportErr}</ErrorNote></div>}
       {!err && !data && <div style={{ display: "flex", gap: 10, alignItems: "center", color: T.slate, fontSize: 13.5, marginTop: 16 }}><Spinner /> Loading audit evidence…</div>}
       {data && (
         <>
-          <div style={{ fontSize: 12.5, color: T.slate, marginTop: 12 }}>{busy ? "Filtering… " : ""}{data.count?.toLocaleString?.() ?? entries.length} matching record{entries.length === 1 ? "" : "s"} of {data.total_unfiltered?.toLocaleString?.() ?? "—"} in the window.</div>
+          <div style={{ fontSize: 12.5, color: T.slate, marginTop: 12 }}>{busy ? "Filtering… " : ""}{data.matched?.toLocaleString?.() ?? data.count?.toLocaleString?.() ?? entries.length} matching record{(data.matched ?? entries.length) === 1 ? "" : "s"} of {data.total_unfiltered?.toLocaleString?.() ?? "—"} in the window.</div>
           <Card style={{ marginTop: 10, overflow: "hidden" }}>
             {entries.slice(0, 200).map((e, i) => {
               const action = e.decision_type || e.action_type || e.record_kind || "record";

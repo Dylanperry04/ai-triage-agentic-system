@@ -74,7 +74,7 @@ def _record(settings, *, number=1, kind="escalation"):
         kind=kind,
         case_uid=f"case-{number}",
         event_key=f"event-{number}",
-        target_role="clinical_supervisor" if kind == "escalation" else "triage_nurse",
+        target_role="ed_doctor" if kind == "escalation" else "ed_nurse",
         title="Escalation awaiting review" if kind == "escalation" else "Vitals recheck due",
         body="This case needs review.",
         sms_enabled=settings.sms_publish_enabled,
@@ -133,13 +133,13 @@ def test_workflow_reconciliation_creates_one_escalation_and_deactivates_when_clo
         "case_uid": "case-1",
         "escalation_status": "requested",
         "escalation_requested_at": "2026-08-13T10:00:00+00:00",
-        "escalation_target_role": "clinical_supervisor",
+        "escalation_target_role": "ed_doctor",
     }
     first = sync_workflow_state(state, settings=settings, repository=repository, publish=False)
     second = sync_workflow_state(state, settings=settings, repository=repository, publish=False)
     assert first["notifications_created"] == 1
     assert second["notifications_created"] == 0
-    assert len(repository.list_notifications(roles=["clinical_supervisor"], user_id="u", limit=30)) == 1
+    assert len(repository.list_notifications(roles=["ed_doctor"], user_id="u", limit=30)) == 1
 
     sync_workflow_state(
         {**state, "case_status": "case_closed", "escalation_status": "closed"},
@@ -147,7 +147,7 @@ def test_workflow_reconciliation_creates_one_escalation_and_deactivates_when_clo
         repository=repository,
         publish=False,
     )
-    assert repository.list_notifications(roles=["clinical_supervisor"], user_id="u", limit=30) == []
+    assert repository.list_notifications(roles=["ed_doctor"], user_id="u", limit=30) == []
 
 
 def test_new_vitals_version_invalidates_stale_scheduled_message(tmp_path):
@@ -157,14 +157,14 @@ def test_new_vitals_version_invalidates_stale_scheduled_message(tmp_path):
         case_uid="case-1",
         reference_at=utc_iso(utc_now() - timedelta(hours=8)),
         due_minutes=210,
-        target_role="triage_nurse",
+        target_role="ed_nurse",
     )
     repository.upsert_schedule(old)
     new = ScheduleRecord.create(
         case_uid="case-1",
         reference_at=utc_iso(utc_now() - timedelta(minutes=5)),
         due_minutes=210,
-        target_role="triage_nurse",
+        target_role="ed_nurse",
     )
     repository.upsert_schedule(new)
     record, result = materialize_schedule(
@@ -182,7 +182,7 @@ def test_due_schedule_materialises_exactly_one_notification(tmp_path):
         case_uid="case-1",
         reference_at=utc_iso(utc_now() - timedelta(hours=8)),
         due_minutes=210,
-        target_role="triage_nurse",
+        target_role="ed_nurse",
     )
     repository.upsert_schedule(schedule)
     first, first_result = materialize_schedule(
@@ -207,7 +207,7 @@ def test_function_materialised_due_alert_survives_unrelated_workflow_update(tmp_
         case_uid="case-1",
         reference_at=reference,
         due_minutes=210,
-        target_role="triage_nurse",
+        target_role="ed_nurse",
     )
     repository.upsert_schedule(schedule)
     record, result = materialize_schedule(
@@ -224,7 +224,7 @@ def test_function_materialised_due_alert_survives_unrelated_workflow_update(tmp_
         publish=False,
     )
     visible = repository.list_notifications(
-        roles=["triage_nurse"], user_id="reader", limit=30
+        roles=["ed_nurse"], user_id="reader", limit=30
     )
     assert [item["notification_id"] for item in visible] == [record.notification_id]
     assert repository.get_schedule(schedule.schedule_id).active is False
@@ -240,7 +240,7 @@ def test_new_vitals_hide_old_alert_but_ack_does_not_cancel_queued_sms(tmp_path):
         kind="overdue_vitals",
         case_uid="case-1",
         event_key=reference,
-        target_role="triage_nurse",
+        target_role="ed_nurse",
         created_at=utc_iso(),
     )
     fresh_reference = utc_iso()
@@ -251,7 +251,7 @@ def test_new_vitals_hide_old_alert_but_ack_does_not_cancel_queued_sms(tmp_path):
         publish=False,
     )
     assert repository.list_notifications(
-        roles=["triage_nurse"], user_id="reader", limit=30
+        roles=["ed_nurse"], user_id="reader", limit=30
     ) == []
     assert repository.get_notification(old.notification_id).sms_state == "cancelled"
 
@@ -261,7 +261,7 @@ def test_new_vitals_hide_old_alert_but_ack_does_not_cancel_queued_sms(tmp_path):
         kind="overdue_vitals",
         case_uid="case-1",
         event_key=fresh_reference,
-        target_role="triage_nurse",
+        target_role="ed_nurse",
         created_at=utc_iso(),
     )
     sync_workflow_state(
@@ -533,6 +533,12 @@ def test_mask_never_exposes_more_than_last_four_digits():
 
 
 def test_notification_api_filters_by_role_and_persists_read_state(tmp_path, monkeypatch):
+    # This test owns the complete expected row set. A deployed-profile suite may
+    # globally enable background reconciliation, which legitimately imports
+    # unrelated alerts from workflow-state fixtures during TestClient startup
+    # and makes this API role-filter test order-dependent. Reconciliation and
+    # sweeper behavior have dedicated integration coverage.
+    monkeypatch.setenv("ENABLE_OVERDUE_VITALS_SWEEPER", "false")
     monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
     monkeypatch.setenv("NOTIFICATION_BACKEND", "sqlite")
     monkeypatch.setenv("NOTIFICATION_SQLITE_PATH", str(tmp_path / "api.sqlite3"))
@@ -550,11 +556,19 @@ def test_notification_api_filters_by_role_and_persists_read_state(tmp_path, monk
     )
     nurse = NotificationRecord.create(
         kind="overdue_vitals", case_uid="case-api-2", event_key="event-nurse",
-        target_role="triage_nurse", title="Vitals recheck due",
+        target_role="ed_nurse", title="Vitals recheck due",
         body="Observations need review.", sms_enabled=False,
     )
     repository.create_notification(ed)
     repository.create_notification(nurse)
+
+    monkeypatch.setattr(
+        "app.notifications.service.reconcile_current_workflow_states",
+        lambda limit=50000: {
+            "examined": 0, "created": 0, "deactivated": 0,
+            "failures": 0, "publication_failures": 0,
+        },
+    )
 
     from app.main import app
 
@@ -570,7 +584,7 @@ def test_notification_api_filters_by_role_and_persists_read_state(tmp_path, monk
         reloaded = client.get("/notifications", headers=headers).json()["notifications"]
         assert reloaded[0]["read"] is True
 
-        nurse_headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["triage-nurses"], "nurse-user")}
+        nurse_headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-nurses"], "nurse-user")}
         monkeypatch.setattr(
             "app.api.case_routes.acknowledge_overdue_vitals_event",
             lambda case_uid, expected_reference, durable_target_role, ctx: {
@@ -609,9 +623,9 @@ def test_durable_due_notification_acknowledges_before_legacy_sweep(monkeypatch):
     )
     result = case_routes.acknowledge_overdue_vitals_event(
         resolved.case_uid, expected_reference=canonical_time_key(reference),
-        durable_target_role="triage_nurse",
+        durable_target_role="ed_nurse",
         ctx=AuthContext(
-            authenticated=True, user_id="nurse", roles=["triage_nurse"], source="test"
+            authenticated=True, user_id="nurse", roles=["ed_nurse"], source="test"
         ),
     )
     assert result["status"] == "acknowledged"
@@ -698,7 +712,7 @@ def test_information_request_sms_contains_exact_requested_fields(tmp_path):
     assert result["notifications_created"] == 1
 
     records = repository.list_notifications(
-        roles=["triage_nurse"],
+        roles=["ed_nurse"],
         user_id="demo-nurse",
         limit=30,
     )

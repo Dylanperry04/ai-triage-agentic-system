@@ -2,7 +2,7 @@
 
 ## Target User
 
-Triage nurse, ED doctor, clinical supervisor.
+ED nurse, triage nurse, ED doctor.
 
 ## Layout Purpose
 

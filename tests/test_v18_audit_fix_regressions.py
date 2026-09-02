@@ -28,6 +28,16 @@ def _principal(groups):
     return base64.b64encode(json.dumps({"claims": claims}).encode()).decode()
 
 
+def _assessment(case_uid):
+    headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["triage-nurses"])}
+    response = client.post(f"/cases/{case_uid}/assessments", headers=headers)
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    current = client.get(f"/cases/{case_uid}", headers=headers).json()["workflow_state"]
+    assert current["latest_workflow_run_id"] == payload["workflow_run_id"]
+    return payload
+
+
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch, tmp_path):
     # This module runs late in the alphabetical order, after modules that can
@@ -147,30 +157,41 @@ class TestReviewStateSemantics:
 
     def test_override_establishes_case_status(self, monkeypatch):
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
-        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-doctors"])}
+        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["triage-nurses"])}
         cuid = self._uid(headers)
+        assessment = _assessment(cuid)
+        system_acuity = assessment["final_acuity"]
+        final_acuity = 5 if system_acuity != 5 else 4
         r = client.post(f"/cases/{cuid}/reviews", headers=headers, json={
             "review_status": "OVERRIDDEN",
+            "workflow_run_id": assessment["workflow_run_id"],
             "review_comment": "Override recorded.",
-            "clinician_override": "Very urgent (priority 2)",
+            "clinician_override": f"Acuity {final_acuity}",
+            "final_clinician_acuity": final_acuity,
             "override_reason": "New hypotension on repeat obs.",
         })
-        assert r.status_code == 200
+        assert r.status_code == 200, r.text
         state = client.get(f"/cases/{cuid}", headers=headers).json()["workflow_state"]
         # The decision is authoritative: the case must not look unreviewed.
         assert state["case_status"] == "overridden"
         assert state["review_status"] == "overridden"
-        assert state["overridden_by_role"] == "ed_doctor"
+        assert state["overridden_by_role"] == "triage_nurse"
 
     def test_case_closed_keeps_admitted_disposition(self, monkeypatch):
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
         headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-doctors"])}
         cuid = self._uid(headers)
+        run_id = _assessment(cuid)["workflow_run_id"]
+        current_run_id = client.get(f"/cases/{cuid}", headers=headers).json()[
+            "workflow_state"
+        ]["latest_workflow_run_id"]
+        assert current_run_id == run_id
         r = client.post(f"/cases/{cuid}/reviews", headers=headers, json={
             "review_status": "CASE_CLOSED",
+            "workflow_run_id": run_id,
             "review_comment": "Admitted to AMU.",
         })
-        assert r.status_code == 200
+        assert r.status_code == 200, r.text
         state = client.get(f"/cases/{cuid}", headers=headers).json()["workflow_state"]
         assert state["case_status"] == "case_closed"
         assert state["closed_disposition"] == "admitted"
@@ -179,13 +200,18 @@ class TestReviewStateSemantics:
 
     def test_discharge_still_records_discharge(self, monkeypatch):
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
-        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["clinical-supervisors"])}
+        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-doctors"])}
         cuid = self._uid(headers)
+        run_id = _assessment(cuid)["workflow_run_id"]
+        run_id = client.get(f"/cases/{cuid}", headers=headers).json()[
+            "workflow_state"
+        ]["latest_workflow_run_id"]
         r = client.post(f"/cases/{cuid}/reviews", headers=headers, json={
             "review_status": "DISCHARGED",
+            "workflow_run_id": run_id,
             "review_comment": "Discharged home with safety-netting.",
         })
-        assert r.status_code == 200
+        assert r.status_code == 200, r.text
         state = client.get(f"/cases/{cuid}", headers=headers).json()["workflow_state"]
         assert state["case_status"] == "discharged"
         assert state["closed_disposition"] == "discharged"
@@ -199,9 +225,9 @@ class TestSweepPermission:
         r = client.post("/workflow/overdue-vitals/sweep", headers=headers)
         assert r.status_code == 403
 
-    def test_clinical_supervisor_can_still_sweep(self, monkeypatch):
+    def test_ed_nurse_can_trigger_overdue_observation_sweep(self, monkeypatch):
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
-        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["clinical-supervisors"])}
+        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-nurses"])}
         r = client.post("/workflow/overdue-vitals/sweep", headers=headers)
         assert r.status_code == 200
 
@@ -214,37 +240,42 @@ class TestTerminalReviewClearsContradictoryState:
     def _uid(self, headers):
         return client.get("/cases", headers=headers).json()["cases"][0]["case_uid"]
 
-    def test_accept_after_escalation_clears_escalation(self, monkeypatch):
+    def test_triage_accept_after_escalation_is_rejected(self, monkeypatch):
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
-        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-doctors"])}
+        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["triage-nurses"])}
         cuid = self._uid(headers)
-        # Escalate, then accept.
-        client.post(f"/cases/{cuid}/reviews", headers=headers, json={
+        run_id = _assessment(cuid)["workflow_run_id"]
+        escalated = client.post(f"/cases/{cuid}/reviews", headers=headers, json={
             "review_status": "ESCALATION_REQUIRED",
+            "workflow_run_id": run_id,
             "review_comment": "Senior review please.",
-            "escalation_target_role": "clinical_supervisor",
+            "escalation_target_role": "ed_doctor",
         })
-        client.post(f"/cases/{cuid}/reviews", headers=headers, json={
+        assert escalated.status_code == 200
+        accepted = client.post(f"/cases/{cuid}/reviews", headers=headers, json={
             "review_status": "ACCEPTED_AS_PRESENTED",
+            "workflow_run_id": run_id,
             "review_comment": "Accepting as presented.",
         })
+        assert accepted.status_code == 403
         state = client.get(f"/cases/{cuid}", headers=headers).json()["workflow_state"]
-        assert state["case_status"] == "accepted"
-        # The impossible pair (accepted + still-requested escalation) must be gone.
-        assert state.get("escalation_required") is False
-        assert str(state.get("escalation_status")) != "requested"
+        assert state["case_status"] == "escalation_requested"
+        assert state.get("escalation_required") is True
 
     def test_accept_after_request_info_clears_requested_fields(self, monkeypatch):
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
-        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-doctors"])}
+        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["triage-nurses"])}
         cuid = self._uid(headers)
+        run_id = _assessment(cuid)["workflow_run_id"]
         client.post(f"/cases/{cuid}/reviews", headers=headers, json={
             "review_status": "REQUEST_MORE_INFORMATION",
+            "workflow_run_id": run_id,
             "review_comment": "Need an ECG.",
             "requested_fields": ["ECG"],
         })
         client.post(f"/cases/{cuid}/reviews", headers=headers, json={
             "review_status": "ACCEPTED_AS_PRESENTED",
+            "workflow_run_id": run_id,
             "review_comment": "Info no longer needed; accepting.",
         })
         state = client.get(f"/cases/{cuid}", headers=headers).json()["workflow_state"]
@@ -258,7 +289,7 @@ class TestFollowupRejectsImpossibleVitals:
 
     def test_zero_perfusing_vitals_rejected(self, monkeypatch):
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
-        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-doctors"])}
+        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-nurses"])}
         cuid = self._uid(headers)
         for vital in ("heartrate", "resprate", "o2sat", "sbp", "dbp"):
             r = client.post(f"/cases/{cuid}/followups", headers=headers,
@@ -267,7 +298,7 @@ class TestFollowupRejectsImpossibleVitals:
 
     def test_pain_zero_still_valid(self, monkeypatch):
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
-        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-doctors"])}
+        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-nurses"])}
         cuid = self._uid(headers)
         # Pain 0 (no pain) is a real observation and must be accepted.
         r = client.post(f"/cases/{cuid}/followups", headers=headers,
@@ -276,7 +307,7 @@ class TestFollowupRejectsImpossibleVitals:
 
     def test_survivable_low_vitals_still_accepted(self, monkeypatch):
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
-        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-doctors"])}
+        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-nurses"])}
         cuid = self._uid(headers)
         # Genuine peri-arrest physiology must still be enterable.
         r = client.post(f"/cases/{cuid}/followups", headers=headers,
@@ -290,7 +321,7 @@ class TestScanMetadataRejectsBlankFilename:
 
     def test_whitespace_only_filename_rejected(self, monkeypatch):
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
-        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-doctors"])}
+        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-nurses"])}
         cuid = self._uid(headers)
         r = client.post(f"/cases/{cuid}/followups", headers=headers,
                         json={"scan_uploads": [{"filename": "   "}]})
@@ -298,7 +329,7 @@ class TestScanMetadataRejectsBlankFilename:
 
     def test_named_scan_metadata_accepted(self, monkeypatch):
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
-        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-doctors"])}
+        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-nurses"])}
         cuid = self._uid(headers)
         r = client.post(f"/cases/{cuid}/followups", headers=headers,
                         json={"updated_context": "CXR reviewed.",
@@ -307,7 +338,7 @@ class TestScanMetadataRejectsBlankFilename:
 
     def test_supporting_upload_stores_bytes_and_returns_metadata(self, monkeypatch):
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
-        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-doctors"])}
+        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-nurses"])}
         cuid = self._uid(headers)
         r = client.post(
             f"/cases/{cuid}/supporting-uploads",
@@ -331,7 +362,7 @@ class TestAssessmentPreviewIsNonAuditing:
 
     def test_preview_writes_no_workflow_run_record(self, monkeypatch, tmp_path):
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
-        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-doctors"])}
+        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["triage-nurses"])}
         cuid = self._uid(headers)
         from app.config import settings
         runs = settings.processed_dir / "workflow_runs.jsonl"
@@ -358,16 +389,19 @@ class TestEscalationAfterAcceptanceSupersedes:
 
     def test_escalate_after_accept_marks_acceptance_superseded(self, monkeypatch):
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
-        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-doctors"])}
+        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["triage-nurses"])}
         cuid = self._uid(headers)
+        run_id = _assessment(cuid)["workflow_run_id"]
         client.post(f"/cases/{cuid}/reviews", headers=headers, json={
             "review_status": "ACCEPTED_AS_PRESENTED",
+            "workflow_run_id": run_id,
             "review_comment": "Accepting as presented.",
         })
         client.post(f"/cases/{cuid}/reviews", headers=headers, json={
             "review_status": "ESCALATION_REQUIRED",
+            "workflow_run_id": run_id,
             "review_comment": "New troponin — escalating after all.",
-            "escalation_target_role": "clinical_supervisor",
+            "escalation_target_role": "ed_doctor",
         })
         state = client.get(f"/cases/{cuid}", headers=headers).json()["workflow_state"]
         assert state["case_status"] == "escalation_requested"
@@ -384,7 +418,7 @@ class TestReassessmentSemanticsAreHonest:
 
     def test_context_only_reports_not_scored(self, monkeypatch):
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
-        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-doctors"])}
+        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-nurses"])}
         cuid = self._uid(headers)
         r = client.post(f"/cases/{cuid}/followups", headers=headers, json={
             "updated_context": "Collateral history from family; patient usually independent.",
@@ -396,7 +430,7 @@ class TestReassessmentSemanticsAreHonest:
 
     def test_vitals_change_reports_recomputed(self, monkeypatch):
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
-        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-doctors"])}
+        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-nurses"])}
         cuid = self._uid(headers)
         r = client.post(f"/cases/{cuid}/followups", headers=headers, json={
             "updated_vitals": {"heartrate": 130},
@@ -443,7 +477,11 @@ class TestMultiAgentAcuityExplanationForClinicians:
         body = r.json()
         assert body["multiagent"] is True
         assert body["status"] == "PASS"
-        assert len(body["agent_turns"]) == 4
+        assert body["final_explanation"].startswith(
+            "The main reason this acuity level was suggested was "
+        )
+        assert body["final_explanation"].endswith("Clinician review required.")
+        assert "agent_turns" not in body
 
     def test_ed_doctor_can_get_multiagent_explanation(self, monkeypatch):
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")

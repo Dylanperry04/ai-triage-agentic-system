@@ -39,14 +39,33 @@ IDENTIFIER_KEYS = {
 # ordering, provenance checks, version traceability, and hash comparison.
 SAFE_METADATA_STRING_KEYS = {
     "timestamp_utc", "created_at_utc", "generated_at_utc", "updated_at_utc",
-    "run_id", "workflow_run_id", "review_id", "rerun_id", "training_run_id",
+    "run_id", "workflow_run_id", "latest_workflow_run_id", "review_id",
+    "rerun_id", "training_run_id",
     "model_hash", "model_artifact_sha256", "feature_schema_hash",
     "app_version", "backend_version", "model_version", "registry_schema_version",
     "package_checkpoint",
     "route", "path", "method", "role", "roles", "action", "decision",
     "permission", "auth_source", "record_kind", "source", "source_dataset",
     "status", "clinical_use", "current_mode",
+    # Server-generated clinical idempotency metadata.  These values are written
+    # only by the guarded transition service; preserving the payload digest is
+    # what lets an identical retry be distinguished from a conflicting reuse of
+    # the same action id after state is reloaded from disk.
+    "last_action_payload_hash",
 }
+
+# Correlation identifiers are deliberately opaque, non-patient metadata.  Keep
+# their exact value so an API response can still be matched against state loaded
+# from the durable store.  Restrict the character set and length before trusting
+# the value: a caller must not be able to hide arbitrary free text, an email
+# address, or a raw numeric patient identifier merely by placing it under one of
+# these keys.
+SAFE_OPAQUE_IDENTIFIER_KEYS = {
+    "run_id", "workflow_run_id", "latest_workflow_run_id", "review_id",
+    "last_review_id", "rerun_id", "training_run_id", "action_id",
+    "last_action_id",
+}
+_SAFE_OPAQUE_IDENTIFIER_RE = re.compile(r"(?=.{1,200}\Z)(?=.*[A-Za-z])[A-Za-z0-9._:~-]+\Z")
 
 # Workflow state is append-only evidence. Its timestamps drive overdue-vitals
 # alerts, escalation timing, dashboard chronology, and notification resets. They
@@ -232,6 +251,10 @@ def redact_for_log(data: Dict[str, Any], *, extra_keys: Optional[Iterable[str]] 
         if isinstance(obj, str):
             if keep_case_uid and parent_key == "case_uid":
                 return obj
+            if parent_key in SAFE_OPAQUE_IDENTIFIER_KEYS:
+                if _SAFE_OPAQUE_IDENTIFIER_RE.fullmatch(obj):
+                    return obj
+                return redact_text(obj)
             if _is_safe_metadata_string_key(parent_key):
                 return obj
             if parent_key in FREE_TEXT_KEYS:

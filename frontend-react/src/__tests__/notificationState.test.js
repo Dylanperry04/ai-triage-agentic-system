@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   mergeNotificationFallback,
+  notificationDestination,
   reconcileNotificationSnapshot,
 } from "../notificationState.js";
 
@@ -44,5 +45,12 @@ describe("notification state reconciliation", () => {
   it("authoritatively removes rows absent from the next server snapshot", () => {
     const result = reconcileNotificationSnapshot([], new Set(["old"]), true);
     expect(result.ordered).toEqual([]);
+  });
+
+  it("routes role-specific clinical and monthly notifications to actionable views", () => {
+    expect(notificationDestination({ kind: "information_request" }, ["ed_nurse"], ["triage"])).toEqual({ tab: "triage", selection: "selected" });
+    expect(notificationDestination({ kind: "triage_review" }, ["triage_nurse"], ["triage", "review"])).toEqual({ tab: "triage", selection: "selected" });
+    expect(notificationDestination({ kind: "triage_review" }, ["ed_doctor"], ["review", "escalations"])).toEqual({ tab: "escalations", selection: "focus" });
+    expect(notificationDestination({ kind: "monthly_retraining" }, ["security_admin"], ["itd", "health"])).toEqual({ tab: "itd", selection: "none" });
   });
 });

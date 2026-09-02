@@ -90,9 +90,16 @@ def assert_reset_allowed() -> None:
             "Reset is disabled when REAL_PATIENT_DATA=true. Workflow and audit "
             "records for real patients must not be cleared from the application."
         )
+    if os.environ.get("SMS_ENABLED", "").lower() == "true" or os.environ.get(
+        "SMS_PUBLISH_ENABLED", ""
+    ).lower() == "true":
+        raise DemoResetRefused(
+            "Reset is disabled while SMS sending/publication is enabled. Disable SMS, "
+            "allow any in-flight delivery to settle, and retry the demo reset."
+        )
 
 
-def reset_demo_state(
+def _reset_demo_state_locked(
     processed_dir: Path,
     *,
     actor_user_id: str | None = None,
@@ -151,6 +158,39 @@ def reset_demo_state(
             source.replace(archive_dir / name)
         archived.append(entry)
 
+    notification_reset: Dict[str, Any]
+    if dry_run:
+        notification_reset = {
+            "status": "dry_run",
+            "note": "Notifications and schedules would be deactivated; no repository mutation was made.",
+        }
+    else:
+        from app.notifications.config import NotificationSettings
+        from app.notifications.models import utc_iso
+        from app.notifications.repository import get_notification_repository
+
+        notification_settings = NotificationSettings.from_env()
+        notification_store_existed = (
+            notification_settings.backend == "sqlite"
+            and notification_settings.sqlite_path.is_file()
+        )
+        repository = get_notification_repository(notification_settings)
+        notification_archive = (
+            archive_dir / "notifications.sqlite3"
+            if notification_store_existed
+            else None
+        )
+        notification_reset = repository.reset_demo_state(
+            now=utc_iso(), archive_path=notification_archive,
+        )
+        archived_to = str(notification_reset.get("archived_to") or "")
+        if notification_archive is not None and archived_to:
+            archived.append({
+                "filename": "notifications.sqlite3",
+                "records": int(notification_reset.get("notifications_deactivated") or 0),
+                "archived_to": archived_to,
+            })
+
     manifest = {
         "status": "dry_run" if dry_run else "reset_complete",
         "reset_at_utc": datetime.now(timezone.utc).isoformat(),
@@ -159,8 +199,11 @@ def reset_demo_state(
         "archive_directory": str(archive_dir),
         "archived": archived,
         "not_present": skipped,
+        "notification_reset": notification_reset,
         "records_archived": sum(
-            e["records"] or 0 for e in archived if e["records"] is not None
+            e["records"] or 0
+            for e in archived
+            if e["records"] is not None and e["filename"] != "notifications.sqlite3"
         ),
         "deleted_anything": False,
         "note": (
@@ -170,3 +213,22 @@ def reset_demo_state(
         ),
     }
     return manifest
+
+
+def reset_demo_state(
+    processed_dir: Path,
+    *,
+    actor_user_id: str | None = None,
+    actor_role: str | None = None,
+    dry_run: bool = False,
+) -> Dict[str, Any]:
+    """Coordinate the whole reset with clinical writers and background jobs."""
+    from app.storage.demo_reset_coordination import demo_state_guard
+
+    with demo_state_guard():
+        return _reset_demo_state_locked(
+            processed_dir,
+            actor_user_id=actor_user_id,
+            actor_role=actor_role,
+            dry_run=dry_run,
+        )

@@ -11,12 +11,13 @@ local asset paths, or raw identifiers.
 from __future__ import annotations
 
 import csv
+from datetime import datetime, timezone
 import math
 import os
 from pathlib import Path
 from typing import Any, Dict, List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
 
 from app.api.auth_dependencies import requires
@@ -32,16 +33,248 @@ class SystemAssistantRequest(BaseModel):
     question: str = Field(default="", max_length=1000)
 
 
-_PATIENT_QUESTION_TERMS = {
-    "diagnose this", "diagnosis for", "treatment for", "what acuity",
-    "assign acuity", "which triage category", "what triage category",
-    "heart attack", "stroke", "medicine for", "symptom means",
+_PATIENT_CLINICAL_INTENTS = {
+    "diagnose this", "diagnosis for", "treatment for", "assign acuity",
+    "medicine for", "symptom means", "should be treated", "should receive",
 }
 
 
-@router.post("/system/assistant",
-             dependencies=[Depends(requires(authz.PERM_ASK_CHATBOT, "system_assistant"))])
-def system_assistant(body: SystemAssistantRequest) -> Dict[str, Any]:
+_ROLE_ALIASES = {
+    "ed nurse": "ed_nurse",
+    "nurse taking observations": "ed_nurse",
+    "triage nurse": "triage_nurse",
+    "ed doctor": "ed_doctor",
+    "doctor": "ed_doctor",
+    "researcher": "researcher",
+    "security administrator": "security_admin",
+    "security admin": "security_admin",
+    "itd": "security_admin",
+    "auditor": "governance_auditor",
+    "governance auditor": "governance_auditor",
+}
+
+_PERMISSION_LABELS = {
+    authz.PERM_VIEW_CASE: "view cases",
+    authz.PERM_RECORD_VITALS: "record observations/vitals",
+    authz.PERM_UPDATE_VITALS: "repeat or update observations/vitals",
+    authz.PERM_PROVIDE_REQUESTED_INFORMATION: "provide requested clinical information",
+    authz.PERM_RUN_TRIAGE_ASSESSMENT: "run the AI-supported triage assessment",
+    authz.PERM_REVIEW_AI_PREDICTION: "review the AI prediction",
+    authz.PERM_ACCEPT_ACUITY: "accept the recommended acuity",
+    authz.PERM_OVERRIDE_ACUITY: "override the recommended acuity",
+    authz.PERM_REQUEST_INFORMATION: "request additional information",
+    authz.PERM_ESCALATE_CASE: "escalate a case",
+    authz.PERM_REVIEW_ESCALATION: "review an escalation",
+    authz.PERM_RESOLVE_ESCALATION: "resolve an escalation/final acuity",
+    authz.PERM_CLOSE_CASE: "discharge or close a case",
+    authz.PERM_ACKNOWLEDGE_OVERDUE_VITALS: "acknowledge overdue-observation alerts",
+    authz.PERM_VIEW_WORKFLOW_QUEUE: "view the appropriate workflow queue",
+    authz.PERM_ASK_CHATBOT: "use the ITD system/audit assistant",
+    authz.PERM_EXPLAIN_CASE_ACUITY: "request the concise case explanation",
+    authz.PERM_VIEW_AUDIT_LOG: "view the audit log",
+    authz.PERM_VIEW_MODEL_PERFORMANCE: "view model-performance evidence",
+    authz.PERM_EXPORT_DEIDENTIFIED: "export de-identified research data",
+    authz.PERM_EXPORT_IDENTIFIABLE: "export identifiable data",
+    authz.PERM_VIEW_CLINICAL_CONTENT: "view detailed clinical content",
+    authz.PERM_VIEW_SECURITY_STATUS: "view security/system status",
+    authz.PERM_VIEW_RETRAINING_EXPORTS: "download monthly retraining data",
+    authz.PERM_GENERATE_RETRAINING_EXPORTS: "prepare/reconcile retraining exports",
+}
+
+_ACTION_PERMISSION_TERMS = (
+    (("enter observation", "record observation", "take observation", "enter vital", "record vital", "take vital"), authz.PERM_RECORD_VITALS),
+    (("update observation", "repeat observation", "update vital", "repeat vital"), authz.PERM_UPDATE_VITALS),
+    (("run assessment", "run triage"), authz.PERM_RUN_TRIAGE_ASSESSMENT),
+    (("review ai", "view ai", "review prediction"), authz.PERM_REVIEW_AI_PREDICTION),
+    (("accept acuity", "accept recommendation"), authz.PERM_ACCEPT_ACUITY),
+    (("override acuity", "override recommendation"), authz.PERM_OVERRIDE_ACUITY),
+    (("request information", "request more information", "request observation", "request vital"), authz.PERM_REQUEST_INFORMATION),
+    (("escalate", "submit escalation"), authz.PERM_ESCALATE_CASE),
+    (("review escalation",), authz.PERM_REVIEW_ESCALATION),
+    (("resolve escalation", "final acuity", "final clinical decision"), authz.PERM_RESOLVE_ESCALATION),
+    (("discharge", "close case", "admit"), authz.PERM_CLOSE_CASE),
+    (("audit log", "view audit"), authz.PERM_VIEW_AUDIT_LOG),
+    (("model performance", "model evidence"), authz.PERM_VIEW_MODEL_PERFORMANCE),
+    (("retraining data", "monthly export"), authz.PERM_VIEW_RETRAINING_EXPORTS),
+)
+
+
+def _role_from_question(lower: str) -> str | None:
+    for alias in sorted(_ROLE_ALIASES, key=len, reverse=True):
+        if alias in lower:
+            return _ROLE_ALIASES[alias]
+    return None
+
+
+def _permission_from_question(lower: str) -> str | None:
+    for terms, permission in _ACTION_PERMISSION_TERMS:
+        if any(term in lower for term in terms):
+            return permission
+    return None
+
+
+def _role_permission_answer(lower: str) -> str | None:
+    """Answer current RBAC facts directly from the authoritative matrix."""
+    role = _role_from_question(lower)
+    permission = _permission_from_question(lower)
+    asks_capability = any(term in lower for term in (
+        "can ", "does ", "permission", "allowed", "able to", "what can",
+    ))
+    if permission and ("who" in lower or "which role" in lower) and role is None:
+        permitted = [
+            authz.ROLE_DISPLAY_NAMES[name]
+            for name, permissions in authz.ROLE_PERMISSIONS.items()
+            if permission in permissions
+        ]
+        return (
+            f"The roles permitted to {_PERMISSION_LABELS[permission]} are: "
+            + (", ".join(permitted) if permitted else "none")
+            + ". This answer comes from the active server RBAC matrix."
+        )
+    if role and permission and asks_capability:
+        allowed = permission in authz.ROLE_PERMISSIONS.get(role, set())
+        display = authz.ROLE_DISPLAY_NAMES[role]
+        action = _PERMISSION_LABELS[permission]
+        return (
+            f"{'Yes' if allowed else 'No'}. {display} "
+            f"{'is' if allowed else 'is not'} permitted to {action}. "
+            "This answer comes from the active server RBAC matrix."
+        )
+    if role and any(term in lower for term in ("what can", "permissions for", "role do", "responsibil")):
+        labels = [
+            _PERMISSION_LABELS.get(permission, permission.replace("can_", "").replace("_", " "))
+            for permission in sorted(authz.ROLE_PERMISSIONS.get(role, set()))
+        ]
+        return f"{authz.ROLE_DISPLAY_NAMES[role]} can " + "; ".join(labels) + "."
+    return None
+
+
+def _is_patient_specific_itd_question(lower: str) -> bool:
+    """Refuse clinical case advice without blocking system/audit terminology.
+
+    The previous substring ``what acuity`` also blocked harmless questions such
+    as "what acuity scale does the model use?".  Refusal now requires either an
+    explicitly clinical intent or both a patient reference and an instruction to
+    choose/diagnose/treat. Aggregate questions such as "which acuity is most
+    often overridden?" remain valid ITD audit questions.
+    """
+    if any(term in lower for term in _PATIENT_CLINICAL_INTENTS):
+        return True
+    if any(token in lower for token in ("case_uid", "chief complaint for patient")):
+        return True
+    patient_reference = any(term in lower for term in (
+        "this patient", "the patient", "that patient", "patient get",
+        "patient receive", "patient have",
+    ))
+    clinical_choice = any(term in lower for term in (
+        "what acuity", "which acuity", "triage category", "diagnos",
+        "treat", "medicine", "safe to discharge", "should get",
+    ))
+    return patient_reference and clinical_choice
+
+
+def _system_information_answer(lower: str, config: Dict[str, Any]) -> str | None:
+    """Answer safe system facts that are not stored as audit events."""
+    lower = str(lower or "").lower()
+    permission_answer = _role_permission_answer(lower)
+    if permission_answer:
+        return permission_answer
+    if (
+        "role" in lower
+        and any(term in lower for term in (
+            "what roles", "which roles", "roles exist", "each role", "role do",
+            "role permission", "role responsibility", "permissions for",
+        ))
+    ):
+        return "The active roles are: " + "; ".join(
+            f"{authz.ROLE_DISPLAY_NAMES[role]} — "
+            + ", ".join(
+                _PERMISSION_LABELS.get(permission, permission.replace("can_", "").replace("_", " "))
+                for permission in sorted(authz.ROLE_PERMISSIONS[role])
+            )
+            for role in authz.ROLE_DISPLAY_NAMES
+        ) + ". Retired historical role values remain audit-readable but cannot be assigned."
+
+    if "acuity" in lower and any(term in lower for term in (
+        "scale", "levels", "level does", "what acuity", "acuity mean",
+    )) and not any(term in lower for term in ("patient", "case")):
+        from app.rules.acuity_mts_mapping import MIMIC_ACUITY_TO_MTS
+        levels = ", ".join(
+            f"{level} {fields['category']}"
+            for level, fields in sorted(MIMIC_ACUITY_TO_MTS.items())
+        )
+        return (
+            f"The model uses acuity levels 1–5: {levels}. Lower numbers are more urgent. "
+            "The colour/category names are this research project's MTS-style display convention, "
+            "not an official Manchester Triage classification; clinician review is required."
+        )
+
+    if "model" in lower and any(term in lower for term in (
+        "input", "feature", "trained on", "uses to predict",
+    )):
+        from app.constants import MODEL_INPUT_COLUMNS
+        return (
+            "The deployed UHL model inputs are: "
+            + ", ".join(MODEL_INPUT_COLUMNS)
+            + ". Audit identifiers, workflow IDs, comments and override reasons are monitoring/traceability fields and are not model inputs."
+        )
+
+    if any(term in lower for term in ("notification routing", "who receives", "notifications go")):
+        return (
+            "Repeat/overdue observations and requested information go to the ED Nurse; "
+            "triage review and completed reassessments go to the requesting Triage Nurse; "
+            "clinical escalations go to the ED Doctor; system, security and monthly-retraining notices go to ITD."
+        )
+
+    if "workflow" in lower and any(term in lower for term in ("clinical", "triage", "how does", "what is")):
+        return (
+            "The clinical workflow is ED Nurse observations → Triage Nurse plus the advisory AI assessment → "
+            "ED Doctor when escalation is required. Requested observations return to the requesting Triage Nurse or ED Doctor on a new exact workflow run."
+        )
+
+    if "retrain" in lower and any(term in lower for term in ("when", "schedule", "process", "automatic", "monthly")):
+        return (
+            "On the first day of each month the system prepares/reconciles completed-month eligible feedback, "
+            "notifies ITD and offers a checksum-verified CSV download. It does not train, submit NVIDIA/Slurm work or replace the deployed model."
+        )
+    if any(term in lower for term in ("version", "build", "release", "checkpoint", "running")):
+        return (
+            f"ALTER is running app version {config['app_version']} with package checkpoint "
+            f"{config['package_checkpoint']}."
+        )
+    asks_model = any(term in lower for term in ("model", "artifact", "artefact", "readiness"))
+    asks_governance = any(term in lower for term in ("sink", "durable", "retention", "governance"))
+    if asks_model or asks_governance:
+        parts: list[str] = []
+        if asks_model:
+            parts.append(
+                "The pinned UHL model artifact is "
+                + ("present" if config.get("model_file_exists") else "not present")
+                + ", and its evidence reports are "
+                + ("present." if config.get("report_dir_exists") else "not present.")
+            )
+        if asks_governance:
+            parts.append(
+                f"The configured audit sink is {config.get('audit_sink')}; governance and audit "
+                "answers are read-only and calculated from recorded backend evidence."
+            )
+        return " ".join(parts)
+    if any(term in lower for term in ("security", "auth", "posture", "safe", "warning")):
+        answer = (
+            f"The recorded security configuration is {'safe' if config.get('is_safe_configuration') else 'not safe'} "
+            f"in {config.get('security_mode')} mode using {config.get('auth_provider')} authentication."
+        )
+        if config.get("warnings"):
+            answer += " Warnings: " + "; ".join(str(item) for item in config["warnings"][:4]) + "."
+        return answer
+    return None
+
+
+@router.post("/system/assistant")
+def system_assistant(
+    body: SystemAssistantRequest,
+    ctx: AuthContext = Depends(requires(authz.PERM_ASK_CHATBOT, "system_assistant")),
+) -> Dict[str, Any]:
     """ITD assistant for system, security, governance and AUDIT questions.
 
     Answers from recorded backend evidence: configuration/security posture plus
@@ -50,21 +283,18 @@ def system_assistant(body: SystemAssistantRequest) -> Dict[str, Any]:
     content, and refuses patient-triage questions, so this surface cannot become
     a hidden clinical chatbot.
 
-    Deterministic by design. An LLM here would be able to phrase a number it did
-    not actually count; every figure below is counted from a record, and the
-    exact evidence used is returned alongside the answer so an ITD user can
-    check it against the audit log.
+    For audit questions, the configured Foundry deployment may translate the
+    wording into a validated, read-only query plan. It never receives the audit
+    rows and never calculates a result: the backend validates the plan and
+    deterministically computes every figure from redacted records. A local
+    parser covers common questions when Foundry is unavailable.
     """
     from app.version import APP_VERSION, PACKAGE_CHECKPOINT
     from app.security.redaction import assert_no_raw_identifiers
 
     question = (body.question or "").strip()
     lower = question.lower()
-    patient_specific = any(term in lower for term in _PATIENT_QUESTION_TERMS)
-    patient_specific = patient_specific or any(
-        token in lower for token in ("case_uid", "chief complaint for patient")
-    )
-    if patient_specific:
+    if _is_patient_specific_itd_question(lower):
         response = {
             "status": "refused_patient_context",
             "answer": (
@@ -100,24 +330,84 @@ def system_assistant(body: SystemAssistantRequest) -> Dict[str, Any]:
         **_overdue_sweeper_status(),
     }
 
+    system_answer = _system_information_answer(lower, config_evidence)
     window_days = _window_days_from_question(lower)
+    calendar_today = "today" in lower
     audit_evidence: Dict[str, Any] = {}
+    audit_query: Dict[str, Any] | None = None
     audit_error = None
-    if _wants_audit_evidence(lower):
+    # Every non-clinical question that was not answered by the live system-fact
+    # layer gets a chance to use the validated audit planner. A keyword gate
+    # previously made valid duration and aggregation questions unreachable.
+    wants_audit = system_answer is None
+    if wants_audit:
         try:
-            audit_evidence = _itd_audit_evidence(window_days=window_days)
+            from app.analytics.itd_evidence import build_itd_evidence
+            from app.analytics.itd_general_query import answer_general_audit_question
+
+            try:
+                assistant_limit = max(
+                    1,
+                    min(int(os.environ.get("ITD_ASSISTANT_AUDIT_READ_LIMIT", "50000")), 100000),
+                )
+            except ValueError:
+                assistant_limit = 50000
+            audit_records = _normalised_audit_records(limit_per_stream=assistant_limit)
+            audit_evidence = build_itd_evidence(
+                audit_records, window_days=window_days,
+                calendar_today=calendar_today,
+            )
+            audit_query = answer_general_audit_question(question, audit_records)
         except Exception as exc:                      # pragma: no cover - defensive
             audit_error = f"{type(exc).__name__}"
 
-    answer = _compose_itd_answer(
-        lower, config_evidence, audit_evidence, audit_error, window_days
-    )
+    if system_answer is not None:
+        answer = system_answer
+    elif audit_error:
+        answer = f"I could not read the audit evidence for this question ({audit_error})."
+    elif audit_query is not None:
+        answer = str(audit_query["answer"])
+    elif wants_audit:
+        answer = (
+            "I could not construct a safe read-only query for that wording. The assistant will not "
+            "substitute a nearby metric. Ask using the recorded audit concepts (event, staff/role, "
+            "case, workflow run, acuity, outcome and date range), or note that the requested fact may not be recorded."
+        )
+    else:
+        answer = _compose_itd_answer(
+            lower, config_evidence, audit_evidence, audit_error, window_days
+        )
+
+    # Log execution without persisting the free-text question. The dependency
+    # above already records the access decision; this second row records the
+    # validated planner/execution outcome for operational auditability.
+    try:
+        import hashlib
+        from app.security.access_audit import record_access
+
+        planner = str((audit_query or {}).get("planner") or ("system_catalog" if system_answer else "system_status"))
+        supported = bool((audit_query or {}).get("supported", True))
+        query_count = len(((audit_query or {}).get("plan") or {}).get("queries") or [])
+        digest = hashlib.sha256(question.encode("utf-8")).hexdigest()[:16]
+        record_access(
+            action="itd_assistant_query_executed", decision="ALLOWED", ctx=ctx,
+            page="/system/assistant", permission=authz.PERM_ASK_CHATBOT,
+            detail=(
+                f"question_sha256={digest};planner={planner};"
+                f"supported={str(supported).lower()};queries={query_count}"
+            ),
+        )
+    except Exception:
+        if os.environ.get("PATIENT_DATA_MODE", "").lower() == "true":
+            raise
+
     response = {
         "status": "answered",
         "answer": answer,
         "evidence_scope": "system_admin_only",
         "evidence": config_evidence,
         "audit_evidence": audit_evidence,
+        "audit_query": audit_query,
         "window_days": window_days,
     }
     assert_no_raw_identifiers(response)
@@ -128,13 +418,10 @@ def _overdue_sweeper_status() -> Dict[str, Any]:
     """Whether overdue-vitals notifications can actually be created.
 
     The server-side sweeper is what CREATES overdue-vitals alerts. It only runs
-    when ENABLE_OVERDUE_VITALS_SWEEPER=true, or implicitly in PATIENT_DATA_MODE
-    — and patient-data mode is forbidden in the Azure supervisor demo. So in a
-    demo deployment with neither set, the only thing driving the sweep is a
-    browser tab held open by a user holding can_run_assessment: no clinical user
-    signed in means no alert is ever raised, and "0 overdue alerts" is
-    indistinguishable from "nothing is checking". Surfacing it makes that
-    difference visible instead of silent.
+    when ENABLE_OVERDUE_VITALS_SWEEPER=true, or implicitly in patient-data mode
+    and the Azure role-switcher demo. Plain local/test profiles remain
+    mutation-free unless explicitly enabled. Surfacing this state distinguishes
+    a genuine zero from an environment in which no server-side check is active.
     """
     from app.main import _overdue_vitals_sweeper_enabled
     enabled = _overdue_vitals_sweeper_enabled()
@@ -149,8 +436,11 @@ def _overdue_sweeper_status() -> Dict[str, Any]:
 _AUDIT_TERMS = (
     "audit", "log", "who", "denied", "deny", "access", "activity", "usage",
     "how many", "count", "decision", "override", "escalation", "escalations",
+    "escalated", "staff", "observation", "observations", "overdue", "vital",
     "sign in", "signin", "login", "identity", "identities", "person", "people",
     "user", "users", "role", "roles", "recent", "last", "history", "event",
+    "assessment", "assessments", "accepted", "acceptance", "percentage",
+    "percent", "discharged", "admitted", "additional information",
 )
 
 
@@ -177,11 +467,15 @@ def _window_days_from_question(lower: str) -> int | None:
     return 7
 
 
-def _itd_audit_evidence(*, window_days: int | None) -> Dict[str, Any]:
+def _itd_audit_evidence(
+    *, window_days: int | None, calendar_today: bool = False,
+) -> Dict[str, Any]:
     """Build ITD audit evidence from the normalised dashboard records."""
     from app.analytics.itd_evidence import build_itd_evidence
     records = _normalised_audit_records()
-    return build_itd_evidence(records, window_days=window_days)
+    return build_itd_evidence(
+        records, window_days=window_days, calendar_today=calendar_today,
+    )
 
 
 def _compose_itd_answer(
@@ -191,143 +485,155 @@ def _compose_itd_answer(
     audit_error: str | None,
     window_days: int | None,
 ) -> str:
-    bits: List[str] = []
     window_label = (
-        "all retained history" if window_days is None else f"the last {window_days} day(s)"
+        "today" if audit.get("calendar_today")
+        else "all retained history" if window_days is None
+        else f"the last {window_days} day(s)"
     )
+    if audit_error and _wants_audit_evidence(lower):
+        return f"I could not read the audit evidence for this question ({audit_error})."
 
-    if any(t in lower for t in ("version", "build", "release", "checkpoint", "running")):
-        bits.append(
-            f"Running app version {config['app_version']} "
-            f"(package checkpoint {config['package_checkpoint']})."
+    if audit:
+        from app.analytics.itd_query import answer_audit_question
+
+        planned_answer = answer_audit_question(lower, audit, window_label)
+        if planned_answer:
+            return planned_answer
+
+    # Intent-specific audit answers take priority. A focused question should
+    # not be buried under a generic record-count paragraph or unrelated config.
+    if audit and any(word in lower for word in ("escalation", "escalations", "escalated")):
+        submitted = int(audit.get("escalations_submitted") or 0)
+        open_count = int(audit.get("open_escalations") or 0)
+        resolved = int(audit.get("escalations_resolved") or 0)
+        asks_who = any(word in lower for word in ("who", "staff", "member", "most", "top"))
+        asks_open = "open" in lower or "awaiting" in lower
+        asks_resolved = any(word in lower for word in ("resolved", "closed"))
+        asks_overdue_vitals = any(
+            word in lower for word in ("overdue", "vital", "observation", "recheck")
         )
-    if any(t in lower for t in ("model", "artifact", "artefact", "readiness")):
-        bits.append(
-            f"Model artifact configured={config['model_path_configured']}, "
-            f"file present={config['model_file_exists']}, "
-            f"training reports present={config['report_dir_exists']}."
+        answer = (
+            f"{submitted} escalation{'s were' if submitted != 1 else ' was'} submitted {window_label}."
         )
-    if any(t in lower for t in ("security", "auth", "permission", "posture", "safe")):
-        bits.append(
-            f"Security mode={config['security_mode']}, auth provider="
-            f"{config['auth_provider']}, safe configuration="
-            f"{config['is_safe_configuration']}."
-        )
-    if config["warnings"] and any(
-        t in lower for t in ("warning", "unsafe", "safe", "security", "posture", "risk")
-    ):
-        bits.append(
-            f"Configuration warnings ({len(config['warnings'])}): "
-            + "; ".join(str(w) for w in config["warnings"][:4])
+        if asks_who:
+            people = audit.get("escalations_by_person") or []
+            if people:
+                highest = int(people[0]["count"])
+                leaders = [str(item["label"]) for item in people if int(item["count"]) == highest]
+                if len(leaders) == 1:
+                    answer += f" {leaders[0]} submitted the most, with {highest}."
+                else:
+                    answer += f" The highest count was {highest}, tied by {', '.join(leaders)}."
+            elif submitted:
+                answer += " Those escalation records predate staff attribution, so no individual can be ranked safely."
+            else:
+                answer += " No staff member submitted an escalation in that period."
+        if asks_open:
+            answer += f" {open_count} escalation{'s are' if open_count != 1 else ' is'} currently open."
+        if asks_resolved:
+            answer += f" {resolved} resolution action{'s were' if resolved != 1 else ' was'} recorded in the same period."
+        if asks_overdue_vitals:
+            overdue = int(audit.get("overdue_vitals_alerts_active") or 0)
+            answer += (
+                f" {overdue} active overdue-observation alert(s) are recorded; "
+                "these alerts are routed to the ED Nurse role."
+            )
+        return answer
+
+    if audit and any(word in lower for word in ("override", "overrode", "overridden")):
+        count = int(audit.get("overrides_submitted") or 0)
+        answer = f"{count} override{'s were' if count != 1 else ' was'} submitted {window_label}."
+        if any(word in lower for word in ("who", "person", "staff", "most", "top")):
+            people = audit.get("overrides_by_person") or []
+            answer += (
+                " By staff member: " + ", ".join(
+                    f"{item['label']} ({item['count']})" for item in people[:5]
+                ) + "."
+                if people else " No attributed override was recorded in that period."
+            )
+        return answer
+
+    if audit and any(word in lower for word in ("denied", "denial", "blocked", "refused")):
+        count = int(audit.get("access_denied") or 0)
+        roles = audit.get("denied_by_role") or []
+        return (
+            f"{count} access denial{'s were' if count != 1 else ' was'} recorded {window_label}"
+            + (", by role: " + ", ".join(f"{r['label']} ({r['count']})" for r in roles) if roles else "")
             + "."
         )
-    if any(t in lower for t in ("sink", "durable", "retention", "governance")):
-        bits.append(f"Audit sink={config['audit_sink']}.")
 
-    if audit_error:
-        bits.append(
-            "Audit evidence could not be read for this question "
-            f"({audit_error}); the configuration facts above are unaffected."
+    if audit and any(word in lower for word in ("decision", "decisions", "accepted", "acceptance")):
+        count = int(audit.get("clinical_decisions_submitted") or 0)
+        answer = (
+            f"{count} clinical workflow action{'s were' if count != 1 else ' was'} submitted {window_label}; "
+            f"{int(audit.get('accepts_submitted') or 0)} were acceptances and "
+            f"{int(audit.get('overrides_submitted') or 0)} were overrides."
         )
-    elif audit:
-        if audit.get("records_in_window") == 0:
-            bits.append(f"No audit records were written in {window_label}.")
-        else:
-            bits.append(
-                f"In {window_label} the audit log holds "
-                f"{audit['records_in_window']} records: {audit['access_events']} access "
-                f"events ({audit['access_denied']} denied), "
-                f"{audit['clinical_decisions_submitted']} clinical decisions submitted, "
-                f"and {audit['model_assessments_run']} model assessments run across "
-                f"{audit['cases_with_workflow_state']} cases."
+        if any(word in lower for word in ("who", "person", "staff", "most", "top")):
+            people = audit.get("decisions_by_person") or []
+            if people:
+                answer += " By staff member: " + ", ".join(
+                    f"{item['label']} ({item['count']})" for item in people[:5]
+                ) + "."
+        return answer
+
+    if audit and any(word in lower for word in ("overdue", "vital", "observation", "recheck")):
+        return (
+            f"{int(audit.get('overdue_vitals_alerts_active') or 0)} active overdue-observation "
+            f"alert(s) are recorded. They are routed to the ED Nurse role."
+        )
+
+    if audit and any(word in lower for word in ("latest", "most recent", "recent entry")):
+        recent = audit.get("most_recent_audit_entry")
+        if not recent:
+            return f"No audit entry was recorded {window_label}."
+        return (
+            f"The most recent audit entry was {recent.get('action') or recent.get('record_kind')} "
+            f"by {recent.get('role') or 'an unattributed role'} at {recent.get('timestamp_utc')}."
+        )
+
+    if audit and any(word in lower for word in ("audit", "log", "activity", "usage")):
+        return (
+            f"The audit log contains {int(audit.get('records_in_window') or 0)} record(s) {window_label}: "
+            f"{int(audit.get('access_events') or 0)} access events, "
+            f"{int(audit.get('clinical_decisions_submitted') or 0)} submitted clinical actions, and "
+            f"{int(audit.get('model_assessments_run') or 0)} model assessments."
+        )
+
+    if any(t in lower for t in ("version", "build", "release", "checkpoint", "running")):
+        return (
+            f"ALTER is running app version {config['app_version']} with package checkpoint "
+            f"{config['package_checkpoint']}."
+        )
+    asks_model = any(t in lower for t in ("model", "artifact", "artefact", "readiness"))
+    asks_governance = any(t in lower for t in ("sink", "durable", "retention", "governance"))
+    if asks_model or asks_governance:
+        parts: list[str] = []
+        if asks_model:
+            parts.append(
+                "The pinned UHL model artifact is "
+                + ("present" if config.get("model_file_exists") else "not present")
+                + ", and its evidence reports are "
+                + ("present." if config.get("report_dir_exists") else "not present.")
             )
-            asks_override = any(w in lower for w in ("override", "overrode", "overridden"))
-            if asks_override:
-                bits.append(
-                    f"{audit['overrides_submitted']} override(s) were submitted "
-                    f"(against {audit['accepts_submitted']} acceptance(s))."
-                )
-                if any(w in lower for w in ("who", "person", "people", "user")):
-                    people = audit.get("overrides_by_person") or []
-                    bits.append(
-                        ("Overrides by person: "
-                         + ", ".join(f"{p['label']} ({p['count']})" for p in people[:5]) + ".")
-                        if people else
-                        "No override in this window carries a recorded actor identity."
-                    )
-            if any(w in lower for w in ("login", "logins", "signed in", "sign-in", "successful")):
-                bits.append(
-                    f"{audit['access_allowed']} allowed access event(s) and "
-                    f"{audit['access_denied']} denied."
-                )
-            if (not asks_override) and any(t in lower for t in ("who", "person", "people", "user", "identity", "identities")):
-                people = audit.get("decisions_by_person") or []
-                if people:
-                    bits.append(
-                        "Decisions by person: "
-                        + ", ".join(f"{p['label']} ({p['count']})" for p in people[:5])
-                        + "."
-                    )
-                else:
-                    bits.append(
-                        "No decision in this window carries a recorded actor identity."
-                    )
-                if audit.get("decisions_unattributed"):
-                    bits.append(
-                        f"{audit['decisions_unattributed']} decision record(s) predate "
-                        "actor capture and remain unattributed."
-                    )
-            if any(t in lower for t in ("denied", "deny", "refus", "block")):
-                by_role = audit.get("denied_by_role") or []
-                bits.append(
-                    f"{audit['access_denied']} access denial(s) recorded"
-                    + (
-                        ", by role: " + ", ".join(f"{d['label']} ({d['count']})" for d in by_role)
-                        if by_role else ""
-                    )
-                    + "."
-                )
-            if any(t in lower for t in ("role", "roles", "activity", "workload", "usage")):
-                roles = audit.get("top_roles_decisions_only") or []
-                if roles:
-                    bits.append(
-                        "Decisions by role: "
-                        + ", ".join(f"{r['label']} ({r['count']})" for r in roles[:5])
-                        + ". Access-event counts are a separate, much larger figure and "
-                        "are not clinical workload."
-                    )
-            if any(t in lower for t in ("recent", "last", "latest")):
-                recent = audit.get("most_recent_audit_entry")
-                if recent:
-                    bits.append(
-                        f"Most recent audit entry: {recent.get('action') or recent.get('record_kind')} "
-                        f"by {recent.get('role') or 'unknown role'} at "
-                        f"{recent.get('timestamp_utc')}."
-                    )
-            if any(t in lower for t in ("escalation", "escalations", "overdue", "vital", "notification")):
-                bits.append(
-                    f"Open escalations: {audit['open_escalations']}. "
-                    f"Active overdue-vitals alerts: {audit['overdue_vitals_alerts_active']}."
-                )
-                if not config.get("overdue_vitals_sweeper_enabled"):
-                    bits.append(
-                        "Note: the server-side overdue-vitals sweeper is DISABLED in this "
-                        "deployment, so alerts are only created while a browser session "
-                        "with assessment permission is open. A zero count therefore does "
-                        "not prove nothing is overdue. Set "
-                        "ENABLE_OVERDUE_VITALS_SWEEPER=true to create them server-side."
-                    )
-
-    if not bits:
-        bits.append(
-            "Ask about security posture and configuration warnings, the audit log "
-            "(volumes, access denials, who submitted decisions, recent entries), "
-            "role activity, escalations and overdue-vitals alerts, deployment "
-            "settings, model artefact status, or training report availability."
+        if asks_governance:
+            parts.append(
+                f"The configured audit sink is {config.get('audit_sink')}; governance and audit "
+                "answers are read-only and are calculated from recorded backend evidence."
+            )
+        return " ".join(parts)
+    if any(t in lower for t in ("security", "auth", "permission", "posture", "safe", "warning")):
+        answer = (
+            f"The recorded security configuration is {'safe' if config.get('is_safe_configuration') else 'not safe'} "
+            f"in {config.get('security_mode')} mode using {config.get('auth_provider')} authentication."
         )
-    return " ".join(bits) + (
-        " This assistant is read-only and system/admin-only: it does not inspect "
-        "individual patient cases or assign triage."
+        if config.get("warnings"):
+            answer += " Warnings: " + "; ".join(str(item) for item in config["warnings"][:4]) + "."
+        return answer
+    return (
+        "I could not map that question to a recorded system or audit measure. Ask about "
+        "assessments, decisions, accepts, overrides, escalations, staff activity, access "
+        "denials, overdue observations, security posture, versions, or model artefacts."
     )
 
 
@@ -476,7 +782,12 @@ def _safe_model_records(records: List[Any], *, limit: int) -> List[Dict[str, Any
     return out
 
 
-def _read_patient_durable_records(*, record_kind: str, limit: int) -> List[Dict[str, Any]]:
+def _read_patient_durable_records(
+    *,
+    record_kind: str,
+    limit: int,
+    since_utc: str | None = None,
+) -> List[Dict[str, Any]]:
     from app.security.audit_sink import AuditSinkReadError, LocalJsonlAuditSink, get_audit_sink
 
     sink = get_audit_sink(settings.processed_dir / f"{record_kind}.jsonl")
@@ -496,8 +807,20 @@ def _read_patient_durable_records(*, record_kind: str, limit: int) -> List[Dict[
         )
     try:
         try:
-            records = reader(limit, record_kind=record_kind)
+            records = reader(
+                limit,
+                record_kind=record_kind,
+                since_utc=since_utc,
+            )
         except TypeError:
+            if since_utc:
+                raise HTTPException(
+                    status_code=503,
+                    detail=(
+                        "Durable audit reader does not support a bounded "
+                        "since_utc query required for monthly export."
+                    ),
+                )
             records = reader(limit)
     except AuditSinkReadError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
@@ -575,7 +898,9 @@ def audit_records(limit: int = 200) -> Dict[str, Any]:
     }
 
 
-def _normalised_audit_records() -> List[Dict[str, Any]]:
+def _normalised_audit_records(
+    *, limit_per_stream: int = 5000, require_complete: bool = False
+) -> List[Dict[str, Any]]:
     """Load and normalise the audit evidence set.
 
     Shared by the audit dashboard and the ITD assistant so both describe the
@@ -583,6 +908,14 @@ def _normalised_audit_records() -> List[Dict[str, Any]]:
     surfaces disagree about the same audit log.
     """
     patient_mode = os.environ.get("PATIENT_DATA_MODE", "").lower() == "true"
+    limit_per_stream = max(1, min(int(limit_per_stream), 100000))
+    if patient_mode and require_complete:
+        # A durable reader may enforce a lower independent ceiling.  Use that
+        # effective cap so a full-cap result is rejected as potentially
+        # truncated instead of being labelled a complete export.
+        from app.security.audit_sink import _max_audit_read_limit
+
+        limit_per_stream = min(limit_per_stream, _max_audit_read_limit())
 
     from app.analytics.audit_dashboard import normalise_audit_records
     from app.security.access_audit import _audit_path
@@ -595,12 +928,12 @@ def _normalised_audit_records() -> List[Dict[str, Any]]:
     from app.storage.jsonl_io import read_jsonl_dicts
 
     if patient_mode:
-        access_events = _read_patient_durable_records(record_kind="access_audit", limit=5000)
-        workflow_runs = _read_patient_durable_records(record_kind="workflow_run", limit=5000)
-        human_reviews = _read_patient_durable_records(record_kind="human_review", limit=5000)
-        workflow_reruns = _read_patient_durable_records(record_kind="workflow_rerun", limit=5000)
+        access_events = _read_patient_durable_records(record_kind="access_audit", limit=limit_per_stream)
+        workflow_runs = _read_patient_durable_records(record_kind="workflow_run", limit=limit_per_stream)
+        human_reviews = _read_patient_durable_records(record_kind="human_review", limit=limit_per_stream)
+        workflow_reruns = _read_patient_durable_records(record_kind="workflow_rerun", limit=limit_per_stream)
         workflow_states = _read_patient_durable_records(
-            record_kind="case_workflow_state", limit=5000
+            record_kind="case_workflow_state", limit=limit_per_stream
         )
     else:
         def path_for(filename: str, purpose: str) -> Path:
@@ -613,15 +946,15 @@ def _normalised_audit_records() -> List[Dict[str, Any]]:
 
         workflow_runs = _safe_model_records(
             read_workflow_runs(path_for("workflow_runs.jsonl", "workflow-run dashboard read")),
-            limit=5000,
+            limit=limit_per_stream,
         )
         human_reviews = _safe_model_records(
             read_human_reviews(path_for("human_reviews.jsonl", "human-review dashboard read")),
-            limit=5000,
+            limit=limit_per_stream,
         )
         workflow_reruns = _safe_model_records(
             read_reruns(path_for("workflow_reruns.jsonl", "workflow-rerun dashboard read")),
-            limit=5000,
+            limit=limit_per_stream,
         )
         # Local persistence writes TWO rows per transition: a
         # case_workflow_state_current snapshot (an operational read model) and a
@@ -633,14 +966,34 @@ def _normalised_audit_records() -> List[Dict[str, Any]]:
         workflow_states = [
             redact_for_log(record)
             for record in read_case_states(
-                path_for("case_workflow_state.jsonl", "workflow-state dashboard read")
+                path_for("case_workflow_state.jsonl", "workflow-state dashboard read"),
+                limit=limit_per_stream,
             )
             if str((record or {}).get("record_kind") or "case_workflow_state")
             != "case_workflow_state_current"
-        ][-5000:]
+        ][-limit_per_stream:]
+
+    if require_complete:
+        stream_sizes = {
+            "access_events": len(access_events),
+            "workflow_runs": len(workflow_runs),
+            "human_reviews": len(human_reviews),
+            "workflow_reruns": len(workflow_reruns),
+            "workflow_states": len(workflow_states),
+        }
+        capped = [name for name, size in stream_sizes.items() if size >= limit_per_stream]
+        if capped:
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "Complete audit export reached the configured per-stream read "
+                    f"limit for: {', '.join(capped)}. Refusing to produce a "
+                    "silently truncated patient journey CSV."
+                ),
+            )
 
     records = normalise_audit_records(
-        access_events=access_events[-5000:],
+        access_events=access_events[-limit_per_stream:],
         workflow_runs=workflow_runs,
         human_reviews=human_reviews,
         workflow_reruns=workflow_reruns,
@@ -728,6 +1081,89 @@ def audit_dashboard(
     )
     assert_no_raw_identifiers(payload)
     return payload
+
+
+@router.get(
+    "/audit/journey.csv",
+    dependencies=[Depends(requires(authz.PERM_VIEW_AUDIT_LOG, "export_audit_journey"))],
+)
+def audit_journey_csv(
+    start_utc: str | None = None,
+    end_utc: str | None = None,
+    patient_or_case: str | None = None,
+    triage_level: str | None = None,
+    acuity: int | None = None,
+    reviewer_role: str | None = None,
+    decision_type: str | None = None,
+    action_type: str | None = None,
+    escalation_status: str | None = None,
+    override_status: str | None = None,
+    source_dataset: str | None = None,
+) -> Response:
+    """Download every matching safe audit field as a patient journey CSV.
+
+    Unlike the dashboard response this is not page-limited.  It fails rather
+    than silently truncating if a source stream reaches the safety cap.
+    """
+    from app.analytics.audit_dashboard import AuditFilters, filter_audit_records
+    from app.analytics.audit_journey_export import audit_journey_csv_bytes
+    from app.api import case_resolver, safe_dto
+    from app.security.redaction import assert_no_raw_identifiers
+
+    try:
+        stream_limit = int(os.environ.get("AUDIT_JOURNEY_EXPORT_STREAM_LIMIT", "100000"))
+    except ValueError:
+        stream_limit = 100000
+    stream_limit = max(1000, min(stream_limit, 100000))
+    records = _normalised_audit_records(
+        limit_per_stream=stream_limit, require_complete=True
+    )
+
+    identity_cache: Dict[str, Dict[str, Any]] = {}
+    for record in records:
+        case_uid = str(record.get("case_uid") or "").strip()
+        if not case_uid:
+            continue
+        if case_uid not in identity_cache:
+            try:
+                resolved = case_resolver.resolve(case_uid)
+                identity_cache[case_uid] = (
+                    safe_dto.safe_display_identity(resolved.case)
+                    if resolved is not None else {}
+                )
+            except Exception:
+                identity_cache[case_uid] = {}
+        record.update(identity_cache[case_uid])
+        assert_no_raw_identifiers(record)
+
+    filtered = filter_audit_records(
+        records,
+        AuditFilters(
+            start_utc=start_utc,
+            end_utc=end_utc,
+            patient_or_case=patient_or_case,
+            triage_level=triage_level,
+            acuity=acuity,
+            reviewer_role=reviewer_role,
+            decision_type=decision_type,
+            action_type=action_type,
+            escalation_status=escalation_status,
+            override_status=override_status,
+            source_dataset=source_dataset,
+        ),
+    )
+    content = audit_journey_csv_bytes(filtered)
+    stamp = datetime.now(timezone.utc).date().isoformat()
+    filename = f"audit-complete-patient-journeys-{stamp}.csv"
+    return Response(
+        content=content,
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "X-Audit-Export-Rows": str(len(filtered)),
+            "X-Audit-Export-Complete": "true",
+        },
+    )
 
 
 @router.get("/cost/estimate",

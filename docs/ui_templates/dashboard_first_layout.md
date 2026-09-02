@@ -2,7 +2,7 @@
 
 ## Target User
 
-Researcher, clinical supervisor, governance auditor.
+Researcher, ED doctor, governance auditor.
 
 ## Layout Purpose
 

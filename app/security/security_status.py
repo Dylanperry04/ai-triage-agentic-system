@@ -258,7 +258,7 @@ def build_security_status() -> Dict[str, Any]:
     current_mode = (
         "secured_research" if patient
         else "local_credentialed_research" if local_research
-        else "azure_supervisor_demo" if azure_demo
+        else "azure_role_switcher_demo" if azure_demo
         else "public_demo"
     )
     return {

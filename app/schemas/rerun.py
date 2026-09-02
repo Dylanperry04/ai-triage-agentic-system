@@ -66,6 +66,13 @@ class WorkflowRerunRecord(BaseModel):
     override_tier_new: Optional[str] = None
     reason: str = ""
 
+    # Actor attribution for the ED Nurse observation/update event.
+    performed_by_user_id: Optional[str] = None
+    performed_by_display_name: Optional[str] = None
+    performed_by_role: Optional[str] = None
+    performed_by_identity_verified: bool = False
+    auth_source: Optional[str] = None
+
     requires_clinician_review: bool = True
     app_version: Optional[str] = None
     package_checkpoint: Optional[str] = None

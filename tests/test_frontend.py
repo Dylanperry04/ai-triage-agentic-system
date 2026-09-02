@@ -194,8 +194,8 @@ class TestNoKtasOrDemoInRenderedUI:
         assert "MIMIC-IV-ED Demo" not in text
         assert "Kaggle" not in text
 
-    def test_no_ktas_text_for_supervisor(self):
-        text, at = self._rendered_text("clinical_supervisor")
+    def test_no_ktas_text_for_ed_nurse(self):
+        text, at = self._rendered_text("ed_nurse")
         assert not at.exception
         assert "KTAS" not in text
         assert "MIMIC-IV-ED Demo" not in text
@@ -365,7 +365,7 @@ class TestProtectedActionsGoThroughApiClient:
         assert '_review_options.append("ESCALATION_CONFIRMED")' in src
         assert '_review_options.extend(["ESCALATION_REJECTED", "ESCALATION_CLOSED"])' in src
         assert '_review_options.append("DISCHARGED")' in src
-        assert '{"ed_doctor", "clinical_supervisor", "security_admin"}' in src
+        assert '{"ed_doctor", "security_admin"}' in src
         assert '["REQUEST_MORE_INFORMATION", "NOT_REVIEWED", "ACCEPTED_AS_PRESENTED",\n             "OVERRIDE_REQUIRED", "ESCALATION_REQUIRED", "ESCALATION_CONFIRMED",' not in src
 
     def test_sidebar_system_status_is_security_permission_gated(self):

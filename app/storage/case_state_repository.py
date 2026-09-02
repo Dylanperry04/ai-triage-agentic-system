@@ -13,7 +13,7 @@ from typing import Any, Dict, List
 
 
 _DEFAULT_WORKFLOW_READ_LIMIT = 50000
-_MAX_WORKFLOW_READ_LIMIT = 50000
+_MAX_WORKFLOW_READ_LIMIT = 100000
 
 
 def append_case_state(path: Path, state: Dict[str, Any]) -> None:

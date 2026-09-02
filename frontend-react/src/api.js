@@ -72,6 +72,19 @@ async function uploadFile(path, file) {
   }
   return payload;
 }
+async function downloadFile(path, fallbackFilename = "download.csv") {
+  const headers = { Accept: "text/csv" };
+  if (demoRole) headers["X-Demo-Role"] = demoRole;
+  if (demoUser) headers["X-Demo-User"] = demoUser;
+  const resp = await fetch(path, { method: "GET", headers, credentials: "same-origin" });
+  if (!resp.ok) {
+    const payload = await resp.json().catch(() => null);
+    throw new ApiError(resp.status, payload?.detail || resp.statusText);
+  }
+  const disposition = resp.headers.get("content-disposition") || "";
+  const match = disposition.match(/filename\*?=(?:UTF-8''|\")?([^\";]+)/i);
+  return { blob: await resp.blob(), filename: decodeURIComponent(match?.[1] || fallbackFilename) };
+}
 const get = (p) => request("GET", p);
 const post = (p, b) => request("POST", p, b);
 const qs = (params) => {
@@ -105,75 +118,101 @@ export const api = {
      scrolling a queue never creates review evidence or clinician attribution. */
   previewAssessment: (uid) => post(`/cases/${encodeURIComponent(uid)}/assessments?preview=true`),
   uploadSupportingScan: (uid, file) => uploadFile(`/cases/${encodeURIComponent(uid)}/supporting-uploads`, file),
-  /* Reassessment / requested-information response (PERM_RUN_ASSESSMENT).
+  /* ED Nurse reassessment / requested-information response.
      body: { updated_vitals?, updated_complaint?, updated_context?, scan_uploads? }
      UHL model inputs use temperature in °F (convert from °C before calling).
      Note: patient-specific LLM explanation routes are disabled server-side by
      default (see _require_patient_explanation_route_enabled), so no explain
      helper exists here by design. */
   followupCase: (uid, body) => post(`/cases/${encodeURIComponent(uid)}/followups`, body),
-  /* Clinician-facing MULTI-AGENT explanation of THIS case's acuity — the
-     IntakeAgent/ValidationAgent/SafetyReviewAgent/ExplanationAgent team.
-     Distinct from the ITD system chatbot. Returns { status, agent_turns,
-     final_explanation, safety_failures }. status may be PASS, NOT_CONFIGURED
+  /* Clinician-facing explanation of THIS case's acuity. Internal validation
+     turns are never returned to the UI; only the concise ExplanationAgent
+     summary is exposed. Returns { status, final_explanation, safety_failures }.
+     status may be PASS, NOT_CONFIGURED
      (no Azure OpenAI), SAFETY_FAIL, or ERROR. */
   multiagentExplainCase: (uid, question) => post(`/cases/${encodeURIComponent(uid)}/multiagent-explanations`, question ? { question } : {}),
-  submitReview: (uid, body) => post(`/cases/${encodeURIComponent(uid)}/reviews`, body),
+  submitReview: (uid, body) => post(`/cases/${encodeURIComponent(uid)}/reviews`, {
+    ...body,
+    action_id: body?.action_id || globalThis.crypto?.randomUUID?.()
+      || `review-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+  }),
   sweepOverdueVitals: () => post("/workflow/overdue-vitals/sweep?limit=50000"),
   acknowledgeOverdue: (uid) => post(`/cases/${encodeURIComponent(uid)}/vitals/acknowledge-overdue`),
   auditEvents: (limit = 300) => get(`/audit/events${qs({ limit })}`),
   auditRecords: (limit = 400) => get(`/audit/records${qs({ limit })}`),
   auditDashboard: (filters) => get(`/audit/dashboard${qs(filters)}`),
+  downloadAuditJourney: (filters) => downloadFile(
+    `/audit/journey.csv${qs(filters)}`, "audit-complete-patient-journeys.csv"
+  ),
   modelPerformance: () => get("/model/performance"),
   systemAssistant: (question) => post("/system/assistant", { question }),
   demoReset: (confirmation, dryRun = false) =>
     post("/system/demo-reset", { confirmation, dry_run: dryRun }),
   governanceReport: () => get("/governance/report"),
+  retrainingExports: () => get("/retraining/exports"),
+  generateRetrainingExport: (reportingMonth) => post(`/retraining/exports/generate${qs({ reporting_month: reportingMonth })}`),
+  downloadRetrainingExport: (reportingMonth) => downloadFile(`/retraining/exports/${encodeURIComponent(reportingMonth)}/download`),
+  currentRetrainingPreview: () => get("/retraining/preview/current"),
+  downloadCurrentRetrainingPreview: () => downloadFile("/retraining/preview/current/download"),
 };
 
 /* Decision helpers — exact review_status vocabulary from app/schemas/review.py. */
 export const decisions = {
-  accept: (uid, { systemPrediction, comment }) => api.submitReview(uid, {
+  accept: (uid, { workflowRunId, systemPrediction, comment }) => api.submitReview(uid, {
     review_status: "ACCEPTED_AS_PRESENTED",
+    workflow_run_id: workflowRunId,
     review_comment: comment || "Advisory accepted at triage.",
     system_prediction: systemPrediction ?? null,
     clinician_decision: systemPrediction ?? null,
   }),
-  override: (uid, { systemPrediction, decision, reason }) => api.submitReview(uid, {
+  override: (uid, { workflowRunId, systemPrediction, decision, finalAcuity, reason }) => api.submitReview(uid, {
     review_status: "OVERRIDDEN",
-    review_comment: `Nurse override recorded at triage.`,
+    workflow_run_id: workflowRunId,
+    review_comment: `Clinical acuity override recorded.`,
     system_prediction: systemPrediction ?? null,
     clinician_decision: decision,
     clinician_override: decision,
+    final_clinician_acuity: finalAcuity,
     override_reason: reason,
   }),
-  escalate: (uid, { systemPrediction, toRole, reason }) => api.submitReview(uid, {
+  escalate: (uid, { workflowRunId, systemPrediction, reason }) => api.submitReview(uid, {
     review_status: "ESCALATION_REQUIRED",
+    workflow_run_id: workflowRunId,
     review_comment: reason,
     system_prediction: systemPrediction ?? null,
-    escalation_target_role: toRole || "ed_doctor",
+    escalation_target_role: "ed_doctor",
   }),
-  requestInfo: (uid, { fields, comment }) => api.submitReview(uid, {
+  requestInfo: (uid, { workflowRunId, fields, comment }) => api.submitReview(uid, {
     review_status: "REQUEST_MORE_INFORMATION",
+    workflow_run_id: workflowRunId,
     review_comment: comment || "Further information requested before triage decision.",
     requested_fields: fields || [],
   }),
-  confirmEscalation: (uid, { note, decision }) => api.submitReview(uid, {
+  confirmEscalation: (uid, { workflowRunId, note, decision }) => api.submitReview(uid, {
     review_status: "ESCALATION_CONFIRMED",
+    workflow_run_id: workflowRunId,
     review_comment: note,
     clinician_decision: decision ?? null,
   }),
-  resolveEscalation: (uid, { note, decision }) => api.submitReview(uid, {
+  resolveEscalation: (uid, { workflowRunId, note, decision, finalAcuity }) => api.submitReview(uid, {
     review_status: "ESCALATION_RESOLVED",
+    workflow_run_id: workflowRunId,
     review_comment: note,
     clinician_decision: decision ?? null,
+    final_clinician_acuity: finalAcuity,
+    // The backend decides whether this differs from the trusted linked model
+    // acuity. Supplying the doctor's mandatory reason in structured form keeps
+    // changed final decisions visible to monitoring/retraining exports.
+    override_reason: note,
   }),
-  discharge: (uid, { comment }) => api.submitReview(uid, {
+  discharge: (uid, { workflowRunId, comment }) => api.submitReview(uid, {
     review_status: "DISCHARGED",
+    workflow_run_id: workflowRunId,
     review_comment: comment || "Discharged from ED.",
   }),
-  closeAdmitted: (uid, { comment }) => api.submitReview(uid, {
+  closeAdmitted: (uid, { workflowRunId, comment }) => api.submitReview(uid, {
     review_status: "CASE_CLOSED",
+    workflow_run_id: workflowRunId,
     review_comment: comment || "Case closed — admitted to ward.",
   }),
 };

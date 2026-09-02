@@ -29,7 +29,9 @@ def list_cases():
     _gone()
 
 
-@router.get("/triage/run/{stay_id}", dependencies=[Depends(requires(authz.PERM_RUN_ASSESSMENT, "run_assessment"))])
+@router.get("/triage/run/{stay_id}", dependencies=[Depends(requires(
+    authz.PERM_RUN_TRIAGE_ASSESSMENT, "run_assessment"
+))])
 def run_case(stay_id: int):
     _gone()
 

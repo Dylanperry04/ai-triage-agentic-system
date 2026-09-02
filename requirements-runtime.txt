@@ -29,7 +29,7 @@ python-dotenv==1.2.2
 orjson==3.11.6
 requests==2.33.0
 httpx==0.27.2
-wandb>=0.28.1,<1.0
+wandb==0.28.2
 protobuf==5.29.6
 
 # Durable notification publication from the web app.

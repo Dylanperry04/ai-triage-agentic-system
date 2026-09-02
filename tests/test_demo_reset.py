@@ -24,15 +24,19 @@ def _isolate_audit_path(tmp_path, monkeypatch):
     """Keep the audit log inside tmp_path.
 
     reset_demo_state resolves the access-audit file through the audit writer,
-    which uses ACCESS_AUDIT_DIR (or a RELATIVE "data/processed" default) rather
-    than processed_dir. Without pinning it, these tests would archive the real
-    audit log of whoever runs them.
+    which uses ACCESS_AUDIT_DIR (then ALTER_DATA_ROOT, then the local
+    data/processed default). Without pinning it, these tests could archive the
+    real audit log of whoever runs them.
     """
     audit_dir = tmp_path / "audit_home"
     audit_dir.mkdir(parents=True, exist_ok=True)
     monkeypatch.setenv("ACCESS_AUDIT_DIR", str(audit_dir))
+    monkeypatch.setenv("NOTIFICATION_SQLITE_PATH", str(tmp_path / "notifications.sqlite3"))
     monkeypatch.delenv("LOCAL_CREDENTIALED_RESEARCH", raising=False)
-    return audit_dir
+    from app.notifications.repository import reset_notification_repository_for_tests
+    reset_notification_repository_for_tests()
+    yield audit_dir
+    reset_notification_repository_for_tests()
 
 
 def _seed(processed_dir, records_per_file: int = 3) -> None:
@@ -72,6 +76,11 @@ class TestResetRefusals:
                 else processed / name
             )
             assert live.exists(), f"{name} must survive a refused reset"
+
+    def test_refused_while_sms_publication_is_enabled(self, monkeypatch):
+        monkeypatch.setenv("SMS_PUBLISH_ENABLED", "true")
+        with pytest.raises(DemoResetRefused, match="SMS"):
+            assert_reset_allowed()
 
 
 class TestResetArchivesRatherThanDeletes:
@@ -136,6 +145,39 @@ class TestResetArchivesRatherThanDeletes:
         manifest = reset_demo_state(processed)
         assert manifest["archived"] == []
         assert set(manifest["not_present"]) == set(RESETTABLE_FILENAMES)
+
+    def test_reset_archives_and_deactivates_durable_notifications(self, tmp_path):
+        from app.notifications.config import NotificationSettings
+        from app.notifications.models import NotificationRecord, ScheduleRecord, utc_iso
+        from app.notifications.repository import get_notification_repository
+
+        processed = tmp_path / "processed"
+        processed.mkdir(parents=True)
+        config = NotificationSettings.from_env()
+        repository = get_notification_repository(config)
+        notification = NotificationRecord.create(
+            kind="escalation", case_uid="case-reset", event_key="event-1",
+            target_role="ed_doctor", title="Escalation", body="Review in ALTER.",
+            sms_enabled=False,
+        )
+        repository.create_notification(notification)
+        schedule = ScheduleRecord.create(
+            case_uid="case-reset", reference_at=utc_iso(), due_minutes=210,
+            target_role="ed_nurse",
+        )
+        repository.upsert_schedule(schedule)
+
+        manifest = reset_demo_state(processed)
+
+        assert repository.list_notifications(
+            roles=["ed_doctor"], user_id="doctor", limit=10
+        ) == []
+        assert repository.get_schedule(schedule.schedule_id).active is False
+        result = manifest["notification_reset"]
+        assert result["notifications_deactivated"] == 1
+        assert result["schedules_deactivated"] == 1
+        assert (processed / "_archived_resets").exists()
+        assert list((processed / "_archived_resets").rglob("notifications.sqlite3"))
 
     def test_back_to_back_resets_do_not_overwrite_archived_evidence(
         self, tmp_path, monkeypatch

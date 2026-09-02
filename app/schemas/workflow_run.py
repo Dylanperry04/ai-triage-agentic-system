@@ -2,8 +2,8 @@
 Append-only workflow-run audit record.
 
 One record is written per assessment run (every time a case is run through the
-workflow in the UI). This is the persistent audit trail the supervisor review
-asked for. For a local/demo deployment it is JSONL; for a hardened Azure
+workflow in the UI). This is the persistent audit trail used for clinical review
+and monitoring. For a local/demo deployment it is JSONL; for a hardened Azure
 deployment it should be routed to Azure Blob/Table/Cosmos (the container
 filesystem is ephemeral).
 
@@ -41,6 +41,7 @@ class WorkflowRunRecord(BaseModel):
 
     # Triage-time input snapshot (what the workflow saw).
     input_snapshot: Dict[str, Any] = Field(default_factory=dict)
+    input_schema: List[str] = Field(default_factory=list)
 
     # ML prediction summary (dataset-specific).
     prediction_scale: Optional[str] = None
@@ -67,13 +68,35 @@ class WorkflowRunRecord(BaseModel):
     app_version: Optional[str] = None
     package_checkpoint: Optional[str] = None
     model_version: Optional[str] = None
+    model_sha256: Optional[str] = None
     mapping_rule_version: Optional[str] = None
     override_rule_version: Optional[str] = None
     rules_version: Optional[str] = None
 
+    # Actor that executed this real (non-preview) assessment. For a deliberate
+    # clinician action this is that clinician. For an automatic post-observation
+    # reassessment it is the ALTER system, with the authenticated trigger stored
+    # separately below so the ED Nurse is not incorrectly recorded as having
+    # exercised can_run_triage_assessment.
+    performed_by_user_id: Optional[str] = None
+    performed_by_display_name: Optional[str] = None
+    performed_by_role: Optional[str] = None
+    performed_by_identity_verified: bool = False
+    performed_by_actor_type: str = "human"
+    auth_source: Optional[str] = None
+    assessment_triggered_by_user_id: Optional[str] = None
+    assessment_triggered_by_display_name: Optional[str] = None
+    assessment_triggered_by_role: Optional[str] = None
+    assessment_triggered_by_identity_verified: bool = False
+    assessment_trigger_auth_source: Optional[str] = None
+    # Distinguish a clinician deliberately running an assessment from the
+    # automatic assessment created after an ED Nurse saves new observations.
+    assessment_execution_mode: str = "clinician_initiated"
+
 
 def build_workflow_run_record(result, run_id: str, timestamp_utc: str,
-                              app_version: Optional[str] = None) -> "WorkflowRunRecord":
+                              app_version: Optional[str] = None, ctx=None,
+                              assessment_execution_mode: str = "clinician_initiated") -> "WorkflowRunRecord":
     """Build a WorkflowRunRecord from a WorkflowResult (no I/O)."""
     ti = result.triage_input
     ml = result.ml_prediction
@@ -84,12 +107,47 @@ def build_workflow_run_record(result, run_id: str, timestamp_utc: str,
         app_version = APP_VERSION
     from app.version import PACKAGE_CHECKPOINT
 
-    input_snapshot = {
-        k: getattr(ti, k, None) for k in (
-            "chiefcomplaint", "heartrate", "resprate", "o2sat", "sbp", "dbp",
-            "temperature", "temperature_unit", "pain", "gender", "arrival_transport",
-        )
-    }
+    # Store the exact row consumed by the active UHL model rather than a loose
+    # subset of the pre-model object. This captures derived Dublin calendar
+    # fields and the Fahrenheit conversion performed by the serving contract.
+    input_schema: list[str] = []
+    input_snapshot: Dict[str, Any]
+    try:
+        from types import SimpleNamespace
+        from app.constants import DATASET_SOURCE, MODEL_INPUT_COLUMNS, MODEL_SHA256
+        if ti.source_dataset != DATASET_SOURCE:
+            raise ValueError("not the active UHL serving source")
+        from ml_training.uhl_synthetic.serving import uhl_dataframe_from_triage_inputs
+        frame = uhl_dataframe_from_triage_inputs([SimpleNamespace(
+            age=ti.age,
+            arrival_time=ti.intime,
+            presenting_complaint=ti.chiefcomplaint,
+            temperature=ti.temperature,
+            temperature_unit=ti.temperature_unit,
+            heartrate=ti.heartrate,
+            resprate=ti.resprate,
+            o2sat=ti.o2sat,
+            sbp=ti.sbp,
+            dbp=ti.dbp,
+            pain=ti.pain,
+        )])
+        row = frame.iloc[0]
+        input_schema = list(MODEL_INPUT_COLUMNS)
+        input_snapshot = {
+            key: (row[key].item() if hasattr(row[key], "item") else row[key])
+            for key in input_schema
+        }
+    except Exception:
+        # Historical/non-UHL compatibility records remain readable, but the
+        # monthly UHL exporter will reject this incomplete schema instead of
+        # fabricating derived values.
+        input_schema = []
+        input_snapshot = {
+            k: getattr(ti, k, None) for k in (
+                "age", "chiefcomplaint", "heartrate", "resprate", "o2sat",
+                "sbp", "dbp", "temperature", "temperature_unit", "pain",
+            )
+        }
     safety_flags = list(getattr(result.safety_review, "data_quality_flags", []) or [])
 
     return WorkflowRunRecord(
@@ -99,6 +157,7 @@ def build_workflow_run_record(result, run_id: str, timestamp_utc: str,
         source_dataset=ti.source_dataset,
         stay_id=result.stay_id,
         input_snapshot=input_snapshot,
+        input_schema=input_schema,
         prediction_scale=ml.prediction_scale,
         predicted_ktas_class=ml.predicted_ktas_class,
         predicted_mimic_acuity=ml.predicted_mimic_acuity,
@@ -117,7 +176,18 @@ def build_workflow_run_record(result, run_id: str, timestamp_utc: str,
         app_version=app_version,
         package_checkpoint=PACKAGE_CHECKPOINT,
         model_version=getattr(ml, "model_version", None),
+        model_sha256=MODEL_SHA256 if input_schema else None,
         mapping_rule_version=getattr(ml, "mapping_rule_version", None),
         override_rule_version=getattr(fa, "override_rule_version", None),
         rules_version=getattr(dec, "ruleset_id", None),
+        performed_by_user_id=getattr(ctx, "user_id", None),
+        performed_by_display_name=(
+            getattr(ctx, "display_name", None) or getattr(ctx, "user_id", None)
+        ),
+        performed_by_role=(list(getattr(ctx, "roles", []) or []) or [None])[0],
+        performed_by_identity_verified=bool(getattr(ctx, "authenticated", False))
+        and not bool(getattr(ctx, "is_demo_stub", False)),
+        performed_by_actor_type="human",
+        auth_source=getattr(ctx, "source", None),
+        assessment_execution_mode=assessment_execution_mode,
     )

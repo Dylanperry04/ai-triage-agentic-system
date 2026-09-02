@@ -1,71 +1,98 @@
 {
-  "release_name": "ALTER ACS SMS notification remediation",
-  "release_version": "25.7",
-  "archive_name": "ai-triage-agentic-system-v25.7-acs-deployment-ready.zip",
-  "archive_root": "ai-triage-agentic-system-v25.7",
+  "release_name": "ALTER UHL Azure demo final complete-audit release",
+  "release_version": "22.4.0-uhl-demo.20260901.2",
+  "archive_name": "ai-triage-agentic-system-uhl-azure-demo-final-audit-ready-2026-09-01.zip",
+  "archive_root": "ai-triage-agentic-system-main",
   "application_version": "22.4.0-uhl",
   "application_checkpoint": "v22_4_uhl_data_model_swap",
-  "source_lineage": "ai-triage-agentic-system-v25.2",
-  "release_date": "2026-08-17",
-  "deployment_build_identity": "Git commit SHA injected as ALTER_BUILD_ID by .github/workflows/deploy-azure.yml",
-  "archive_checksum_delivery": "The exact SHA-256 is supplied beside the ZIP because embedding it would change the ZIP bytes",
-  "sms_default_state": "disabled",
-  "recipient_mode": "one Key Vault-backed demonstration recipient",
+  "source_lineage": "user-supplied working UHL build plus independently reproduced and verified demo remediations",
+  "release_date": "2026-09-01",
+  "clinical_use": "controlled synthetic-data demonstration; not clinically validated or approved",
+  "scope": [
+    "ED Nurse, Triage Nurse, and ED Doctor workflow and permission separation",
+    "audit-backed patient observation and model-advisory trends",
+    "concise final ExplanationAgent-only output",
+    "validated general read-only ITD audit querying and dynamic system/RBAC answers",
+    "monthly retraining export, preview, late-label revision, and ITD notification",
+    "complete server-side patient-journey audit CSV with carried-forward vitals and explicit changes",
+    "persisted action idempotency and stricter Foundry plan semantic validation",
+    "durable demo reset and notification concurrency hardening",
+    "case transition serialization and client-action idempotency",
+    "deep Azure readiness and post-deployment assistant smoke checks",
+    "Azure App Service startup and UHL cache hardening"
+  ],
   "backend_validation": {
-    "collected": 1106,
-    "passed": 1085,
-    "skipped": 21,
-    "xfailed_non_strict": 0,
-    "failed": 0
-  },
-  "supplied_archive_backend_validation": {
-    "collected": 1106,
-    "passed": 1084,
-    "skipped": 21,
-    "xfailed_non_strict": 1,
-    "failed": 0
-  },
-  "github_main_integration": {
-    "preserved_newer_correctness_fixes": [
-      "app/api/case_resolver.py",
-      "app/data_pipeline/uhl_repository.py"
-    ],
-    "preserved_startup_cache_prewarming": true,
-    "preserved_readable_signin_source": true,
-    "frontend_assets_rebuilt_from_merged_source": true,
-    "deleted_obsolete_workflow": ".github/workflows/main_triage.yml",
-    "other_preexisting_files_deleted": 0,
-    "manifest_matching_crlf_report_csvs": 8
-  },
-  "notification_infrastructure_validation": {
-    "passed": 71,
-    "failed": 0
-  },
-  "deployment_smoke_validation": {
-    "passed": 3,
-    "failed": 0
-  },
-  "runtime_validation": {
     "python": "3.11.9",
-    "deployment_package_limit_bytes": 900000000,
-    "expanded_dependency_limit_bytes": 1900000000,
-    "live_run_from_package_limit_enforced": true,
-    "dependency_audit": "no known vulnerabilities found",
-    "pip_check": "passed"
+    "profile": "monthly scheduler and overdue-vitals sweeper both enabled",
+    "collected": 1173,
+    "passed": 1152,
+    "skipped_intentionally": 21,
+    "failed": 0,
+    "warnings": 4
   },
   "frontend_validation": {
-    "test_files_passed": 7,
-    "tests_passed": 47,
-    "production_modules_transformed": 2076
+    "test_files_passed": 8,
+    "tests_passed": 55,
+    "failed": 0,
+    "node": "22",
+    "pnpm": "10.34.5",
+    "production_modules_transformed": 2076,
+    "production_build": "passed"
   },
-  "azure_validation": {
+  "static_validation": {
+    "python_compileall": "passed",
+    "pip_check": "passed",
+    "pip_audit": "no known vulnerabilities",
+    "pnpm_audit": "no known vulnerabilities",
+    "autogen_imports": "passed",
+    "azure_preflight": "passed",
     "bicep_compilation": "passed",
-    "bicep_lint": "passed",
-    "function_registration": "four functions registered",
-    "deployment_workflow_validation": "YAML parsed and all 27 shell blocks passed bash syntax validation; clean CI dependency collection passed",
-    "runtime_dependency_audit": "passed with no known vulnerabilities",
-    "arm_validate": "pending authenticated Azure execution",
-    "what_if": "pending authenticated Azure execution",
-    "live_sms": "pending approved sender, provisioned resources, secret entry, and explicit chargeable-test approval"
-  }
+    "startup_shell_syntax": "passed",
+    "uhl_dataset_hash": "f3a6b4b8c7ee081fc02c924978ee1c5ecb5d7ebffbd32a2058d10cbd1bf1cd5c",
+    "uhl_model_hash": "7dddf3cc673f5598d73d7e6d56546cad49639edcae77b44b17b677f0b0d1395b"
+  },
+  "readiness_validation": {
+    "deep_ready_endpoint": "passed",
+    "dataset_hash_verified": true,
+    "model_hash_verified": true,
+    "model_loadable": true,
+    "source_rows": 777176,
+    "model_scope_rows": 777174,
+    "runtime_storage_writable": true,
+    "local_azure_smoke_with_assistant": "passed"
+  },
+  "browser_validation": {
+    "local_fastapi_react_ui": "passed",
+    "console_errors": 0,
+    "ed_nurse_workspace": "passed",
+    "triage_nurse_workspace": "passed",
+    "ed_doctor_disposition_workspace": "passed",
+    "analytics_trends_interface": "passed",
+    "monthly_retraining_interface": "passed",
+    "exact_escalation_and_staff_question": "passed",
+    "dynamic_rbac_question": "passed",
+    "non_catalogue_duration_query": "passed",
+    "complete_audit_journey_download": "passed",
+    "accepted_case_repeat_observations": "passed",
+    "csv_columns_in_local_e2e": 119,
+    "csv_explicit_vital_change_in_local_e2e": "heartrate 63.3 -> 72.0 (delta 8.7)"
+  },
+  "supported_deployment_profile": {
+    "app_service_instances": 1,
+    "uvicorn_workers": 1,
+    "patient_data_mode": false,
+    "purpose": "synthetic UHL demonstration"
+  },
+  "boundaries": {
+    "foundry_receives_audit_rows": false,
+    "unrestricted_sql_or_file_access": false,
+    "facts_not_recorded_are_invented": false,
+    "automatic_model_training": false,
+    "automatic_nvidia_or_slurm_submission": false,
+    "automatic_model_replacement": false,
+    "live_azure_openai_tested_locally": false,
+    "actual_azure_app_service_modified": false,
+    "distributed_multi_instance_state_supported": false
+  },
+  "archive_checksum_delivery": "The exact SHA-256 is reported beside the generated ZIP because embedding it would change the ZIP bytes."
 }

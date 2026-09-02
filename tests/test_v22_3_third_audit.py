@@ -110,6 +110,32 @@ class TestOverridesKpiCountsOnlyRealOverrides:
             _review("h1", "OVERRIDDEN", clinician_override="Very Urgent (Orange)")])
         assert aggregate_audit_dashboard(recs)["summary"]["overrides"] == 1
 
+    def test_ed_doctor_final_change_counts_as_an_override(self):
+        recs = normalise_audit_records(human_reviews=[_review(
+            "h1", "ESCALATION_RESOLVED", reviewer_role="ed_doctor",
+            system_prediction="Urgent (Yellow)", final_clinician_acuity=2,
+            override_reason="Persistent hypoxia after repeat observations.",
+        )])
+        agg = aggregate_audit_dashboard(recs)
+        assert agg["summary"]["overrides"] == 1
+        assert agg["summary"]["acuity_decisions"] == 1
+        assert agg["by_acuity"] == [
+            {"acuity": 2, "label": "Acuity 2", "count": 1}
+        ]
+
+    def test_ed_doctor_confirmation_is_not_an_override(self):
+        recs = normalise_audit_records(human_reviews=[_review(
+            "h1", "ESCALATION_RESOLVED", reviewer_role="ed_doctor",
+            system_prediction="Urgent (Yellow)", final_clinician_acuity=3,
+            review_comment="Confirmed after full clinical review.",
+        )])
+        agg = aggregate_audit_dashboard(recs)
+        assert agg["summary"]["overrides"] == 0
+        assert agg["summary"]["acuity_decisions"] == 1
+        assert agg["by_acuity"] == [
+            {"acuity": 3, "label": "Acuity 3", "count": 1}
+        ]
+
 
 class TestKpiPopulationsAreDistinguishable:
     def test_submitted_actions_and_acuity_decisions_are_separate_numbers(self):
@@ -122,6 +148,19 @@ class TestKpiPopulationsAreDistinguishable:
         assert summary["total_reviews"] == 2, "all submitted actions"
         assert summary["acuity_decisions"] == 1, "accept + override only"
         assert summary["acuity_decisions"] == donut_total, "KPI must match the donut"
+
+    def test_two_exact_assessments_for_one_patient_count_as_two_decisions(self):
+        recs = normalise_audit_records(human_reviews=[
+            _review("h1", "ACCEPTED_AS_PRESENTED", case_uid="same-case",
+                    workflow_run_id="run-1"),
+            _review("h2", "ESCALATION_RESOLVED", case_uid="same-case",
+                    workflow_run_id="run-2", reviewer_role="ed_doctor",
+                    final_clinician_acuity=2,
+                    override_reason="Changed after repeat observations."),
+        ])
+        agg = aggregate_audit_dashboard(recs)
+        assert agg["summary"]["acuity_decisions"] == 2
+        assert sum(row["count"] for row in agg["by_acuity"]) == 2
 
 
 class TestRoleBarAndRoleFilterAgree:

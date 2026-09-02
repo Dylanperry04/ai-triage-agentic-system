@@ -14,8 +14,8 @@ identity team; **Both** = app integrates with an IT-provided capability.
       App Service built-in auth), injecting `X-MS-CLIENT-PRINCIPAL`.
 - [ ] **IT** — MFA enforced for all users of the app.
 - [ ] **IT** — Conditional Access policy (managed/compliant device, location).
-- [ ] **IT** — Entra groups created and mapped to roles: `triage-nurses`,
-      `ed-doctors`, `clinical-supervisors`, `researchers`, `security-admins`,
+- [ ] **IT** — Entra groups created and mapped to roles: `ed-nurses`,
+      `triage-nurses`, `ed-doctors`, `researchers`, `security-admins`,
       `governance-auditors`.
 - [ ] **App** — `DEFAULT_GROUP_ROLE_MAP` matches the agreed Entra group names.
 - [ ] **App** — `TRUSTED_AUTH_PROXY=true` set (only after Entra auth confirmed in front).
@@ -114,7 +114,8 @@ public-data demo mode.
       `409 Conflict` rather than overwriting timestamps or notes.
 - [ ] **App/IT** - Overdue-vitals notification creation runs server-side. Either
       enable the API background sweeper with `ENABLE_OVERDUE_VITALS_SWEEPER=true`
-      (default in `PATIENT_DATA_MODE`) or run `POST /workflow/overdue-vitals/sweep`
+      (default in `PATIENT_DATA_MODE` and the Azure role-switcher demo) or run
+      `POST /workflow/overdue-vitals/sweep`
       from an Azure Timer/worker with a singleton/lease pattern.
 - [ ] **Both** - Verify the 210-minute vitals clock uses the latest persisted
       `last_vitals_checked_at` / `last_vitals_updated_at` and that acknowledgement

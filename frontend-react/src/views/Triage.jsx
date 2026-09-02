@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { CheckCircle2, ArrowUpRight, ChevronDown, Ambulance, Footprints, Activity, Sparkles, Users, ShieldCheck, ClipboardCheck, UploadCloud, FileText, Trash2, Undo2 } from "lucide-react";
+import { CheckCircle2, ArrowUpRight, Ambulance, Footprints, Activity, Sparkles, UploadCloud, FileText, Trash2, Undo2 } from "lucide-react";
 import { T, MTS, catOf, priorityFromCategory, toC, vitalState, patientLabel, encounterLabel, patientWithEncounter, acuityLabel } from "../theme.js";
 import { Card, Btn, Eyebrow, ConfBar, Modal, Pill, Spinner, EmptyState, ErrorNote } from "../atoms.jsx";
 import { api, decisions } from "../api.js";
@@ -15,6 +15,12 @@ export const isQueueRow = (c) => {
   // the triage queue, even when case_status is empty.
   if (cs === "" && DECIDED_REVIEW.has(String(ws.review_status || "").toLowerCase())) return false;
   return QUEUE_STATES.has(cs) || cs === "" || cs === "reopened";
+};
+const CLOSED_CASE_STATES = new Set(["discharged", "closed", "case_closed"]);
+export const isObservationRow = (c) => {
+  const ws = c.workflow_state || {};
+  const cs = String(ws.case_status || "").toLowerCase();
+  return !CLOSED_CASE_STATES.has(cs) && !ws.discharged_at && !ws.notifications_suppressed;
 };
 
 /* request_more_info means information was REQUESTED; only after a followup is
@@ -33,7 +39,7 @@ function QueueCard({ c, selected, onClick, prio }) {
   return (
     <div onClick={onClick} role="button" tabIndex={0} aria-label={`Open ${patientWithEncounter(c)}`}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } }}
-      className="clickable" style={{ background: selected ? T.green50 : T.surface, border: `1px solid ${selected ? T.green500 : T.borderSoft}`, borderLeft: `5px solid ${cat.colour}`, borderRadius: 12, padding: "13px 14px", marginBottom: 10, boxShadow: selected ? "0 4px 14px rgba(2,89,76,0.14)" : "0 1px 5px rgba(33,43,50,0.08)" }}>
+      className="clickable" style={{ background: selected ? T.green50 : T.surface, borderTop: `1px solid ${selected ? T.green500 : T.borderSoft}`, borderRight: `1px solid ${selected ? T.green500 : T.borderSoft}`, borderBottom: `1px solid ${selected ? T.green500 : T.borderSoft}`, borderLeft: `5px solid ${cat.colour}`, borderRadius: 12, padding: "13px 14px", marginBottom: 10, boxShadow: selected ? "0 4px 14px rgba(2,89,76,0.14)" : "0 1px 5px rgba(33,43,50,0.08)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
         <span style={{ fontSize: 13.5, fontWeight: 800, color: T.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{patient}</span>
         {encounter && encounter !== patient && <span style={{ fontFamily: T.mono, fontSize: 12, fontWeight: 700, color: T.slate, whiteSpace: "nowrap" }}>{encounter}</span>}
@@ -66,7 +72,7 @@ function VitalTile({ label, k, v, unit, note }) {
   );
 }
 
-function CaseDetail({ c, presentation }) {
+function CaseDetail({ c, presentation, canReviewAi = true }) {
   if (!c) return <EmptyState>Select a patient from the queue to begin triage.</EmptyState>;
   const t = c.triage || {}; const d = c.demographics || {};
   const ws = c.workflow_state || {};
@@ -101,14 +107,14 @@ function CaseDetail({ c, presentation }) {
       </div>
       {ws.latest_triage_updates_at && (
         <div style={{ fontSize: 12, color: T.green900, background: T.green50, border: "1px solid #CBEADF", borderRadius: 9, padding: "8px 11px", marginTop: 10 }}>
-          Observations updated {String(ws.latest_triage_updates_at).replace("T", " ").slice(0, 16)} UTC{ws.information_response_by_role ? ` by ${String(ws.information_response_by_role).replace(/_/g, " ")}` : ""} — the vitals above and the advisory reflect the latest recorded values.
+          Observations updated {String(ws.latest_triage_updates_at).replace("T", " ").slice(0, 16)} UTC{ws.information_response_by_role ? ` by ${String(ws.information_response_by_role).replace(/_/g, " ")}` : ""} — the values above reflect the latest recorded observations{canReviewAi ? " and the linked advisory has been refreshed" : ""}.
         </div>
       )}
     </div>
   );
 }
 
-function AdvisoryPanel({ c, assessment, loading, loadingLabel, error, onAccept, onOverride, onEscalate, onRequestInfo, onReassess, onRetry, canDecide, canAssess, canExplainAcuity }) {
+function AdvisoryPanel({ c, assessment, loading, loadingLabel, error, onAccept, onOverride, onEscalate, onRequestInfo, onRetry, canRunAssessment, canAccept, canOverride, canEscalate, canRequestInfo, workflowRunId }) {
   if (!c) return null;
   if (loading) return (
     <Card style={{ padding: 16 }}>
@@ -123,14 +129,14 @@ function AdvisoryPanel({ c, assessment, loading, loadingLabel, error, onAccept, 
     <Card style={{ padding: 16 }}>
       <Eyebrow style={{ marginBottom: 10 }}>Triage recommendation</Eyebrow>
       <ErrorNote>Assessment unavailable: {error}</ErrorNote>
-      {canAssess && <Btn kind="quiet" style={{ width: "100%", marginTop: 10 }} onClick={onRetry}>Try assessment again</Btn>}
+      {canRunAssessment && <Btn kind="quiet" style={{ width: "100%", marginTop: 10 }} onClick={onRetry}>Try assessment again</Btn>}
     </Card>
   );
   if (!assessment) return (
     <Card style={{ padding: 16 }}>
       <Eyebrow>Triage recommendation</Eyebrow>
       <div style={{ fontSize: 13, color: T.slate, lineHeight: 1.5, marginTop: 8 }}>No estimate has been calculated for this patient yet.</div>
-      {canAssess && <Btn kind="quiet" style={{ width: "100%", marginTop: 12 }} onClick={onRetry}>Run model estimate</Btn>}
+      {canRunAssessment && <Btn kind="quiet" style={{ width: "100%", marginTop: 12 }} onClick={onRetry}>Run model estimate</Btn>}
     </Card>
   );
   const prio = priorityFromCategory(assessment.final_category ?? assessment.predicted_acuity);
@@ -140,7 +146,7 @@ function AdvisoryPanel({ c, assessment, loading, loadingLabel, error, onAccept, 
     ?? assessment.top_class_confidence
     ?? assessment.confidence;
   const mlDown = !assessment.ml_prediction_available;
-  const awaitingInfo = infoState(c) === "requested";
+  const anyDecision = canAccept || canOverride || canEscalate || canRequestInfo;
   return (
     <div className="fade-up" key={c.case_uid}>
       <Card style={{ overflow: "hidden" }}>
@@ -184,19 +190,20 @@ function AdvisoryPanel({ c, assessment, loading, loadingLabel, error, onAccept, 
           )}
         </div>
       </Card>
-      {canDecide && (
+      {anyDecision && (
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
-          <Btn kind="dark" onClick={onAccept} style={{ padding: "8px 10px", fontSize: 12.5 }} disabled={!prio}><CheckCircle2 size={13} style={{ verticalAlign: -3, marginRight: 6 }} />Accept & log {acuityLabel(prio, "Acuity —")}</Btn>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            <Btn kind="quiet" onClick={onOverride} style={{ padding: "7px 9px", fontSize: 12.5 }}>Override…</Btn>
-            <Btn kind="quiet" onClick={onEscalate} style={{ padding: "7px 9px", fontSize: 12.5 }}><ArrowUpRight size={13} style={{ verticalAlign: -2, marginRight: 5 }} />Escalate…</Btn>
-          </div>
-          {canAssess && (
-            <Btn kind="quiet" onClick={onReassess} style={{ padding: "7px 9px", fontSize: 12.5, ...(awaitingInfo ? { border: "1.5px solid #E86C00", color: "#8A4B00" } : {}) }}>
-              <Activity size={13} style={{ verticalAlign: -2, marginRight: 6 }} />{awaitingInfo ? "Record requested information" : "Record new observations"}
-            </Btn>
+          {!workflowRunId && canRunAssessment && (
+            <div style={{ fontSize: 12, color: "#8A4B00", background: T.yellow50, border: "1px solid #EEDD9A", borderRadius: 8, padding: "8px 10px", lineHeight: 1.45 }}>
+              Run a logged assessment before recording a decision so the decision is linked to the exact model run.
+            </div>
           )}
-          <Btn kind="quiet" onClick={onRequestInfo} style={{ padding: "7px 9px", fontSize: 12.5 }}><Undo2 size={13} style={{ verticalAlign: -2, marginRight: 6 }} />Request more information…</Btn>
+          {canAccept && <Btn kind="dark" onClick={onAccept} style={{ padding: "8px 10px", fontSize: 12.5 }} disabled={!prio || !workflowRunId}><CheckCircle2 size={13} style={{ verticalAlign: -3, marginRight: 6 }} />Accept & log {acuityLabel(prio, "Acuity —")}</Btn>}
+          {(canOverride || canEscalate) && <div style={{ display: "grid", gridTemplateColumns: canOverride && canEscalate ? "1fr 1fr" : "1fr", gap: 8 }}>
+            {canOverride && <Btn kind="quiet" disabled={!workflowRunId} onClick={onOverride} style={{ padding: "7px 9px", fontSize: 12.5 }}>Override…</Btn>}
+            {canEscalate && <Btn kind="quiet" disabled={!workflowRunId} onClick={onEscalate} style={{ padding: "7px 9px", fontSize: 12.5 }}><ArrowUpRight size={13} style={{ verticalAlign: -2, marginRight: 5 }} />Escalate…</Btn>}
+          </div>}
+          {canRequestInfo && <Btn kind="quiet" disabled={!workflowRunId} onClick={onRequestInfo} style={{ padding: "7px 9px", fontSize: 12.5 }}><Undo2 size={13} style={{ verticalAlign: -2, marginRight: 6 }} />Request more information…</Btn>}
+          {!workflowRunId && canRunAssessment && <Btn kind="quiet" onClick={onRetry}>Run logged assessment</Btn>}
         </div>
       )}
     </div>
@@ -282,13 +289,14 @@ export function ReassessModal({ c, onClose, onDone, toast }) {
   if (result) {
     const from = result.previous_acuity, to = result.new_acuity;
     const fc = catOf(from), tc = catOf(to);
-    const escalated = result.change === "escalation";
-    const comparisonAvailable = from != null || to != null;
+    const advisoryDeteriorated = result.advisory_deteriorated ?? result.change === "escalation";
+    const reassessmentTarget = result.review_target_role === "ed_doctor" ? "ED Doctor" : "Triage Nurse";
+    const comparisonAvailable = result.ai_advisory_visible !== false && (from != null || to != null);
     return (
       <Modal title={`Reassessment recorded — ${patientWithEncounter(c)}`} onClose={() => onDone(result)} width={620}>
         {!comparisonAvailable && (
           <div style={{ fontSize: 12.5, color: T.slate, background: "#F5F7F7", border: `1px solid ${T.borderSoft}`, borderRadius: 8, padding: "9px 12px", marginBottom: 12, lineHeight: 1.5 }}>
-            The updated observations are saved and timestamped. A numeric previous→new acuity comparison needs the ML-serving profile — in this profile the deterministic rules engine recomputes the advisory from your updated observations instead (shown when you close this).
+            {result.result_summary || "The updated observations are saved and timestamped. The reviewing clinician has been notified."}
           </div>
         )}
         {comparisonAvailable && <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
@@ -307,9 +315,9 @@ export function ReassessModal({ c, onClose, onDone, toast }) {
             </div>
           </div>
         )}
-        {escalated && <div style={{ marginTop: 12, fontSize: 12.5, color: T.red, background: T.red50, border: "1px solid #EFC5D1", borderRadius: 8, padding: "8px 11px", lineHeight: 1.45 }}>The reassessed acuity is higher — an escalation to the clinical supervisor has been opened automatically.</div>}
+        {advisoryDeteriorated && <div style={{ marginTop: 12, fontSize: 12.5, color: T.red, background: T.red50, border: "1px solid #EFC5D1", borderRadius: 8, padding: "8px 11px", lineHeight: 1.45 }}>The model advisory moved to a higher priority. The updated observations have returned to the {reassessmentTarget} for clinical review; this change does not open a new escalation automatically.</div>}
         <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
-          <Btn onClick={() => onDone(result)}>Done — refresh advisory</Btn>
+          <Btn onClick={() => onDone(result)}>{result.ai_advisory_visible === false ? "Done" : "Done — refresh advisory"}</Btn>
         </div>
       </Modal>
     );
@@ -366,25 +374,15 @@ export function ReassessModal({ c, onClose, onDone, toast }) {
   );
 }
 
-const AGENT_META = {
-  IntakeAgent: { icon: ClipboardCheck, label: "Intake", blurb: "States the verified facts" },
-  ValidationAgent: { icon: ShieldCheck, label: "Validation", blurb: "Checks completeness" },
-  SafetyReviewAgent: { icon: Users, label: "Safety review", blurb: "Confirms review is required" },
-  ExplanationAgent: { icon: Sparkles, label: "Explanation", blurb: "Plain-language summary" },
-};
-
-/* Multi-agent case-acuity explanation — sits on the triage-review screen under
-   the ML estimate. The AutoGen team (Intake -> Validation -> Safety review ->
-   Explanation) is the only UI surface that explains why this acuity was chosen.
-   It never decides the acuity. Distinct from the ITD system chatbot. */
+/* The backend may use several bounded internal checks, but the clinical UI
+   deliberately exposes only the ExplanationAgent's concise final summary. */
 function MultiAgentExplanation({ caseUid, canExplain, toast }) {
   const [state, setState] = useState("idle");   // idle | loading | done | error
   const [result, setResult] = useState(null);
   const [err, setErr] = useState(null);
-  const [showTurns, setShowTurns] = useState(false);
 
   // Reset when the selected case changes.
-  useEffect(() => { setState("idle"); setResult(null); setErr(null); setShowTurns(false); }, [caseUid]);
+  useEffect(() => { setState("idle"); setResult(null); setErr(null); }, [caseUid]);
 
   if (!canExplain) return null;
 
@@ -403,19 +401,19 @@ function MultiAgentExplanation({ caseUid, canExplain, toast }) {
     <Card style={{ marginTop: 12, padding: 16 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
         <Sparkles size={15} style={{ color: T.green700 }} />
-        <div style={{ fontSize: 13.5, fontWeight: 700 }}>AutoGen team explanation</div>
+        <div style={{ fontSize: 13.5, fontWeight: 700 }}>Concise acuity explanation</div>
       </div>
       <div style={{ fontSize: 11.5, color: T.grey500, lineHeight: 1.45, marginBottom: 12 }}>
-        The AutoGen team explains why this acuity was chosen. It explains the estimate — it does not decide it.
+        The Explanation Agent summarises the main drivers in 3–5 easy-to-read sentences. It explains the estimate — it does not decide it.
       </div>
 
       {state === "idle" && (
-        <Btn kind="quiet" style={{ width: "100%" }} onClick={run}><Sparkles size={14} style={{ verticalAlign: -2, marginRight: 6 }} />Ask AutoGen team why</Btn>
+        <Btn kind="quiet" style={{ width: "100%" }} onClick={run}><Sparkles size={14} style={{ verticalAlign: -2, marginRight: 6 }} />Explain this estimate</Btn>
       )}
 
       {state === "loading" && (
         <div style={{ display: "flex", alignItems: "center", gap: 10, color: T.slate, fontSize: 12.5, padding: "6px 0" }}>
-          <Spinner /> The agents are reviewing the verified evidence…
+          <Spinner /> Preparing a concise summary from verified evidence…
         </div>
       )}
 
@@ -432,38 +430,10 @@ function MultiAgentExplanation({ caseUid, canExplain, toast }) {
         </div>
       )}
 
-      {passed && (
-        <>
-          <div style={{ fontSize: 13, color: T.ink, lineHeight: 1.6, background: T.green50, border: "1px solid #CBEADF", borderRadius: 9, padding: "11px 13px" }}>
-            {result.final_explanation}
-          </div>
-          {(result.agent_turns || []).length > 0 && (
-            <>
-              <button onClick={() => setShowTurns((v) => !v)} style={{ marginTop: 10, background: "none", border: "none", cursor: "pointer", color: T.green700, fontSize: 12, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", gap: 5 }}>
-                <ChevronDown size={13} style={{ transform: showTurns ? "rotate(180deg)" : "none", transition: "transform .15s" }} />{showTurns ? "Hide" : "Show"} how the agents reached this ({result.agent_turns.length} steps)
-              </button>
-              {showTurns && (
-                <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
-                  {result.agent_turns.map((turn, i) => {
-                    const meta = AGENT_META[turn.agent] || { icon: Sparkles, label: turn.agent, blurb: "" };
-                    const Icon = meta.icon;
-                    return (
-                      <div key={i} style={{ display: "flex", gap: 9, alignItems: "flex-start" }}>
-                        <div style={{ flexShrink: 0, width: 26, height: 26, borderRadius: 7, background: T.green50, display: "flex", alignItems: "center", justifyContent: "center", marginTop: 1 }}><Icon size={14} style={{ color: T.green700 }} /></div>
-                        <div>
-                          <div style={{ fontSize: 11.5, fontWeight: 700, color: T.slate }}>{meta.label}{meta.blurb ? <span style={{ fontWeight: 400, color: T.grey500 }}> · {meta.blurb}</span> : null}</div>
-                          <div style={{ fontSize: 12.5, color: T.ink, lineHeight: 1.5, marginTop: 2 }}>{turn.text}</div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </>
-          )}
-          <Btn kind="ghost" style={{ width: "100%", marginTop: 10, fontSize: 12 }} onClick={() => { setState("idle"); setResult(null); }}>Run again</Btn>
-        </>
-      )}
+      {passed && <>
+        <div style={{ fontSize: 13, color: T.ink, lineHeight: 1.6, background: T.green50, border: "1px solid #CBEADF", borderRadius: 9, padding: "11px 13px" }}>{result.final_explanation}</div>
+        <Btn kind="ghost" style={{ width: "100%", marginTop: 10, fontSize: 12 }} onClick={() => { setState("idle"); setResult(null); }}>Run again</Btn>
+      </>}
 
       {result && result.status === "SAFETY_FAIL" && (
         <div style={{ fontSize: 12.5, color: T.red, background: T.red50, border: "1px solid #EFC5D1", borderRadius: 8, padding: "9px 11px", lineHeight: 1.5 }}>
@@ -474,22 +444,45 @@ function MultiAgentExplanation({ caseUid, canExplain, toast }) {
   );
 }
 
-export default function Triage({ cases, casesError, refresh, selectedUid, setSelectedUid, query, searchActive, searchBusy, toast, onDecision, canDecide, canAssess, canExplainAcuity, presentation, serverTotal, hasMore, onLoadMore, loadingMore }) {
+function ObservationActions({ c, onRecord }) {
+  if (!c) return null;
+  const requested = infoState(c) === "requested";
+  return (
+    <Card style={{ padding: 16 }}>
+      <Eyebrow>ED nursing observations</Eyebrow>
+      <div style={{ fontSize: 13, color: T.slate, lineHeight: 1.55, marginTop: 8 }}>
+        {requested ? "The clinical team has requested more information for this case." : "Record or repeat the patient's observations. The triage decision remains with the Triage Nurse."}
+      </div>
+      <Btn kind="dark" style={{ width: "100%", marginTop: 12 }} onClick={onRecord}>
+        <Activity size={14} style={{ verticalAlign: -2, marginRight: 6 }} />{requested ? "Provide requested information" : "Record / update vitals"}
+      </Btn>
+    </Card>
+  );
+}
+
+export default function Triage({ cases, casesError, casesLoading = false, refresh, selectedUid, setSelectedUid, query, searchActive, searchBusy, toast, onDecision, permissions = [], canExplainAcuity, presentation, serverTotal, hasMore, onLoadMore, loadingMore }) {
   const [assessments, setAssessments] = useState({});
   const [assessState, setAssessState] = useState({});
   const [detail, setDetail] = useState(null);
   const [modal, setModal] = useState(null);
   const [ovCat, setOvCat] = useState(3);
   const [reason, setReason] = useState("");
-  const [escTo, setEscTo] = useState("ed_doctor");
   const [infoFields, setInfoFields] = useState([]);
   const [visibleCount, setVisibleCount] = useState(30);
   const busyRef = useRef(false);
   const explicitSelectRef = useRef(false);
+  const permissionSet = useMemo(() => new Set(permissions), [permissions]);
+  const canRunAssessment = permissionSet.has("can_run_triage_assessment");
+  const canAccept = permissionSet.has("can_accept_acuity");
+  const canOverride = permissionSet.has("can_override_acuity");
+  const canRequestInfo = permissionSet.has("can_request_information");
+  const canEscalate = permissionSet.has("can_escalate_case");
+  const canUpdateVitals = permissionSet.has("can_update_vitals") || permissionSet.has("can_record_vitals") || permissionSet.has("can_provide_requested_information");
+  const isObservationOnlyView = canUpdateVitals && !canRunAssessment;
   const selectExplicit = (uid) => { explicitSelectRef.current = true; setSelectedUid(uid); };
 
   const queue = useMemo(() => {
-    const rows = (cases || []).filter(isQueueRow);
+    const rows = (cases || []).filter(isObservationOnlyView ? isObservationRow : isQueueRow);
     const arrivedAt = (c) => String(c.queue_metadata?.intime || c.queue_metadata?.arrival_time || c.queue_metadata?.arrival_time_utc || "");
     const arrivedMs = (c) => {
       const raw = arrivedAt(c);
@@ -501,7 +494,7 @@ export default function Triage({ cases, casesError, refresh, selectedUid, setSel
     return rows.map((c, i) => ({ c, i }))
       .sort((a, b) => (arrivedMs(a.c) - arrivedMs(b.c)) || a.i - b.i)
       .map((row) => row.c);
-  }, [cases]);
+  }, [cases, isObservationOnlyView]);
   const visible = queue.slice(0, visibleCount);
   const sel = useMemo(() => queue.find((c) => c.case_uid === selectedUid) || null, [queue, selectedUid]);
 
@@ -513,7 +506,7 @@ export default function Triage({ cases, casesError, refresh, selectedUid, setSel
   const runAssess = (uid, force = false) => {
     // Opening a case runs the REAL (audited) assessment: this is the clinician
     // consulting the model on the selected patient, which is recorded.
-    if (!force && assessState[uid] === "loading") return;
+    if (!canRunAssessment || (!force && assessState[uid] === "loading")) return;
     setAssessState((s) => ({ ...s, [uid]: "loading" }));
     api.runAssessment(uid)
       .then((a) => { setAssessments((m) => ({ ...m, [uid]: a })); setAssessState((s) => ({ ...s, [uid]: "done" })); })
@@ -527,11 +520,11 @@ export default function Triage({ cases, casesError, refresh, selectedUid, setSel
     const wasExplicit = explicitSelectRef.current;
     explicitSelectRef.current = false;
     api.getCase(sel.case_uid).then((d) => { if (!dead) setDetail(d); }).catch(() => { if (!dead) setDetail(sel); });
-    if (wasExplicit) {
+    if (canRunAssessment && wasExplicit) {
       // The clinician explicitly opened this patient — run the real, audited
       // assessment (recording that the model was consulted on this case).
       runAssess(sel.case_uid);
-    } else if (!assessments[sel.case_uid] && assessState[sel.case_uid] === undefined) {
+    } else if (canRunAssessment && !assessments[sel.case_uid] && assessState[sel.case_uid] === undefined) {
       // Auto-landing / auto-advance: use the non-auditing preview so no
       // workflow-run record is created for a case the clinician did not pick.
       setAssessState((s) => ({ ...s, [sel.case_uid]: "previewing" }));
@@ -545,7 +538,7 @@ export default function Triage({ cases, casesError, refresh, selectedUid, setSel
         .catch(() => { if (!dead) setAssessState((s) => s[sel.case_uid] === "previewing" ? { ...s, [sel.case_uid]: "preview_failed" } : s); });
     }
     return () => { dead = true; };
-  }, [sel?.case_uid]);
+  }, [sel?.case_uid, sel?.workflow_state?.updated_at_utc, canRunAssessment]);
 
   const a = sel ? assessments[sel.case_uid] : null;
   const selectedAssessState = sel ? assessState[sel.case_uid] : null;
@@ -557,6 +550,7 @@ export default function Triage({ cases, casesError, refresh, selectedUid, setSel
     ? "Running validation, rules, model prediction, and safety review..."
     : "Preparing the model estimate...";
   const sysPred = a?.final_category ?? (a?.predicted_acuity != null ? String(a.predicted_acuity) : null);
+  const workflowRunId = a?.workflow_run_id || detail?.workflow_state?.latest_workflow_run_id || null;
   const advance = () => { const i = queue.findIndex((c) => c.case_uid === sel?.case_uid); const nxt = queue[i + 1] || queue[0]; setSelectedUid(nxt && nxt.case_uid !== sel?.case_uid ? nxt.case_uid : null); };
 
   /* decidedAcuity is passed EXPLICITLY by each caller and forwarded to
@@ -581,17 +575,17 @@ export default function Triage({ cases, casesError, refresh, selectedUid, setSel
     /* The backend merged the new observations into workflow state; the advisory
        and detail must be recomputed against them. */
     setAssessments((m) => { const n = { ...m }; delete n[sel.case_uid]; return n; });
-    runAssess(sel.case_uid, true);
+    if (canRunAssessment) runAssess(sel.case_uid, true);
     loadDetail(sel.case_uid);
     refresh();
-    toast("Reassessment recorded", `${patientWithEncounter(sel)}: ${result.change_summary || "advisory refreshed on the updated observations."}`);
+    toast("Observations recorded", `${patientWithEncounter(sel)}: ${result.result_summary || result.change_summary || "the reviewing clinician has been notified."}`);
   };
 
   return (
     <div style={{ display: "flex", gap: 16, height: "100%", minHeight: 0 }}>
       <div style={{ width: 296, flexShrink: 0, display: "flex", flexDirection: "column", minHeight: 0 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "2px 2px 10px" }}>
-          <div style={{ fontSize: 17, fontWeight: 800 }}>{searchActive ? "Search results" : "Unreviewed queue"}</div>
+          <div style={{ fontSize: 17, fontWeight: 800 }}>{searchActive ? "Search results" : isObservationOnlyView ? "Observations queue" : "Unreviewed queue"}</div>
           {searchBusy && <span style={{ fontFamily: T.mono, fontSize: 12, color: T.slate }}>searching…</span>}
         </div>
         <div style={{ overflowY: "auto", paddingRight: 4, flex: 1 }}>
@@ -603,22 +597,23 @@ export default function Triage({ cases, casesError, refresh, selectedUid, setSel
           {!searchActive && visibleCount >= queue.length && hasMore && (
             <Btn kind="quiet" style={{ width: "100%", marginBottom: 8 }} disabled={loadingMore} onClick={onLoadMore}>{loadingMore ? "Loading…" : "Load more patients"}</Btn>
           )}
-          {!casesError && queue.length === 0 && !searchBusy && <EmptyState>{searchActive ? "No patients match that search." : "Queue clear. New arrivals appear here automatically."}</EmptyState>}
+          {!casesError && casesLoading && !searchBusy && <EmptyState>Loading patients…</EmptyState>}
+          {!casesError && !casesLoading && queue.length === 0 && !searchBusy && <EmptyState>{searchActive ? "No patients match that search." : "Queue clear. New arrivals appear here automatically."}</EmptyState>}
         </div>
       </div>
       <Card style={{ flex: 1, minWidth: 0, padding: 32, overflowY: "auto" }}>
-        <CaseDetail c={detail} presentation={presentation} />
+        <CaseDetail c={detail} presentation={presentation} canReviewAi={!isObservationOnlyView} />
       </Card>
       <div style={{ width: 330, flexShrink: 0, overflowY: "auto", paddingRight: 2 }}>
-        <AdvisoryPanel c={sel} assessment={a} loading={selectedAssessLoading} loadingLabel={selectedLoadingLabel} error={selectedAssessError}
-          canDecide={canDecide} canAssess={canAssess} canExplainAcuity={canExplainAcuity}
-          onAccept={() => doDecision(() => decisions.accept(sel.case_uid, { systemPrediction: sysPred }), `${acuityLabel(priorityFromCategory(sysPred), "Acuity —")} logged`, `${patientWithEncounter(sel)} moved to the review queue.`, priorityFromCategory(sysPred))}
+        {canUpdateVitals && <ObservationActions c={sel} onRecord={() => setModal("reassess")} />}
+        {canRunAssessment && <AdvisoryPanel c={sel} assessment={a} loading={selectedAssessLoading} loadingLabel={selectedLoadingLabel} error={selectedAssessError}
+          canRunAssessment={canRunAssessment} canAccept={canAccept} canOverride={canOverride} canEscalate={canEscalate} canRequestInfo={canRequestInfo} workflowRunId={workflowRunId}
+          onAccept={() => doDecision(() => decisions.accept(sel.case_uid, { workflowRunId, systemPrediction: sysPred }), `${acuityLabel(priorityFromCategory(sysPred), "Acuity —")} logged`, `${patientWithEncounter(sel)} moved to the review queue.`, priorityFromCategory(sysPred))}
           onOverride={() => { setOvCat(priorityFromCategory(sysPred) || 3); setModal("override"); }}
           onEscalate={() => setModal("escalate")}
           onRequestInfo={() => { setInfoFields([]); setModal("info"); }}
-          onReassess={() => setModal("reassess")}
-          onRetry={() => runAssess(sel.case_uid, true)} />
-        {sel && <MultiAgentExplanation caseUid={sel.case_uid} canExplain={canExplainAcuity} toast={toast} />}
+          onRetry={() => runAssess(sel.case_uid, true)} />}
+        {canRunAssessment && sel && <MultiAgentExplanation caseUid={sel.case_uid} canExplain={canExplainAcuity} toast={toast} />}
       </div>
 
       {modal === "override" && sel && (
@@ -634,25 +629,18 @@ export default function Triage({ cases, casesError, refresh, selectedUid, setSel
           <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3} placeholder="e.g. Pain settled after analgesia; repeat observations within normal limits." style={{ width: "100%", boxSizing: "border-box", fontFamily: T.font, fontSize: 13.5, padding: 11, borderRadius: 9, border: `1px solid ${T.border}`, resize: "vertical", marginBottom: 16 }} />
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
             <Btn kind="quiet" onClick={() => setModal(null)}>Cancel</Btn>
-            <Btn disabled={!reason.trim() || ovCat === priorityFromCategory(sysPred)} onClick={() => doDecision(() => decisions.override(sel.case_uid, { systemPrediction: sysPred, decision: `${MTS[ovCat].name} (acuity ${ovCat})`, reason: reason.trim() }), `Override logged — Acuity ${ovCat}`, `${patientWithEncounter(sel)} moved to the review queue with your reason.`, ovCat)}>Log override to Acuity {ovCat}</Btn>
+            <Btn disabled={!reason.trim() || !workflowRunId || ovCat === priorityFromCategory(sysPred)} onClick={() => doDecision(() => decisions.override(sel.case_uid, { workflowRunId, systemPrediction: sysPred, decision: `${MTS[ovCat].name} (acuity ${ovCat})`, finalAcuity: ovCat, reason: reason.trim() }), `Override logged — Acuity ${ovCat}`, `${patientWithEncounter(sel)} moved to the review queue with your reason.`, ovCat)}>Log override to Acuity {ovCat}</Btn>
           </div>
         </Modal>
       )}
       {modal === "escalate" && sel && (
-        <Modal title={`Escalate ${patientWithEncounter(sel)} for senior review`} onClose={() => setModal(null)}>
-          <Eyebrow style={{ marginBottom: 8 }}>Escalate to</Eyebrow>
-          <div style={{ position: "relative", marginBottom: 14 }}>
-            <select value={escTo} onChange={(e) => setEscTo(e.target.value)} style={{ width: "100%", appearance: "none", fontFamily: T.font, fontSize: 14, padding: "10px 34px 10px 12px", borderRadius: 9, border: `1px solid ${T.border}`, background: T.surface }}>
-              <option value="ed_doctor">ED Doctor (on-call senior)</option>
-              <option value="clinical_supervisor">Clinical Supervisor</option>
-            </select>
-            <ChevronDown size={15} style={{ position: "absolute", right: 12, top: 12, color: T.grey500, pointerEvents: "none" }} />
-          </div>
+        <Modal title={`Escalate ${patientWithEncounter(sel)} to the ED Doctor`} onClose={() => setModal(null)}>
+          <div style={{ fontSize: 13, color: T.slate, background: "#F5F7F7", border: `1px solid ${T.borderSoft}`, borderRadius: 8, padding: "9px 11px", marginBottom: 14 }}>The ED Doctor is the final clinical escalation authority and will receive this case.</div>
           <Eyebrow style={{ marginBottom: 8 }}>Reason for escalation</Eyebrow>
           <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3} placeholder="e.g. Possible ACS — requesting senior review before the acuity is finalised." style={{ width: "100%", boxSizing: "border-box", fontFamily: T.font, fontSize: 13.5, padding: 11, borderRadius: 9, border: `1px solid ${T.border}`, resize: "vertical", marginBottom: 16 }} />
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
             <Btn kind="quiet" onClick={() => setModal(null)}>Cancel</Btn>
-            <Btn disabled={!reason.trim()} onClick={() => doDecision(() => decisions.escalate(sel.case_uid, { systemPrediction: sysPred, toRole: escTo, reason: reason.trim() }), "Escalation sent", `${patientWithEncounter(sel)} is awaiting senior review — the target role has been notified.`)}>Send escalation</Btn>
+            <Btn disabled={!reason.trim() || !workflowRunId} onClick={() => doDecision(() => decisions.escalate(sel.case_uid, { workflowRunId, systemPrediction: sysPred, reason: reason.trim() }), "Escalation sent", `${patientWithEncounter(sel)} is awaiting ED Doctor review — the doctor has been notified.`)}>Send escalation</Btn>
           </div>
         </Modal>
       )}
@@ -669,7 +657,7 @@ export default function Triage({ cases, casesError, refresh, selectedUid, setSel
           <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder="Optional note for the record…" style={{ width: "100%", boxSizing: "border-box", fontFamily: T.font, fontSize: 13.5, padding: 11, borderRadius: 9, border: `1px solid ${T.border}`, resize: "vertical", marginBottom: 16 }} />
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
             <Btn kind="quiet" onClick={() => setModal(null)}>Cancel</Btn>
-            <Btn disabled={!infoFields.length && !reason.trim()} onClick={() => doDecision(() => decisions.requestInfo(sel.case_uid, { fields: infoFields, comment: reason.trim() }), "Information requested", `${patientWithEncounter(sel)} is parked pending the requested details — record them with "Record requested information" when they arrive.`)}>Log request</Btn>
+            <Btn disabled={!workflowRunId || (!infoFields.length && !reason.trim())} onClick={() => doDecision(() => decisions.requestInfo(sel.case_uid, { workflowRunId, fields: infoFields, comment: reason.trim() }), "Information requested", `${patientWithEncounter(sel)} is parked pending the requested details — the ED Nurse has been notified.`)}>Log request</Btn>
           </div>
         </Modal>
       )}

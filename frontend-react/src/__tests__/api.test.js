@@ -21,6 +21,14 @@ describe("decision payloads match the backend review contract", () => {
     expect(b.review_status).toBe("ACCEPTED_AS_PRESENTED");
     expect(b.system_prediction).toBe("Very Urgent (Orange)");
     expect(b.clinician_decision).toBe("Very Urgent (Orange)");
+    expect(b.action_id).toMatch(/^[A-Za-z0-9._:~-]+$/);
+  });
+
+  it("uses a fresh idempotency key for each distinct clinical submission", async () => {
+    await decisions.accept("case-1", { workflowRunId: "run-1", systemPrediction: "2" });
+    const first = lastBody().action_id;
+    await decisions.accept("case-1", { workflowRunId: "run-1", systemPrediction: "2" });
+    expect(lastBody().action_id).not.toBe(first);
   });
 
   it("override carries clinician_override and the mandatory reason", async () => {
@@ -77,6 +85,26 @@ describe("durable notification API", () => {
     expect(calls.at(-1).url).toBe("/notifications/ntf-v1-abc/acknowledge");
     expect(calls.at(-1).opts.method).toBe("POST");
     expect(calls.at(-1).opts.credentials).toBe("same-origin");
+  });
+});
+
+describe("complete audit journey download", () => {
+  it("uses the server CSV endpoint and preserves active filters", async () => {
+    global.fetch = vi.fn(async (url, opts) => {
+      calls.push({ url, opts });
+      return {
+        ok: true, status: 200,
+        headers: { get: (name) => name.toLowerCase() === "content-disposition"
+          ? 'attachment; filename="audit-complete-patient-journeys.csv"'
+          : "text/csv" },
+        blob: async () => new Blob(["journey"]),
+      };
+    });
+    const result = await api.downloadAuditJourney({ reviewer_role: "ed_nurse", start_utc: "2026-09-01T00:00:00Z" });
+    expect(calls.at(-1).url).toContain("/audit/journey.csv?");
+    expect(calls.at(-1).url).toContain("reviewer_role=ed_nurse");
+    expect(calls.at(-1).opts.headers.Accept).toBe("text/csv");
+    expect(result.filename).toBe("audit-complete-patient-journeys.csv");
   });
 });
 

@@ -21,17 +21,15 @@ describe("navForSession — role-scoped navigation matches the backend matrix", 
     expect(items).not.toContain("security");
   });
 
-  it("ed doctor: workspace + escalations, no oversight dashboards", () => {
+  it("ed doctor: escalations plus ordinary patient disposition and model evidence", () => {
     const items = nav("ed_doctor");
-    expect(items).toEqual(expect.arrayContaining(["triage", "review", "escalations"]));
+    expect(items).toEqual(["review", "escalations", "model"]);
     expect(items).not.toContain("analytics");
     expect(items).not.toContain("itd");
   });
 
-  it("clinical supervisor: full oversight, no ITD console", () => {
-    const items = nav("clinical_supervisor");
-    expect(items).toEqual(expect.arrayContaining(["triage", "review", "escalations", "analytics", "audit", "model", "health"]));
-    expect(items).not.toContain("itd");
+  it("ED nurse: observations queue only", () => {
+    expect(nav("ed_nurse")).toEqual(["triage"]);
   });
 
   it("researcher: aggregate evidence only — never the live patient queue", () => {
@@ -57,7 +55,7 @@ describe("navForSession — role-scoped navigation matches the backend matrix", 
   });
 
   it("ITD is gated on BOTH the tab and can_ask_chatbot, so clinical roles never see it", () => {
-    for (const role of ["triage_nurse", "ed_doctor", "clinical_supervisor"]) {
+    for (const role of ["ed_nurse", "triage_nurse", "ed_doctor"]) {
       expect(nav(role)).not.toContain("itd");
       expect(roles[role].permissions).not.toContain("can_ask_chatbot");
     }

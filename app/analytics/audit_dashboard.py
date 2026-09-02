@@ -137,6 +137,11 @@ def normalise_audit_records(
             decision_type=event.get("decision"),
         )
         rec["summary"] = f"{rec['action_type']} {rec['decision_type']}".strip()
+        rec["actor_user_id"] = _text(event.get("user_id"))
+        rec["actor_display_name"] = _text(event.get("display_name")) or _text(
+            event.get("user_id")
+        )
+        rec["actor_identity_verified"] = not bool(event.get("is_demo_identity"))
         records.append(rec)
 
     for run in workflow_runs:
@@ -154,6 +159,22 @@ def normalise_audit_records(
             override_status=run.get("override_applied"),
         )
         rec["summary"] = f"Workflow run: acuity {rec['triage_level'] or 'unknown'}"
+        rec["workflow_run_id"] = _text(run.get("workflow_run_id"))
+        rec["actor_user_id"] = _text(run.get("performed_by_user_id"))
+        rec["actor_display_name"] = _text(run.get("performed_by_display_name"))
+        rec["actor_identity_verified"] = bool(run.get("performed_by_identity_verified"))
+        rec["actor_type"] = _text(run.get("performed_by_actor_type")) or "human"
+        rec["reviewer_role"] = _text(run.get("performed_by_role"))
+        rec["assessment_execution_mode"] = _text(run.get("assessment_execution_mode"))
+        rec["assessment_triggered_by_user_id"] = _text(
+            run.get("assessment_triggered_by_user_id")
+        )
+        rec["assessment_triggered_by_display_name"] = _text(
+            run.get("assessment_triggered_by_display_name")
+        )
+        rec["assessment_triggered_by_role"] = _text(
+            run.get("assessment_triggered_by_role")
+        )
         records.append(rec)
 
     for review in human_reviews:
@@ -204,7 +225,9 @@ def normalise_audit_records(
         # backwards.
         rec["system_acuity"] = canonical_acuity(review.get("system_prediction"))
         rec["clinician_acuity"] = canonical_acuity(
-            review.get("clinician_override") or review.get("clinician_decision")
+            review.get("final_clinician_acuity")
+            if review.get("final_clinician_acuity") is not None
+            else review.get("clinician_override") or review.get("clinician_decision")
         )
         # The acuity the case actually SETTLED on. For an override that is the
         # clinician's value, not the system's -- grouping "decided cases by
@@ -219,6 +242,13 @@ def normalise_audit_records(
             if override and rec["clinician_acuity"] is not None
             else rec["system_acuity"]
         )
+        rec["workflow_run_id"] = _text(review.get("workflow_run_id"))
+        rec["previous_acuity"] = canonical_acuity(review.get("previous_acuity"))
+        rec["final_clinician_acuity"] = canonical_acuity(
+            review.get("final_clinician_acuity")
+        )
+        rec["review_comment"] = _text(review.get("review_comment"))
+        rec["override_reason"] = _text(review.get("override_reason"))
         records.append(rec)
 
     for rerun in workflow_reruns:
@@ -240,6 +270,13 @@ def normalise_audit_records(
         changed = rerun.get("changed_vitals") or []
         fields = [str((item or {}).get("field")) for item in changed if isinstance(item, dict)]
         rec["changed_fields"] = [field for field in fields if field]
+        rec["changed_vitals"] = [item for item in changed if isinstance(item, dict)]
+        rec["previous_acuity"] = canonical_acuity(rerun.get("previous_final_acuity"))
+        rec["new_acuity"] = canonical_acuity(rerun.get("new_final_acuity"))
+        rec["reviewer_role"] = _text(rerun.get("performed_by_role"))
+        rec["actor_user_id"] = _text(rerun.get("performed_by_user_id"))
+        rec["actor_display_name"] = _text(rerun.get("performed_by_display_name"))
+        rec["actor_identity_verified"] = bool(rerun.get("performed_by_identity_verified"))
         rec["summary"] = f"Reassessment: {rec['decision_type']}"
         records.append(rec)
 
@@ -268,6 +305,13 @@ def normalise_audit_records(
         rec["actor_display_name"] = _text(state.get("actor_display_name"))
         rec["actor_identity_verified"] = bool(state.get("actor_identity_verified"))
         rec["assigned_acuity"] = canonical_acuity(state.get("assigned_acuity"))
+        rec["workflow_run_id"] = _text(
+            state.get("workflow_run_id") or state.get("latest_workflow_run_id")
+        )
+        rec["previous_acuity"] = canonical_acuity(state.get("previous_acuity"))
+        rec["final_clinician_acuity"] = canonical_acuity(
+            state.get("final_clinician_acuity")
+        )
         rec["case_status"] = _text(state.get("case_status"))
         rec["escalation_requested_by_role"] = _text(state.get("escalation_requested_by_role"))
         rec["escalation_confirmed_by_role"] = _text(state.get("escalation_confirmed_by_role"))
@@ -383,7 +427,40 @@ _DECISION_STATUSES = {
 # information, escalating, or discharging is workflow activity, not an acuity
 # decision -- counting those in "decided cases by acuity" attributed an acuity
 # to cases where none had been agreed.
-_ACUITY_SETTLING_STATUSES = {"ACCEPTED_AS_PRESENTED", "OVERRIDDEN"}
+_ACUITY_SETTLING_STATUSES = {
+    "ACCEPTED_AS_PRESENTED",
+    "OVERRIDDEN",
+    # An ED Doctor resolving an escalation records the final clinical acuity.
+    # It is therefore an acuity-settling decision even when the doctor confirms
+    # the linked model value rather than changing it.
+    "ESCALATION_RESOLVED",
+}
+
+
+def _is_clinician_acuity_override(rec: Mapping[str, Any]) -> bool:
+    """Return True only when a human selected a different linked acuity.
+
+    Triage overrides use the explicit OVERRIDDEN status.  ED Doctors use
+    ESCALATION_RESOLVED for both confirmation and change, so those rows must be
+    compared with the exact linked system acuity.  Merely carrying a reason or
+    a rules-engine adjustment does not make an audit row a clinician override.
+    """
+    if rec.get("record_kind") != "human_review":
+        return False
+    status = _text(rec.get("decision_type")).upper()
+    system = canonical_acuity(rec.get("system_acuity"))
+    clinician = canonical_acuity(rec.get("clinician_acuity"))
+    if clinician is None:
+        return False
+    if status == "OVERRIDDEN":
+        # The API enforces a different linked acuity for new records. Preserve
+        # readability/counting for historical rows that predate that rule.
+        return system is None or clinician != system
+    return (
+        status == "ESCALATION_RESOLVED"
+        and system is not None
+        and clinician != system
+    )
 
 
 def _decision_records(records: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -483,6 +560,144 @@ def _latest_workflow_state_records(records: Iterable[dict[str, Any]]) -> list[di
     return list(latest.values())
 
 
+_TREND_VITALS = {
+    "temperature": ("Temperature", "°F"),
+    "heartrate": ("Heart rate", "bpm"),
+    "resprate": ("Respiratory rate", "/min"),
+    "o2sat": ("SpO₂", "%"),
+    "sbp": ("Systolic BP", "mmHg"),
+    "dbp": ("Diastolic BP", "mmHg"),
+    "pain": ("Pain", "/10"),
+}
+
+
+def _patient_reassessment_trends(
+    records: Iterable[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], dict[str, int]]:
+    """Build pseudonymous observation/advisory series from rerun audit rows.
+
+    These are model-advisory movements, not verified clinical outcomes. Sparse
+    or malformed legacy vital changes are ignored field-by-field.
+    """
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for rec in records:
+        case_uid = _text(rec.get("case_uid"))
+        if rec.get("record_kind") == "workflow_rerun" and case_uid:
+            grouped.setdefault(case_uid, []).append(rec)
+    output: list[dict[str, Any]] = []
+    summary = Counter()
+    for case_uid, events in grouped.items():
+        events.sort(key=lambda item: item.get("timestamp_epoch") or 0)
+        advisory_points: list[dict[str, Any]] = []
+        vital_series: dict[str, list[dict[str, Any]]] = {}
+        movement_events: list[dict[str, Any]] = []
+        if events:
+            previous = canonical_acuity(events[0].get("previous_acuity"))
+            if previous is not None:
+                advisory_points.append({
+                    "sequence": 0,
+                    "timestamp_utc": events[0].get("timestamp_utc"),
+                    "acuity": previous,
+                    "point_type": "before_first_reassessment",
+                })
+        for index, event in enumerate(events, start=1):
+            movement = _text(event.get("decision_type")).upper()
+            direction = (
+                "deteriorating" if movement == "ESCALATION"
+                else "improving" if movement in {"DE_ESCALATION", "DE-ESCALATION"}
+                else "unchanged" if movement == "NO_CHANGE"
+                else "insufficient_data"
+            )
+            new_acuity = canonical_acuity(event.get("new_acuity"))
+            if new_acuity is not None:
+                advisory_points.append({
+                    "sequence": index,
+                    "timestamp_utc": event.get("timestamp_utc"),
+                    "acuity": new_acuity,
+                    "point_type": "reassessment",
+                })
+            safe_changes = []
+            for change in event.get("changed_vitals") or []:
+                if not isinstance(change, dict):
+                    continue
+                field = _text(change.get("field"))
+                if field not in _TREND_VITALS:
+                    continue
+                try:
+                    previous_value = (
+                        float(change["previous"])
+                        if change.get("previous") not in (None, "") else None
+                    )
+                    new_value = (
+                        float(change["new"])
+                        if change.get("new") not in (None, "") else None
+                    )
+                except (TypeError, ValueError):
+                    continue
+                if previous_value is not None and not vital_series.get(field):
+                    vital_series.setdefault(field, []).append({
+                        "sequence": index - 1,
+                        "timestamp_utc": event.get("timestamp_utc"),
+                        "value": previous_value,
+                        "point_type": "previous",
+                    })
+                if new_value is not None:
+                    vital_series.setdefault(field, []).append({
+                        "sequence": index,
+                        "timestamp_utc": event.get("timestamp_utc"),
+                        "value": new_value,
+                        "point_type": "updated",
+                    })
+                safe_changes.append({
+                    "field": field,
+                    "previous": previous_value,
+                    "new": new_value,
+                })
+            movement_events.append({
+                "timestamp_utc": event.get("timestamp_utc"),
+                "previous_acuity": canonical_acuity(event.get("previous_acuity")),
+                "new_acuity": new_acuity,
+                "direction": direction,
+                "changed_vitals": safe_changes,
+            })
+        latest_direction = movement_events[-1]["direction"] if movement_events else "insufficient_data"
+        summary[latest_direction] += 1
+        identity = events[-1]
+        output.append({
+            "case_uid": case_uid,
+            "patient_display_name": identity.get("patient_display_name"),
+            "patient_display_label": identity.get("patient_display_label"),
+            "encounter_display_label": identity.get("encounter_display_label"),
+            "display_identifier": identity.get("display_identifier"),
+            "latest_direction": latest_direction,
+            "reassessment_count": len(events),
+            "advisory_acuity_series": advisory_points,
+            "vital_series": [
+                {
+                    "field": field,
+                    "label": _TREND_VITALS[field][0],
+                    "unit": _TREND_VITALS[field][1],
+                    "points": points,
+                }
+                for field, points in sorted(vital_series.items())
+            ],
+            "events": movement_events,
+        })
+    output.sort(
+        key=lambda item: (
+            {"deteriorating": 0, "improving": 1, "unchanged": 2}.get(item["latest_direction"], 3),
+            -item["reassessment_count"],
+        )
+    )
+    return output[:250], {
+        "deteriorating": summary["deteriorating"],
+        "improving": summary["improving"],
+        "unchanged": summary["unchanged"],
+        "insufficient_data": summary["insufficient_data"],
+        "patients_with_reassessments": len(output),
+    }
+
+
 def aggregate_audit_dashboard(records: list[dict[str, Any]]) -> dict[str, Any]:
     latest_states = _latest_workflow_state_records(records)
     total_reviews = sum(1 for rec in records if rec.get("record_kind") == "human_review")
@@ -502,11 +717,11 @@ def aggregate_audit_dashboard(records: list[dict[str, Any]]) -> dict[str, Any]:
     #   * an UNCERTAIN review, which requires an override_reason but selects no
     #     clinician acuity, so nothing was overridden either.
     # Both inflated the KPI on cases where no clinician override happened.
-    overrides = _unique_case_count(
-        rec for rec in clinical_records
-        if rec.get("record_kind") == "human_review"
-        and _text(rec.get("decision_type")).upper() == "OVERRIDDEN"
-        and rec.get("clinician_acuity") is not None
+    # Count exact clinician override submissions, not unique patients. A patient
+    # can legitimately have more than one reassessment and each linked decision
+    # is a separate auditable/model-monitoring event.
+    overrides = sum(
+        1 for rec in clinical_records if _is_clinician_acuity_override(rec)
     )
     accepted = _unique_case_count(
         rec for rec in [*clinical_records, *latest_states]
@@ -601,6 +816,7 @@ def aggregate_audit_dashboard(records: list[dict[str, Any]]) -> dict[str, Any]:
         {"date": key, "count": timeline_counts[key]}
         for key in sorted(timeline_counts.keys())
     ]
+    patient_trends, patient_trend_summary = _patient_reassessment_trends(records)
     return {
         "summary": {
             "total_entries": len(records),
@@ -614,7 +830,11 @@ def aggregate_audit_dashboard(records: list[dict[str, Any]]) -> dict[str, Any]:
             # as "clinical decisions" described two different populations under
             # one name. This is the donut's population, exposed so the UI can
             # label each number for what it actually is.
-            "acuity_decisions": _unique_case_count(_acuity_settling_records(records)),
+            # This must reconcile exactly with the acuity donut below. Each
+            # accepted/overridden/final-doctor review is tied to one exact model
+            # assessment; collapsing by case made the KPI smaller than the chart
+            # whenever a patient had a reassessment.
+            "acuity_decisions": len(_acuity_settling_records(records)),
             "accepted_cases": accepted,
             "request_more_info_actions": request_info,
             "open_escalations": open_escalations,
@@ -655,6 +875,8 @@ def aggregate_audit_dashboard(records: list[dict[str, Any]]) -> dict[str, Any]:
         "by_override_status": _breakdown(records, "override_status"),
         "by_source_dataset": _breakdown(records, "source_dataset"),
         "escalation_worklist": escalation_worklist[:250],
+        "patient_trends": patient_trends,
+        "patient_trend_summary": patient_trend_summary,
     }
 
 

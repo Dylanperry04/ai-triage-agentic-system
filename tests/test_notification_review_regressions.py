@@ -61,8 +61,8 @@ def _repository(tmp_path, kind):
     return repository
 
 
-def test_information_request_creates_durable_triage_notification(tmp_path):
-    """Information requests now create one durable notification for triage staff."""
+def test_information_request_creates_durable_ed_nurse_notification(tmp_path):
+    """Information requests create one durable notification for ED nursing staff."""
     settings = _settings(tmp_path)
     repository = SQLiteNotificationRepository(settings.sqlite_path)
 
@@ -74,7 +74,7 @@ def test_information_request_creates_durable_triage_notification(tmp_path):
             "requested_fields": ["Repeat vital signs", "ECG"],
             "request_timestamp": "2026-08-14T12:30:00Z",
             "requesting_role": "ed_doctor",
-            "notification_target_role": "triage_nurse",
+            "notification_target_role": "ed_nurse",
         },
         case={"display_name": "UHL Case 006767"},
         settings=settings,
@@ -85,7 +85,7 @@ def test_information_request_creates_durable_triage_notification(tmp_path):
     assert result["notifications_created"] == 1
 
     visible = repository.list_notifications(
-        roles=["triage_nurse"], user_id="reader", limit=30
+        roles=["ed_nurse"], user_id="reader", limit=30
     )
     assert len(visible) == 1
     assert visible[0]["kind"] == "information_request"
@@ -121,7 +121,7 @@ def test_terminal_or_suppressed_state_cannot_recreate_stale_alerts(
             "overdue_vitals_alert_created_at": "2026-08-14T12:30:00Z",
             "escalation_status": "requested",
             "escalation_requested_at": "2026-08-14T12:20:00Z",
-            "escalation_target_role": "clinical_supervisor",
+            "escalation_target_role": "ed_doctor",
         },
         settings=settings,
         repository=repository,
@@ -130,7 +130,7 @@ def test_terminal_or_suppressed_state_cannot_recreate_stale_alerts(
 
     assert result["notifications_created"] == 0
     assert repository.list_notifications(
-        roles=["triage_nurse", "clinical_supervisor"],
+        roles=["ed_nurse", "ed_doctor"],
         user_id="reader",
         limit=30,
     ) == []
@@ -149,7 +149,7 @@ def test_disabled_worker_creates_unpublished_successor_generation(
             kind="escalation",
             case_uid=f"case-disabled-{repository_kind}",
             event_key="2026-08-14T12:40:00Z",
-            target_role="clinical_supervisor",
+            target_role="ed_doctor",
             title="Escalation awaiting review",
             body="This case needs review.",
             created_at="2026-08-14T12:40:00Z",
@@ -238,7 +238,7 @@ def test_acknowledgement_audit_fields_survive_workflow_first_deactivation(
         kind="overdue_vitals",
         case_uid=f"case-ack-{repository_kind}",
         event_key="2026-08-14T10:00:00Z",
-        target_role="triage_nurse",
+        target_role="ed_nurse",
         title="Vitals recheck due",
         body="Open the case to acknowledge.",
         created_at="2026-08-14T13:30:00Z",
@@ -318,7 +318,7 @@ def test_same_generation_schedule_racer_preserves_winner(
             case_uid=f"case-race-{repository_kind}",
             reference_at=utc_iso(utc_now() - timedelta(hours=8)),
             due_minutes=210,
-            target_role="triage_nurse",
+            target_role="ed_nurse",
             sms_eligible=True,
         )
     )

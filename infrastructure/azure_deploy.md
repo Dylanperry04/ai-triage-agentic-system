@@ -14,6 +14,7 @@ runs the unchanged 22.4 agent workflow, and serves the built React UI from
 - Health path: `/health`
 - UHL status path: `/status/uhl`
 - Runtime metadata: `/runtime/status`
+- Deep deployment readiness: `/ready` (HTTP 503 until assets, cache and writable state are usable)
 - Model evidence: `/model/performance`
 
 The package contains the synthetic UHL cohort, selected model bundle, and
@@ -43,11 +44,13 @@ durable cache elsewhere:
 
 | Setting | Purpose |
 |---|---|
-| `ALTER_DATA_ROOT` | Writable root for runtime state and the generated SQLite case cache |
+| `ALTER_DATA_ROOT` | Durable writable root for workflow state, access audit, monthly exports and notifications |
 | `UHL_DATA_PATH` | Override the packaged compressed UHL cohort |
 | `UHL_MODEL_PATH` | Override the packaged selected UHL model |
 | `UHL_REPORT_DIR` | Override the packaged single-seed evidence directory |
 | `UHL_CASE_CACHE_PATH` | Explicit writable SQLite cache path |
+| `UHL_CASE_CACHE_SEED_PATH` | Persistent verified seed copied to the active local cache on Azure recycle |
+| `PREWARM_UHL_CACHE_ON_STARTUP` | Validate/restore/build the case cache before serving; defaults to `true` on Azure |
 | `SERVE_REACT_UI` | Defaults to `true`; set `false` for API-only operation |
 
 Keep the default integrity pins unless a new reviewed release is being
@@ -59,15 +62,23 @@ UHL_MODEL_SHA256=7dddf3cc673f5598d73d7e6d56546cad49639edcae77b44b17b677f0b0d1395
 UHL_FEATURE_SCHEMA_HASH=fd3d1365fe744d5eb75a83b8cfb1ebf9b84695a405c802b633bd2bb78f89debd
 ```
 
-For a writable App Service cache, a typical setting is:
+The startup script supplies these Azure-safe defaults (explicit App Settings
+still take precedence):
 
 ```text
 ALTER_DATA_ROOT=/home/data
+UHL_CASE_CACHE_PATH=/tmp/alter-uhl-cache/uhl_cases.sqlite3
+UHL_CASE_CACHE_SEED_PATH=/home/data/cache/uhl_cases.sqlite3
+PREWARM_UHL_CACHE_ON_STARTUP=true
+ENABLE_OVERDUE_VITALS_SWEEPER=true
+ENABLE_MONTHLY_RETRAINING_EXPORTS=true
 ```
 
-The first `/cases` request validates the compressed cohort and builds the
-SQLite index. Keeping `/home/data` persistent avoids rebuilding it after every
-restart.
+The active SQLite index stays on fast instance-local `/tmp`; a verified copy in
+durable `/home` avoids a full rebuild after normal App Service recycles. Uvicorn
+does not start until this cache passes the pinned row-count checks. Keep this
+demo at one App Service instance and one Uvicorn worker because its clinical
+transition serialization is process-local.
 
 ## Optional LLM layer
 
@@ -99,11 +110,13 @@ Expected API checks after deployment:
 ```bash
 curl -fsS https://<app>.azurewebsites.net/health
 curl -fsS https://<app>.azurewebsites.net/status/uhl
+curl -fsS https://<app>.azurewebsites.net/ready
 curl -fsS https://<app>.azurewebsites.net/model/performance
 ```
 
-`/health` must identify the UHL synthetic source, `/status/uhl` must report the
-pinned assets, and `/model/performance` must report UHL evidence as available.
+`/ready` must report `ready=true`, a loadable pinned model, 777176 source rows,
+777174 model-scope rows and writable runtime storage. The deployment workflow
+also exercises the exact ITD escalation/staff audit question.
 
 ## Rollback
 

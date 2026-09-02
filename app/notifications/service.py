@@ -38,13 +38,10 @@ def _case_closed(state: dict[str, Any]) -> bool:
 
 def _target_role(state: dict[str, Any], *, escalation: bool = False) -> str:
     if escalation:
-        value = state.get("escalation_target_role")
-    else:
-        value = state.get("notification_target_role") or state.get("assigned_staff_role")
-    role = str(value or "").strip()
-    if role in {"triage_nurse", "ed_doctor", "clinical_supervisor", "security_admin"}:
-        return role
-    return "clinical_supervisor" if escalation else "triage_nurse"
+        return "ed_doctor"
+    # Routine observation/recheck responsibility never follows a case's
+    # escalation assignment. It belongs to the ED Nurse alone.
+    return "ed_nurse"
 
 
 def _requesting_role_label(value: Any) -> str:
@@ -52,7 +49,7 @@ def _requesting_role_label(value: Any) -> str:
     return {
         "ed_doctor": "ED Doctor",
         "triage_nurse": "Triage Nurse",
-        "clinical_supervisor": "Clinical Supervisor",
+        "ed_nurse": "ED Nurse",
         "security_admin": "Security Admin",
     }.get(role, "Clinician")
 
@@ -82,18 +79,23 @@ def create_notification_for_event(
     initial_active: bool = True,
     case: dict[str, Any] | None = None,
     body_override: str | None = None,
+    sms_allowed: bool = True,
 ) -> tuple[NotificationRecord, bool]:
     titles = {
         "overdue_vitals": "Vitals recheck due",
         "escalation": "Escalation awaiting review",
         "clinical_alert": "Clinical alert",
         "information_request": "More information requested",
+        "triage_review": "Reassessment ready for review",
+        "monthly_retraining": "Monthly retraining data ready",
     }
     bodies = {
         "overdue_vitals": "Observations have not been repeated within the recheck window. Open the case to acknowledge.",
         "escalation": "This case was escalated and needs a senior decision.",
         "clinical_alert": "A clinical alert needs review.",
         "information_request": "More information has been requested for this case.",
+        "triage_review": "Updated observations or information are ready for clinical review.",
+        "monthly_retraining": "The previous month's clean retraining dataset is ready to download.",
     }
 
     case_label = ""
@@ -110,6 +112,8 @@ def create_notification_for_event(
     event = canonical_time_key(event_key)
     created = canonical_time_key(created_at)
     eligible, ineligible_reason = settings.sms_eligibility(case_uid, created)
+    if not sms_allowed:
+        eligible, ineligible_reason = False, "notification_kind_not_sms_enabled"
     record = NotificationRecord.create(
         kind=kind,
         case_uid=case_uid,
@@ -267,7 +271,7 @@ def sync_workflow_state(
             kind="information_request",
             case_uid=case_uid,
             event_key=request_time,
-            target_role="triage_nurse",
+            target_role="ed_nurse",
             created_at=request_time,
             case=case,
             body_override=request_body,
@@ -279,6 +283,30 @@ def sync_workflow_state(
             "information_request",
             utc_iso(),
             cancel_reason="information_request_resolved",
+        )
+
+    response_at = str(state.get("information_response_received_at") or "").strip()
+    reassessment_pending = bool(state.get("reassessment_notification_pending"))
+    if response_at and reassessment_pending:
+        target = str(state.get("reassessment_target_role") or "triage_nurse").strip()
+        if target not in {"triage_nurse", "ed_doctor"}:
+            target = "triage_nurse"
+        response_time = canonical_time_key(response_at)
+        _, created = create_notification_for_event(
+            repository=store,
+            settings=config,
+            kind="triage_review",
+            case_uid=case_uid,
+            event_key=response_time,
+            target_role=target,
+            created_at=response_time,
+            case=case,
+        )
+        results["notifications_created"] += int(created)
+    else:
+        store.deactivate_notifications(
+            case_uid, "triage_review", utc_iso(),
+            cancel_reason="reassessment_reviewed",
         )
 
     escalation_status = str(state.get("escalation_status") or "").strip().lower()
@@ -379,7 +407,7 @@ def materialize_schedule(
     return activated, "created" if created else "existing"
 
 
-def reconcile_current_workflow_states(*, limit: int = 50000) -> dict[str, int]:
+def _reconcile_current_workflow_states_locked(*, limit: int = 50000) -> dict[str, int]:
     """One-time/repeatable backfill from the current workflow-state surface.
 
     This makes a rolling deployment safe: alerts that were already visible in
@@ -424,3 +452,11 @@ def reconcile_current_workflow_states(*, limit: int = 50000) -> dict[str, int]:
         "published": int(publication["published"]),
         "publication_failures": int(publication["failed"]),
     }
+
+
+def reconcile_current_workflow_states(*, limit: int = 50000) -> dict[str, int]:
+    """Backfill without racing the explicit one-worker demo reset."""
+    from app.storage.demo_reset_coordination import demo_state_guard
+
+    with demo_state_guard():
+        return _reconcile_current_workflow_states_locked(limit=limit)

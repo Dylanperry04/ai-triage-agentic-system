@@ -3,7 +3,7 @@ import { T, priorityFromCategory, patientWithEncounter } from "./theme.js";
 import { GlobalStyle, Toasts, Spinner } from "./atoms.jsx";
 import { Sidebar, Header, navForSession, NAV } from "./shell.jsx";
 import { api, setDemoIdentity } from "./api.js";
-import { mergeNotificationFallback, reconcileNotificationSnapshot } from "./notificationState.js";
+import { mergeNotificationFallback, notificationDestination, reconcileNotificationSnapshot } from "./notificationState.js";
 import SignIn from "./views/SignIn.jsx";
 import Triage from "./views/Triage.jsx";
 import ReviewQueue from "./views/ReviewQueue.jsx";
@@ -148,11 +148,11 @@ export default function App() {
         if (row.overdue_vitals_alert_active && (!target || roles.has(target))) {
           const raw = row.overdue_vitals_reference_at || row.last_vitals_updated_at || "";
           const eventTime = Number.isNaN(Date.parse(raw)) ? raw : new Date(raw).toISOString();
-          rows.push({ id: `fallback-overdue_vitals:${row.case_uid}:${eventTime}`, semanticKey: `overdue_vitals:${row.case_uid}:${eventTime}`, kind: "recheck", caseUid: row.case_uid, caseLabel: rowLabel, title: "Vitals recheck due", body: `${rowLabel} — observations have not been repeated within the recheck window. Open the case to acknowledge.`, at: row.overdue_vitals_alert_created_at ? Date.parse(row.overdue_vitals_alert_created_at) : Date.now(), read: false, durable: false });
+          rows.push({ id: `fallback-overdue_vitals:${row.case_uid}:${eventTime}`, semanticKey: `overdue_vitals:${row.case_uid}:${eventTime}`, kind: "recheck", caseUid: row.case_uid, caseLabel: rowLabel, title: "Vitals recheck due", body: `${rowLabel} — observations have not been repeated within the recheck window. Open the case and record repeat observations.`, at: row.overdue_vitals_alert_created_at ? Date.parse(row.overdue_vitals_alert_created_at) : Date.now(), read: false, durable: false });
         }
         if (["requested", "pending"].includes(String(row.escalation_status || "").toLowerCase())) {
           const targetRole = row.escalation_target_role;
-          if ((targetRole && roles.has(targetRole)) || (!targetRole && (roles.has("ed_doctor") || roles.has("clinical_supervisor")))) {
+          if ((targetRole && roles.has(targetRole)) || (!targetRole && roles.has("ed_doctor"))) {
             const raw = row.escalation_requested_at || "";
             const eventTime = Number.isNaN(Date.parse(raw)) ? raw : new Date(raw).toISOString();
             rows.push({ id: `fallback-escalation:${row.case_uid}:${eventTime}`, semanticKey: `escalation:${row.case_uid}:${eventTime}`, kind: "escalation", caseUid: row.case_uid, caseLabel: rowLabel, title: "Escalation awaiting review", body: `${rowLabel} was escalated${row.escalation_requested_by_role ? ` by the ${String(row.escalation_requested_by_role).replace(/_/g, " ")}` : ""} and needs a senior decision.`, at: raw ? Date.parse(raw) : Date.now(), read: false, durable: false });
@@ -204,7 +204,7 @@ export default function App() {
        poll first meant an alert raised by the very first sweep was not visible
        until the next 60s tick. Sweep, then poll, so a freshly created alert
        surfaces immediately. */
-    const canSweep = (session?.permissions || []).includes("can_run_assessment");
+    const canSweep = (session?.permissions || []).includes("can_acknowledge_overdue_vitals");
     /* The previous version chained .catch(set).then(clear): the .then ran on the
        resolved promise the .catch returned, wiping the error in the same
        microtask. Combined with sweepError never being rendered, nothing could
@@ -232,29 +232,44 @@ export default function App() {
 
   const onOpenCase = async (n) => {
     setNotifOpen(false);
-    if (n.kind === "recheck") {
+    setNotifs((xs) => xs.map((x) => x.id === n.id ? { ...x, read: true } : x));
+
+    const destination = notificationDestination(n, session?.roles || [], navItems);
+    if (n.kind === "monthly_retraining") {
+      setTab(destination.tab);
+    } else {
+      if (!n.caseUid) return;
+      setQuery("");
+      // Notification cases may sit outside the currently loaded 200-row page.
+      // Fetch and pin the exact case before selecting it; otherwise a valid
+      // notification can open an apparently empty queue.
       try {
-        if (n.durable) await api.acknowledgeNotification(n.id);
-        else await api.acknowledgeOverdue(n.caseUid);
-        setNotifs((xs) => xs.filter((x) => x.id !== n.id));
-        toast("Recheck acknowledged", `${n.caseLabel || "Patient"} — logged against your identity.`);
-      }
-      catch (e) {
-        toast("Could not acknowledge", e.detail || e.message, "err");
+        const current = await api.getCase(n.caseUid);
+        setCases((prev) => {
+          const rows = prev || [];
+          const index = rows.findIndex((row) => row.case_uid === n.caseUid);
+          if (index < 0) return [current, ...rows];
+          const next = rows.slice(); next[index] = current; return next;
+        });
+      } catch (e) {
+        toast("Could not open case", e.detail || e.message, "err");
         return;
       }
-      setTab(navItems.includes("triage") ? "triage" : navItems[0]);
-      setSelectedUid(n.caseUid);
-    } else {
-      setNotifs((xs) => xs.map((x) => x.id === n.id ? { ...x, read: true } : x));
-      if (n.durable) {
-        try { await api.markNotificationRead(n.id); }
-        catch (e) { toast("Could not mark notification read", e.detail || e.message, "err"); }
+
+      setTab(destination.tab);
+      if (destination.selection === "selected") {
+        setSelectedUid(n.caseUid);
+      } else if (destination.selection === "focus") {
+        setFocusUid(n.caseUid);
       }
-      setTab(navItems.includes("escalations") ? "escalations" : navItems.includes("review") ? "review" : navItems[0]);
-      setFocusUid(n.caseUid);
     }
-    refreshCases();
+
+    // Opening is not acknowledgement: an overdue-observations warning remains
+    // active until observations are actually recorded (or explicitly dismissed).
+    if (n.durable) {
+      try { await api.markNotificationRead(n.id); }
+      catch (e) { toast("Could not mark notification read", e.detail || e.message, "err"); }
+    }
   };
 
   /* Optimistic in-session colour for a decision whose queue reload has not
@@ -294,15 +309,13 @@ export default function App() {
   const identity = persona || session.display_name || session.user_id || "Signed in";
   const roleLabel = (session.display_roles || []).join(", ") || "No role";
   const canSearch = (session.permissions || []).includes("can_view_case");
-  const canDecide = (session.permissions || []).includes("can_submit_review");
-  const canAssess = (session.permissions || []).includes("can_run_assessment");
   const canExplainAcuity = (session.permissions || []).includes("can_explain_case_acuity");
   const presentation = Boolean(meta?.presentation_ui_mode);
   const searchActive = query.trim().length > 0;
 
   const view = (() => {
     switch (tab) {
-      case "triage": return <Triage cases={searchActive ? (searchResults || []) : (cases || [])} casesError={searchActive ? (searchError || casesError) : casesError} refresh={refreshCases} selectedUid={selectedUid} setSelectedUid={setSelectedUid} query={query} searchActive={searchActive} searchBusy={searchBusy} toast={toast} onDecision={recordDecision} canDecide={canDecide} canAssess={canAssess} canExplainAcuity={canExplainAcuity} presentation={presentation} serverTotal={casesMeta?.total ?? (cases || []).length} hasMore={Boolean(casesMeta?.has_more)} onLoadMore={loadMoreCases} loadingMore={loadingMore} />;
+      case "triage": return <Triage cases={searchActive ? (searchResults || []) : (cases || [])} casesError={searchActive ? (searchError || casesError) : casesError} casesLoading={!searchActive && cases === null} refresh={refreshCases} selectedUid={selectedUid} setSelectedUid={setSelectedUid} query={query} searchActive={searchActive} searchBusy={searchBusy} toast={toast} onDecision={recordDecision} permissions={session.permissions || []} canExplainAcuity={canExplainAcuity} presentation={presentation} serverTotal={casesMeta?.total ?? (cases || []).length} hasMore={Boolean(casesMeta?.has_more)} onLoadMore={loadMoreCases} loadingMore={loadingMore} />;
       case "review": return <ReviewQueue cases={cases || []} casesError={casesError} refresh={refreshCases} decisionMap={decisionMap} toast={toast} session={session} focusUid={focusUid} onFocusHandled={() => setFocusUid(null)} />;
       case "escalations": return <ReviewQueue cases={cases || []} casesError={casesError} refresh={refreshCases} decisionMap={decisionMap} toast={toast} session={session} escalationsOnly focusUid={focusUid} onFocusHandled={() => setFocusUid(null)} />;
       case "analytics": return <Analytics toast={toast} />;

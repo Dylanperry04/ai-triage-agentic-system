@@ -87,6 +87,15 @@ class TestRedaction:
         red = redact_for_log(record)
         assert red == record
 
+    def test_preserves_latest_workflow_run_id_without_weakening_redaction(self):
+        run_id = "82849b77-3428-4b4a-82ff-bf0518da1185"
+        red = redact_for_log({
+            "latest_workflow_run_id": run_id,
+            "workflow_run_id": "MRN 12345678",
+        })
+        assert red["latest_workflow_run_id"] == run_id
+        assert red["workflow_run_id"] == "MRN [REDACTED_NUM]"
+
     def test_preserves_workflow_clock_timestamps(self):
         record = {
             "case_uid": "MIMIC-IV-ED-Full-v2.2~abcdef123456abcdef123456",

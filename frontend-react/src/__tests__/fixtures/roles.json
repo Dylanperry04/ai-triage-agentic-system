@@ -1,121 +1,32 @@
 {
+  "ed_nurse": {
+    "roles": ["ed_nurse"],
+    "permissions": ["can_view_case", "can_view_clinical_content", "can_view_workflow_queue", "can_record_vitals", "can_update_vitals", "can_provide_requested_information", "can_acknowledge_overdue_vitals"],
+    "visible_tabs": ["maintainability", "review_queue", "triage_review"]
+  },
   "triage_nurse": {
-    "roles": [
-      "triage_nurse"
-    ],
-    "permissions": [
-      "can_run_assessment",
-      "can_submit_review",
-      "can_view_case",
-      "can_view_clinical_content",
-      "can_view_workflow_queue"
-    ],
-    "visible_tabs": [
-      "explainability",
-      "maintainability",
-      "review_queue",
-      "triage_review"
-    ]
+    "roles": ["triage_nurse"],
+    "permissions": ["can_view_case", "can_view_clinical_content", "can_view_workflow_queue", "can_run_triage_assessment", "can_review_ai_prediction", "can_accept_acuity", "can_override_acuity", "can_request_information", "can_escalate_case", "can_explain_case_acuity"],
+    "visible_tabs": ["explainability", "maintainability", "review_queue", "triage_review"]
   },
   "ed_doctor": {
-    "roles": [
-      "ed_doctor"
-    ],
-    "permissions": [
-      "can_run_assessment",
-      "can_submit_review",
-      "can_view_case",
-      "can_view_clinical_content",
-      "can_view_model_performance",
-      "can_view_workflow_queue"
-    ],
-    "visible_tabs": [
-      "explainability",
-      "maintainability",
-      "review_queue",
-      "triage_review"
-    ]
-  },
-  "clinical_supervisor": {
-    "roles": [
-      "clinical_supervisor"
-    ],
-    "permissions": [
-      "can_run_assessment",
-      "can_submit_review",
-      "can_view_audit_log",
-      "can_view_case",
-      "can_view_clinical_content",
-      "can_view_model_performance",
-      "can_view_workflow_queue"
-    ],
-    "visible_tabs": [
-      "audit_dashboard",
-      "explainability",
-      "governance",
-      "maintainability",
-      "model_performance",
-      "review_queue",
-      "triage_review"
-    ]
+    "roles": ["ed_doctor"],
+    "permissions": ["can_view_case", "can_view_clinical_content", "can_view_workflow_queue", "can_review_ai_prediction", "can_request_information", "can_review_escalation", "can_resolve_escalation", "can_close_case", "can_view_model_performance", "can_explain_case_acuity"],
+    "visible_tabs": ["explainability", "maintainability", "model_performance", "review_queue", "triage_review"]
   },
   "researcher": {
-    "roles": [
-      "researcher"
-    ],
-    "permissions": [
-      "can_export_deidentified",
-      "can_view_case",
-      "can_view_model_performance"
-    ],
-    "visible_tabs": [
-      "explainability",
-      "maintainability",
-      "model_performance"
-    ]
+    "roles": ["researcher"],
+    "permissions": ["can_export_deidentified", "can_view_case", "can_view_model_performance"],
+    "visible_tabs": ["explainability", "maintainability", "model_performance"]
   },
   "security_admin": {
-    "roles": [
-      "security_admin"
-    ],
-    "permissions": [
-      "can_ask_chatbot",
-      "can_export_deidentified",
-      "can_export_identifiable",
-      "can_run_assessment",
-      "can_submit_review",
-      "can_view_audit_log",
-      "can_view_case",
-      "can_view_clinical_content",
-      "can_view_model_performance",
-      "can_view_security_status",
-      "can_view_workflow_queue"
-    ],
-    "visible_tabs": [
-      "audit_dashboard",
-      "explainability",
-      "governance",
-      "itd_ask_tools",
-      "maintainability",
-      "model_performance",
-      "review_queue",
-      "triage_review"
-    ]
+    "roles": ["security_admin"],
+    "permissions": ["can_ask_chatbot", "can_export_deidentified", "can_export_identifiable", "can_view_audit_log", "can_view_case", "can_view_clinical_content", "can_view_model_performance", "can_view_security_status", "can_view_workflow_queue", "can_record_vitals", "can_update_vitals", "can_provide_requested_information", "can_run_triage_assessment", "can_review_ai_prediction", "can_accept_acuity", "can_override_acuity", "can_request_information", "can_escalate_case", "can_review_escalation", "can_resolve_escalation", "can_close_case", "can_acknowledge_overdue_vitals", "can_manage_clinical_notifications", "can_explain_case_acuity", "can_view_retraining_exports", "can_generate_retraining_exports"],
+    "visible_tabs": ["audit_dashboard", "explainability", "governance", "itd_ask_tools", "maintainability", "model_performance", "review_queue", "triage_review"]
   },
   "governance_auditor": {
-    "roles": [
-      "governance_auditor"
-    ],
-    "permissions": [
-      "can_view_audit_log",
-      "can_view_model_performance",
-      "can_view_workflow_queue"
-    ],
-    "visible_tabs": [
-      "audit_dashboard",
-      "governance",
-      "maintainability",
-      "model_performance"
-    ]
+    "roles": ["governance_auditor"],
+    "permissions": ["can_view_audit_log", "can_view_model_performance", "can_view_workflow_queue"],
+    "visible_tabs": ["audit_dashboard", "governance", "maintainability", "model_performance"]
   }
 }

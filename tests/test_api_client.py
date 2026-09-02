@@ -144,14 +144,17 @@ def test_researcher_review_raises_403():
 def test_demo_role_env_lets_nurse_submit(monkeypatch):
     monkeypatch.setenv("DEMO_ROLE", "triage_nurse")
     cuid = api_client.list_cases()["cases"][0]["case_uid"]
+    api_client.run_assessment(cuid)
+    run_id = api_client.get_case(cuid)["workflow_state"]["latest_workflow_run_id"]
     out = api_client.submit_review(cuid, {"review_status": "ACCEPTED_AS_PRESENTED",
+                                          "workflow_run_id": run_id,
                                           "review_comment": "x"})
     assert out["status"] == "recorded"
     assert out["case_uid"] == cuid
 
 
 def test_overdue_vitals_client_wrappers(monkeypatch):
-    monkeypatch.setenv("DEMO_ROLE", "triage_nurse")
+    monkeypatch.setenv("DEMO_ROLE", "ed_nurse")
     cuid = api_client.list_cases()["cases"][0]["case_uid"]
     from app.config import settings
     from app.storage.case_state_repository import append_case_state

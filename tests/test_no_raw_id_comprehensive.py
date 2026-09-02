@@ -81,7 +81,7 @@ class TestNoRawIdAcrossEndpoints:
 
     
     def test_list_cases_no_raw_ids(self):
-        for role in (["ed-doctors"], ["researchers"], ["clinical-supervisors"]):
+        for role in (["ed-nurses"], ["ed-doctors"], ["researchers"], ["security-admins"]):
             r = client.get("/cases", headers=self._h(role))
             assert r.status_code == 200
             _assert_no_raw_ids(r.json(), "/cases")
@@ -96,15 +96,15 @@ class TestNoRawIdAcrossEndpoints:
     
     def test_assessment_no_raw_ids(self):
         cuid = client.get("/cases",
-                          headers=self._h(["ed-doctors"])).json()["cases"][0]["case_uid"]
-        r = client.post(f"/cases/{cuid}/assessments", headers=self._h(["ed-doctors"]))
+                          headers=self._h(["triage-nurses"])).json()["cases"][0]["case_uid"]
+        r = client.post(f"/cases/{cuid}/assessments", headers=self._h(["triage-nurses"]))
         assert r.status_code == 200
         _assert_no_raw_ids(r.json(), "assessment")
 
     def test_followup_no_raw_ids(self):
         cuid = client.get("/cases",
-                          headers=self._h(["ed-doctors"])).json()["cases"][0]["case_uid"]
-        r = client.post(f"/cases/{cuid}/followups", headers=self._h(["ed-doctors"]),
+                          headers=self._h(["ed-nurses"])).json()["cases"][0]["case_uid"]
+        r = client.post(f"/cases/{cuid}/followups", headers=self._h(["ed-nurses"]),
                         json={"updated_vitals": {"heartrate": 180}})
         assert r.status_code == 200
         _assert_no_raw_ids(r.json(), "followup")
@@ -165,10 +165,17 @@ class TestNoRawIdAcrossEndpoints:
         _assert_no_raw_ids(body, "followup_single_agent")
 
     def test_review_response_no_raw_ids(self):
-        cuid = client.get("/cases",
-                          headers=self._h(["ed-doctors"])).json()["cases"][0]["case_uid"]
-        r = client.post(f"/cases/{cuid}/reviews", headers=self._h(["ed-doctors"]),
-                        json={"review_status": "ACCEPTED_AS_PRESENTED", "review_comment": "x"})
+        headers = self._h(["triage-nurses"])
+        cuid = client.get("/cases", headers=headers).json()["cases"][0]["case_uid"]
+        assessed = client.post(f"/cases/{cuid}/assessments", headers=headers)
+        assert assessed.status_code == 200
+        run_id = client.get(f"/cases/{cuid}", headers=headers).json()["workflow_state"][
+            "latest_workflow_run_id"
+        ]
+        r = client.post(f"/cases/{cuid}/reviews", headers=headers,
+                        json={"review_status": "ACCEPTED_AS_PRESENTED",
+                              "workflow_run_id": run_id,
+                              "review_comment": "x"})
         assert r.status_code == 200
         _assert_no_raw_ids(r.json(), "review")
 

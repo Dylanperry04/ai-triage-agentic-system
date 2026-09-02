@@ -178,9 +178,11 @@ class TestExplanationContract:
         assert "**" not in out and "TERMINATE" not in out
         assert not out.lstrip().startswith("-")
 
-    def test_short_compliant_output_passes_through_unchanged(self):
+    def test_short_output_receives_required_plain_language_opening(self):
         good = "Acuity 2 was shown. Heart rate was elevated. Clinician review is required."
-        assert condense_explanation(good) == good
+        out = condense_explanation(good)
+        assert out.startswith("The main reason this acuity level was suggested was ")
+        assert out.endswith("Clinician review is required.")
 
     def test_empty_stays_empty(self):
         assert condense_explanation("") == ""

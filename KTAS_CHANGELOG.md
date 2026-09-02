@@ -935,7 +935,7 @@ storage).
 - Six roles + least-privilege matrix with the supervisor's UHL adjustments:
   researcher = de-identified export only (no identifiable, no clinical content, no
   review); security_admin = security status + access logs, NO clinical content;
-  clinical_supervisor = clinical oversight incl. audit log, kept SEPARATE from
+  governance_auditor = read-only audit oversight, kept SEPARATE from
   security_admin. Permissions split: export_deidentified vs export_identifiable;
   view_clinical_content vs view_security_status.
 - Access audit logs every ALLOWED/DENIED/BLOCKED action (user/role/action/page/

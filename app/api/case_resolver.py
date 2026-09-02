@@ -364,7 +364,7 @@ def _supervisor_demo_cases_path():
 
 
 def _supervisor_demo_cases_allowed() -> bool:
-    """Built-in synthetic cases for the Azure supervisor demo only.
+    """Built-in synthetic cases for the Azure role-switcher demo only.
 
     Real full MIMIC must not be used in this mode unless explicitly approved.
     When that approval flag and MIMIC_FULL_ED_DIR are both set, the resolver lets

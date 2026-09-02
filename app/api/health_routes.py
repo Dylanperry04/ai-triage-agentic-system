@@ -1,4 +1,5 @@
 from fastapi import APIRouter
+from fastapi.responses import JSONResponse
 from app.version import APP_VERSION, PACKAGE_CHECKPOINT
 
 from app.rules.manchester_engine import get_approved_ruleset
@@ -48,6 +49,89 @@ def _uhl_status_payload():
         "reason": "ok" if data_hash_verified and model_hash_verified else "missing_or_invalid_asset",
         "not_clinically_validated": True,
     }
+
+
+def _readiness_payload() -> dict:
+    """Deep deployment readiness, including usable assets and writable state."""
+    import os
+    import tempfile
+
+    import joblib
+
+    from app.config import settings
+    from app.constants import EXPECTED_MODEL_ROWS, EXPECTED_SOURCE_ROWS
+    from app.data_pipeline.uhl_repository import UhlCaseRepository
+    from ml_training.uhl_synthetic.serving import validate_uhl_serving_bundle
+
+    asset = _uhl_status_payload()
+    model_loadable = False
+    model_error = ""
+    try:
+        bundle = joblib.load(settings.uhl_model_path)
+        validate_uhl_serving_bundle(bundle, require_deployable=True)
+        model_loadable = True
+    except Exception as exc:
+        model_error = exc.__class__.__name__
+
+    repository_status: dict = {}
+    repository_error = ""
+    try:
+        repository_status = UhlCaseRepository(settings).status()
+    except Exception as exc:
+        repository_error = exc.__class__.__name__
+
+    storage_writable = False
+    storage_error = ""
+    try:
+        settings.processed_dir.mkdir(parents=True, exist_ok=True)
+        descriptor, probe = tempfile.mkstemp(
+            prefix=".alter-readiness-", dir=str(settings.processed_dir)
+        )
+        os.close(descriptor)
+        os.unlink(probe)
+        storage_writable = True
+    except Exception as exc:
+        storage_error = exc.__class__.__name__
+
+    source_rows = repository_status.get("source_rows")
+    model_rows = repository_status.get("model_scope_rows")
+    ready = bool(
+        asset["data_hash_verified"]
+        and asset["model_hash_verified"]
+        and model_loadable
+        and repository_status.get("dataset_ready") is True
+        and source_rows == EXPECTED_SOURCE_ROWS
+        and model_rows == EXPECTED_MODEL_ROWS
+        and storage_writable
+    )
+    return {
+        "ready": ready,
+        "status": "ready" if ready else "not_ready",
+        "dataset_ready": bool(asset["dataset_ready"]),
+        "model_ready": bool(asset["model_ready"]),
+        "data_hash_verified": bool(asset["data_hash_verified"]),
+        "model_hash_verified": bool(asset["model_hash_verified"]),
+        "model_loadable": model_loadable,
+        "source_rows": source_rows,
+        "expected_source_rows": EXPECTED_SOURCE_ROWS,
+        "model_scope_rows": model_rows,
+        "expected_model_scope_rows": EXPECTED_MODEL_ROWS,
+        "runtime_storage_writable": storage_writable,
+        "errors": {
+            "model": model_error,
+            "case_repository": repository_error,
+            "runtime_storage": storage_error,
+        },
+    }
+
+
+@router.get("/ready")
+def readiness_endpoint():
+    """Return 503 unless this deployment can actually serve the UHL demo."""
+    payload = _readiness_payload()
+    if not payload["ready"]:
+        return JSONResponse(status_code=503, content=payload)
+    return payload
 
 
 @router.get("/health")
@@ -182,7 +266,7 @@ def llm_status_endpoint():
         if patient_data_mode()
         else "local_credentialed_research"
         if local_credentialed_research_mode()
-        else "azure_supervisor_demo"
+        else "azure_role_switcher_demo"
         if azure_supervisor_demo_mode()
         else "public_demo"
     )
@@ -261,6 +345,17 @@ def runtime_status_endpoint():
         if sweeper_raw is not None
         else os.environ.get("PATIENT_DATA_MODE", "").lower() == "true"
     )
+    model_loadable = False
+    if uhl["model_hash_verified"]:
+        try:
+            import joblib
+            from ml_training.uhl_synthetic.serving import validate_uhl_serving_bundle
+
+            bundle = joblib.load(settings.uhl_model_path)
+            validate_uhl_serving_bundle(bundle, require_deployable=True)
+            model_loadable = True
+        except Exception:
+            model_loadable = False
     return {
         "app_version": APP_VERSION,
         "package_checkpoint": PACKAGE_CHECKPOINT,
@@ -274,8 +369,8 @@ def runtime_status_endpoint():
             "file_exists": settings.uhl_model_path.is_file(),
             "hash_present": True,
             "hash_verified": uhl["model_hash_verified"],
-            "loadable": uhl["model_ready"],
-            "state": "loadable" if uhl["model_ready"] else "missing or hash mismatch",
+            "loadable": model_loadable,
+            "state": "loadable" if model_loadable else "missing, invalid, or hash mismatch",
         },
         "reports": reports,
         "overdue_vitals_sweeper_enabled": sweeper_enabled,

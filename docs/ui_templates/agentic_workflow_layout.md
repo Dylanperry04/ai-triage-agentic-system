@@ -2,7 +2,7 @@
 
 ## Target User
 
-Clinical supervisor, researcher, ITD/security admin.
+ED doctor, researcher, governance auditor, ITD/security admin.
 
 ## Layout Purpose
 

@@ -193,6 +193,19 @@ class TestAuditSinkHardening:
         assert events[0]["detail"] == "call [REDACTED_NUM]"
         assert "subject_id" not in events[0]
 
+    def test_custom_durable_reader_must_honour_requested_time_bound(self):
+        class LegacyReader:
+            def read_recent(self, limit):
+                return []
+
+        sink = EncryptedDurableAuditSink(client=LegacyReader())
+        with pytest.raises(AuditSinkReadError, match="since_utc"):
+            sink.read_recent(
+                limit=100,
+                record_kind="workflow_run",
+                since_utc="2026-07-31T23:00:00+00:00",
+            )
+
     def test_patient_durable_read_rejects_unbounded_list_only_client(self, monkeypatch):
         monkeypatch.setenv("PATIENT_DATA_MODE", "true")
 

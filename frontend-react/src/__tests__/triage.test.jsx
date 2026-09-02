@@ -34,12 +34,13 @@ const cases = Array.from({ length: 40 }, (_, i) => ({
   queue_metadata: { intime: `2180-01-01 10:${String(i).padStart(2, "0")}:00` },
 }));
 
-function Harness({ caseRows = cases } = {}) {
+function Harness({ caseRows = cases, permissions, casesLoading = false } = {}) {
   const [selectedUid, setSelectedUid] = useState(null);
   return (
     <Triage
       cases={caseRows}
       casesError={null}
+      casesLoading={casesLoading}
       refresh={() => {}}
       selectedUid={selectedUid}
       setSelectedUid={setSelectedUid}
@@ -47,8 +48,11 @@ function Harness({ caseRows = cases } = {}) {
       searchActive={false}
       searchBusy={false}
       toast={() => {}}
-      canDecide
-      canAssess
+      permissions={permissions || [
+        "can_run_triage_assessment", "can_review_ai_prediction",
+        "can_accept_acuity", "can_override_acuity",
+        "can_request_information", "can_escalate_case",
+      ]}
       canExplainAcuity={false}
       presentation={false}
       serverTotal={caseRows.length}
@@ -65,6 +69,37 @@ afterEach(() => {
 });
 
 describe("Triage model estimate loading", () => {
+  it("shows an honest loading state instead of a clear queue before cases arrive", () => {
+    render(<Harness caseRows={[]} casesLoading />);
+
+    expect(screen.getByText("Loading patients…")).toBeTruthy();
+    expect(screen.queryByText(/Queue clear/i)).toBeNull();
+  });
+
+  it("labels the ED Nurse list as the observations queue", () => {
+    render(<Harness permissions={["can_view_case", "can_record_vitals", "can_update_vitals", "can_provide_requested_information"]} />);
+
+    expect(screen.getByText("Observations queue")).toBeTruthy();
+    expect(screen.queryByText("Unreviewed queue")).toBeNull();
+  });
+
+  it("keeps accepted, overridden, and escalated patients actionable for ED Nurse observations", () => {
+    const observationRows = [
+      { ...cases[0], case_uid: "accepted", patient_display_label: "Patient Accepted", workflow_state: { case_status: "accepted", overdue_vitals_alert_active: true } },
+      { ...cases[1], case_uid: "overridden", patient_display_label: "Patient Overridden", workflow_state: { case_status: "overridden" } },
+      { ...cases[2], case_uid: "escalated", patient_display_label: "Patient Escalated", workflow_state: { case_status: "escalation_requested", escalation_status: "requested" } },
+      { ...cases[3], case_uid: "closed", patient_display_label: "Patient Closed", workflow_state: { case_status: "case_closed" } },
+    ];
+    render(<Harness caseRows={observationRows} permissions={["can_view_case", "can_record_vitals", "can_update_vitals", "can_provide_requested_information"]} />);
+
+    expect(screen.getByText("Patient Accepted")).toBeTruthy();
+    expect(screen.getByText("Patient Overridden")).toBeTruthy();
+    expect(screen.getByText("Patient Escalated")).toBeTruthy();
+    expect(screen.queryByText("Patient Closed")).toBeNull();
+    expect(screen.getByText("Record / update vitals")).toBeTruthy();
+    expect(api.previewAssessment).not.toHaveBeenCalled();
+  });
+
   it("requests an ML estimate only for the selected patient on initial load", async () => {
     render(<Harness />);
 
@@ -95,7 +130,7 @@ describe("Triage model estimate loading", () => {
     expect(screen.queryByText("Safety review flags")).toBeNull();
     expect(screen.queryByText("PROVISIONAL_MTS_CATEGORY_PENDING_CLINICIAN_REVIEW")).toBeNull();
     expect(screen.queryByText(/Consult model for this patient/i)).toBeNull();
-    expect(screen.getByText("Record new observations")).toBeTruthy();
+    expect(screen.queryByText("Record new observations")).toBeNull();
   });
 
   it("keeps the unreviewed queue in arrival order after an estimate appears", async () => {

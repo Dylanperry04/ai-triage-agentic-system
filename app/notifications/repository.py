@@ -6,6 +6,7 @@ from datetime import timedelta
 from contextlib import contextmanager
 import sqlite3
 import threading
+import time
 from pathlib import Path
 from typing import Any, Iterable, Iterator, Protocol
 
@@ -103,6 +104,7 @@ class NotificationRepository(Protocol):
     ) -> None: ...
     def pre_enable_report(self, *, allowed_case_uids: set[str]) -> dict[str, Any]: ...
     def purge_expired(self, now: str, retention_days: int = 90) -> dict[str, int]: ...
+    def reset_demo_state(self, *, now: str, archive_path: Path | None = None) -> dict[str, Any]: ...
     def health(self) -> dict[str, Any]: ...
 
 
@@ -131,6 +133,9 @@ def _schedule_from_mapping(value: dict[str, Any]) -> ScheduleRecord:
     return ScheduleRecord(**payload)
 
 
+_sqlite_initialisation_lock = threading.Lock()
+
+
 class SQLiteNotificationRepository:
     """Local/dev repository; SQLite transactions also exercise concurrency invariants."""
 
@@ -138,14 +143,39 @@ class SQLiteNotificationRepository:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._init_lock = threading.Lock()
-        self._initialise()
+        # A journal-mode transition requires a strong database lock. Performing
+        # it in every request connection raced background reconciliation/export
+        # writers and intermittently raised "database is locked". Configure WAL
+        # once while repository/schema initialisation is globally serialised.
+        with _sqlite_initialisation_lock:
+            self._configure_database()
+            self._initialise()
+
+    def _configure_database(self) -> None:
+        last_error: sqlite3.OperationalError | None = None
+        for attempt in range(8):
+            connection = sqlite3.connect(str(self.path), timeout=30, isolation_level=None)
+            try:
+                connection.execute("PRAGMA busy_timeout=30000")
+                connection.execute("PRAGMA journal_mode=WAL")
+                connection.execute("PRAGMA synchronous=NORMAL")
+                return
+            except sqlite3.OperationalError as exc:
+                if "locked" not in str(exc).lower() and "busy" not in str(exc).lower():
+                    raise
+                last_error = exc
+            finally:
+                connection.close()
+            time.sleep(min(0.025 * (2 ** attempt), 0.5))
+        if last_error is not None:
+            raise last_error
 
     @contextmanager
     def _connect(self) -> Iterator[sqlite3.Connection]:
-        connection = sqlite3.connect(str(self.path), timeout=15, isolation_level=None)
+        connection = sqlite3.connect(str(self.path), timeout=30, isolation_level=None)
         connection.row_factory = sqlite3.Row
-        connection.execute("PRAGMA busy_timeout=15000")
-        connection.execute("PRAGMA journal_mode=WAL")
+        connection.execute("PRAGMA busy_timeout=30000")
+        connection.execute("PRAGMA synchronous=NORMAL")
         connection.execute("PRAGMA foreign_keys=ON")
         try:
             yield connection
@@ -1113,6 +1143,51 @@ class SQLiteNotificationRepository:
             "worker_heartbeats": h,
         }
 
+    def reset_demo_state(self, *, now: str, archive_path: Path | None = None) -> dict[str, Any]:
+        """Archive the SQLite store, then atomically deactivate demo work."""
+        archived_to = ""
+        if archive_path is not None:
+            target = Path(archive_path)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with self._connect() as source, sqlite3.connect(str(target)) as backup:
+                source.backup(backup)
+            archived_to = str(target)
+        with self._connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            active_notifications = int(db.execute(
+                "SELECT COUNT(*) FROM notifications WHERE active=1"
+            ).fetchone()[0])
+            pending_sms = int(db.execute(
+                "SELECT COUNT(*) FROM notifications WHERE sms_state IN ('queued','retryable','claimed','sending')"
+            ).fetchone()[0])
+            active_schedules = int(db.execute(
+                "SELECT COUNT(*) FROM schedules WHERE active=1"
+            ).fetchone()[0])
+            db.execute(
+                "UPDATE notifications SET active=0, "
+                "sms_state=CASE WHEN sms_state IN ('queued','retryable','claimed','sending') "
+                "THEN 'cancelled' ELSE sms_state END, "
+                "outbox_generation=outbox_generation+1, queue_published_at='', "
+                "publish_claim_owner='', publish_claim_until='', claim_owner='', claim_until='', "
+                "retry_at='', budget_day='', "
+                "cancel_reason=CASE WHEN cancel_reason='' THEN 'demo_reset' ELSE cancel_reason END, "
+                "cancelled_at=CASE WHEN cancelled_at='' THEN ? ELSE cancelled_at END, updated_at=?",
+                (now, now),
+            )
+            db.execute(
+                "UPDATE schedules SET active=0, outbox_generation=outbox_generation+1, "
+                "queue_published_at='', publish_claim_owner='', publish_claim_until='', updated_at=?",
+                (now,),
+            )
+            db.execute("COMMIT")
+        return {
+            "backend": "sqlite",
+            "notifications_deactivated": active_notifications,
+            "schedules_deactivated": active_schedules,
+            "pending_sms_cancelled": pending_sms,
+            "archived_to": archived_to,
+        }
+
     def health(self) -> dict[str, Any]:
         try:
             with self._connect() as db:
@@ -1297,6 +1372,10 @@ class AzureTableNotificationRepository:
         )
         for raw in query:
             value = self._clean(dict(raw))
+            # Retain a client-side defence as well as the Azure filter so a
+            # stale/emulated page can never surface a reset/deactivated alert.
+            if not bool(value.get("active")):
+                continue
             if value.get("target_role") not in roles_set:
                 continue
             if value.get("target_user_id") and value.get("target_user_id") != user_id:
@@ -1318,6 +1397,8 @@ class AzureTableNotificationRepository:
         for raw in self.client.query_entities(
             query_filter="PartitionKey eq 'notification' and active eq true"
         ):
+            if not bool(raw.get("active")):
+                continue
             if raw.get("target_role") not in roles_set:
                 continue
             if raw.get("target_user_id") and raw.get("target_user_id") != user_id:
@@ -2247,6 +2328,80 @@ class AzureTableNotificationRepository:
                     count += 1
             deleted[partition] = count
         return deleted
+
+    def reset_demo_state(self, *, now: str, archive_path: Path | None = None) -> dict[str, Any]:
+        """ETag-safely deactivate retained demo entities in Azure Table.
+
+        Azure Table has no local backup path. Records are retained in place as
+        inactive/cancelled evidence rather than deleted.
+        """
+        notification_ids = [
+            str(raw.get("RowKey") or "")
+            for raw in self.client.query_entities(query_filter="PartitionKey eq 'notification'")
+            if raw.get("RowKey")
+        ]
+        schedule_ids = [
+            str(raw.get("RowKey") or "")
+            for raw in self.client.query_entities(query_filter="PartitionKey eq 'schedule'")
+            if raw.get("RowKey")
+        ]
+        notifications_deactivated = pending_sms_cancelled = schedules_deactivated = 0
+        pending_states = {"queued", "retryable", "claimed", "sending"}
+        for notification_id in notification_ids:
+            for _ in range(12):
+                entity = self._get("notification", notification_id)
+                if entity is None:
+                    break
+                was_active = bool(entity.get("active"))
+                was_pending = str(entity.get("sms_state") or "") in pending_states
+                if not was_active and not was_pending:
+                    break
+                entity.update({
+                    "active": False,
+                    "sms_state": "cancelled" if was_pending else entity.get("sms_state"),
+                    "outbox_generation": int(entity.get("outbox_generation") or 1) + 1,
+                    "queue_published_at": "", "publish_claim_owner": "",
+                    "publish_claim_until": "", "claim_owner": "", "claim_until": "",
+                    "retry_at": "", "budget_day": "", "cancel_reason": "demo_reset",
+                    "cancelled_at": str(entity.get("cancelled_at") or now), "updated_at": now,
+                })
+                try:
+                    self._replace(entity, str(entity.get("etag") or ""))
+                    notifications_deactivated += int(was_active)
+                    pending_sms_cancelled += int(was_pending)
+                    break
+                except Exception as exc:
+                    if not self._conflict(exc):
+                        raise
+            else:
+                raise RuntimeError("notification reset contention exceeded retry limit")
+        for schedule_id in schedule_ids:
+            for _ in range(12):
+                entity = self._get("schedule", schedule_id)
+                if entity is None or not bool(entity.get("active")):
+                    break
+                entity.update({
+                    "active": False,
+                    "outbox_generation": int(entity.get("outbox_generation") or 1) + 1,
+                    "queue_published_at": "", "publish_claim_owner": "",
+                    "publish_claim_until": "", "updated_at": now,
+                })
+                try:
+                    self._replace(entity, str(entity.get("etag") or ""))
+                    schedules_deactivated += 1
+                    break
+                except Exception as exc:
+                    if not self._conflict(exc):
+                        raise
+            else:
+                raise RuntimeError("schedule reset contention exceeded retry limit")
+        return {
+            "backend": "azure_table",
+            "notifications_deactivated": notifications_deactivated,
+            "schedules_deactivated": schedules_deactivated,
+            "pending_sms_cancelled": pending_sms_cancelled,
+            "archived_to": "retained_inactive_in_azure_table",
+        }
 
     def health(self) -> dict[str, Any]:
         try:

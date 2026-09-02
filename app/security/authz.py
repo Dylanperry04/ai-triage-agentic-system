@@ -14,15 +14,26 @@ from __future__ import annotations
 from typing import Dict, Set
 
 from app.security.identity import (
-    AuthContext,
-    ROLE_TRIAGE_NURSE, ROLE_ED_DOCTOR, ROLE_CLINICAL_SUPERVISOR,
+    AuthContext, ROLE_ED_NURSE, ROLE_TRIAGE_NURSE, ROLE_ED_DOCTOR,
     ROLE_RESEARCHER, ROLE_SECURITY_ADMIN, ROLE_GOVERNANCE_AUDITOR,
 )
 
 # ── Permissions ─────────────────────────────────────────────────────────────
 PERM_VIEW_CASE = "can_view_case"                      # view a clinical case (patient content)
-PERM_RUN_ASSESSMENT = "can_run_assessment"
-PERM_SUBMIT_REVIEW = "can_submit_review"
+PERM_RECORD_VITALS = "can_record_vitals"
+PERM_UPDATE_VITALS = "can_update_vitals"
+PERM_PROVIDE_REQUESTED_INFORMATION = "can_provide_requested_information"
+PERM_RUN_TRIAGE_ASSESSMENT = "can_run_triage_assessment"
+PERM_REVIEW_AI_PREDICTION = "can_review_ai_prediction"
+PERM_ACCEPT_ACUITY = "can_accept_acuity"
+PERM_OVERRIDE_ACUITY = "can_override_acuity"
+PERM_REQUEST_INFORMATION = "can_request_information"
+PERM_ESCALATE_CASE = "can_escalate_case"
+PERM_REVIEW_ESCALATION = "can_review_escalation"
+PERM_RESOLVE_ESCALATION = "can_resolve_escalation"
+PERM_CLOSE_CASE = "can_close_case"
+PERM_ACKNOWLEDGE_OVERDUE_VITALS = "can_acknowledge_overdue_vitals"
+PERM_MANAGE_CLINICAL_NOTIFICATIONS = "can_manage_clinical_notifications"
 PERM_VIEW_WORKFLOW_QUEUE = "can_view_workflow_queue"
 PERM_ASK_CHATBOT = "can_ask_chatbot"                  # ITD-only free-text system assistant
 PERM_EXPLAIN_CASE_ACUITY = "can_explain_case_acuity"  # clinician multi-agent explanation of THIS case's acuity
@@ -35,29 +46,33 @@ PERM_EXPORT_IDENTIFIABLE = "can_export_identifiable"  # patient-level identifiab
 # (security_admin) can be excluded from patient clinical content by default:
 PERM_VIEW_CLINICAL_CONTENT = "can_view_clinical_content"  # detailed case evidence / patient content
 PERM_VIEW_SECURITY_STATUS = "can_view_security_status"    # security/config status + access logs
+PERM_VIEW_RETRAINING_EXPORTS = "can_view_retraining_exports"
+PERM_GENERATE_RETRAINING_EXPORTS = "can_generate_retraining_exports"
 
 # Back-compat alias: older call sites used a single export permission. Keep the
 # name pointing at the de-identified export (the safer default).
 PERM_EXPORT_DATA = PERM_EXPORT_DEIDENTIFIED
 
 ALL_PERMISSIONS = {
-    PERM_VIEW_CASE, PERM_RUN_ASSESSMENT, PERM_SUBMIT_REVIEW,
+    PERM_VIEW_CASE, PERM_RECORD_VITALS, PERM_UPDATE_VITALS,
+    PERM_PROVIDE_REQUESTED_INFORMATION, PERM_RUN_TRIAGE_ASSESSMENT,
+    PERM_REVIEW_AI_PREDICTION, PERM_ACCEPT_ACUITY, PERM_OVERRIDE_ACUITY,
+    PERM_REQUEST_INFORMATION, PERM_ESCALATE_CASE, PERM_REVIEW_ESCALATION,
+    PERM_RESOLVE_ESCALATION, PERM_CLOSE_CASE,
+    PERM_ACKNOWLEDGE_OVERDUE_VITALS, PERM_MANAGE_CLINICAL_NOTIFICATIONS,
     PERM_VIEW_WORKFLOW_QUEUE, PERM_ASK_CHATBOT, PERM_EXPLAIN_CASE_ACUITY,
     PERM_VIEW_AUDIT_LOG,
     PERM_VIEW_MODEL_PERFORMANCE,
     PERM_EXPORT_DEIDENTIFIED, PERM_EXPORT_IDENTIFIABLE,
     PERM_VIEW_CLINICAL_CONTENT, PERM_VIEW_SECURITY_STATUS,
+    PERM_VIEW_RETRAINING_EXPORTS, PERM_GENERATE_RETRAINING_EXPORTS,
 }
 
 # ── Role → permission matrix (least privilege; UHL-adjusted) ────────────────
-# Per Dylan's supervisor-aligned adjustments:
-#  - triage_nurse: front-line — view case + clinical content needed to review,
-#    run assessment, submit review/request-info/escalate. No Ask/chatbot,
-#    audit/security logs, model internals, governance, or exports.
-#  - ed_doctor: as nurse + confirm/override + model performance + more detailed
-#    evidence + clinical review history. NO infra/admin perms.
-#  - clinical_supervisor: as ed_doctor + audit-log (clinical review history /
-#    audit summaries). Kept SEPARATE from security_admin (no security-status).
+# UHL-aligned clinical responsibility boundaries:
+#  - ed_nurse: observations and requested information only.
+#  - triage_nurse: AI-supported triage review and escalation initiation.
+#  - ed_doctor: final clinical escalation authority; never routine observations.
 #  - researcher: pseudonymous case list/summary, aggregate/model-performance
 #    review, and de-identified export. No individual case-level assessment/chat
 #    unless a separate governance-approved role grants clinical content and
@@ -67,22 +82,22 @@ ALL_PERMISSIONS = {
 #  - governance_auditor: read-only oversight — audit logs, governance evidence,
 #    review history, model performance. No clinical actions, no settings changes.
 ROLE_PERMISSIONS: Dict[str, Set[str]] = {
+    ROLE_ED_NURSE: {
+        PERM_VIEW_CASE, PERM_VIEW_CLINICAL_CONTENT, PERM_VIEW_WORKFLOW_QUEUE,
+        PERM_RECORD_VITALS, PERM_UPDATE_VITALS,
+        PERM_PROVIDE_REQUESTED_INFORMATION, PERM_ACKNOWLEDGE_OVERDUE_VITALS,
+    },
     ROLE_TRIAGE_NURSE: {
-        PERM_VIEW_CASE, PERM_VIEW_CLINICAL_CONTENT, PERM_RUN_ASSESSMENT,
-        PERM_SUBMIT_REVIEW, PERM_VIEW_WORKFLOW_QUEUE,
+        PERM_VIEW_CASE, PERM_VIEW_CLINICAL_CONTENT, PERM_VIEW_WORKFLOW_QUEUE,
+        PERM_RUN_TRIAGE_ASSESSMENT, PERM_REVIEW_AI_PREDICTION,
+        PERM_ACCEPT_ACUITY, PERM_OVERRIDE_ACUITY, PERM_REQUEST_INFORMATION,
+        PERM_ESCALATE_CASE,
         PERM_EXPLAIN_CASE_ACUITY,
     },
     ROLE_ED_DOCTOR: {
-        PERM_VIEW_CASE, PERM_VIEW_CLINICAL_CONTENT, PERM_RUN_ASSESSMENT,
-        PERM_SUBMIT_REVIEW, PERM_VIEW_WORKFLOW_QUEUE,
-        PERM_VIEW_MODEL_PERFORMANCE,
-        PERM_EXPLAIN_CASE_ACUITY,
-    },
-    ROLE_CLINICAL_SUPERVISOR: {
-        PERM_VIEW_CASE, PERM_VIEW_CLINICAL_CONTENT, PERM_RUN_ASSESSMENT,
-        PERM_SUBMIT_REVIEW, PERM_VIEW_WORKFLOW_QUEUE,
-        PERM_VIEW_MODEL_PERFORMANCE,
-        PERM_VIEW_AUDIT_LOG,
+        PERM_VIEW_CASE, PERM_VIEW_CLINICAL_CONTENT, PERM_VIEW_WORKFLOW_QUEUE,
+        PERM_REVIEW_AI_PREDICTION, PERM_REQUEST_INFORMATION, PERM_REVIEW_ESCALATION,
+        PERM_RESOLVE_ESCALATION, PERM_CLOSE_CASE, PERM_VIEW_MODEL_PERFORMANCE,
         PERM_EXPLAIN_CASE_ACUITY,
     },
     ROLE_RESEARCHER: {
@@ -97,9 +112,9 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
 
 
 ROLE_DISPLAY_NAMES: Dict[str, str] = {
+    ROLE_ED_NURSE: "ED Nurse",
     ROLE_TRIAGE_NURSE: "Triage Nurse",
     ROLE_ED_DOCTOR: "ED Doctor",
-    ROLE_CLINICAL_SUPERVISOR: "Clinical Supervisor",
     ROLE_RESEARCHER: "Researcher",
     ROLE_SECURITY_ADMIN: "ITD",
     ROLE_GOVERNANCE_AUDITOR: "Governance Auditor",
@@ -134,6 +149,11 @@ ALL_TABS = {
 }
 
 ROLE_VISIBLE_TABS: Dict[str, Set[str]] = {
+    ROLE_ED_NURSE: {
+        TAB_TRIAGE_REVIEW,
+        TAB_REVIEW_QUEUE,
+        TAB_MAINTAINABILITY,
+    },
     ROLE_TRIAGE_NURSE: {
         TAB_TRIAGE_REVIEW,
         TAB_REVIEW_QUEUE,
@@ -144,16 +164,11 @@ ROLE_VISIBLE_TABS: Dict[str, Set[str]] = {
         TAB_TRIAGE_REVIEW,
         TAB_EXPLAINABILITY,
         TAB_REVIEW_QUEUE,
-        TAB_MAINTAINABILITY,
-    },
-    ROLE_CLINICAL_SUPERVISOR: {
-        TAB_TRIAGE_REVIEW,
-        TAB_EXPLAINABILITY,
-        TAB_REVIEW_QUEUE,
-        TAB_MAINTAINABILITY,
-        TAB_AUDIT_DASHBOARD,
+        # The role already holds read-only model-performance permission from
+        # the original working application. Keep the backend/UI contract
+        # aligned so supporting model evidence is actually reachable.
         TAB_MODEL_PERFORMANCE,
-        TAB_GOVERNANCE,
+        TAB_MAINTAINABILITY,
     },
     ROLE_RESEARCHER: {
         TAB_EXPLAINABILITY,
@@ -220,8 +235,19 @@ def require_permission(ctx: AuthContext, permission: str) -> None:
 # Convenience predicates (used by the UI to show/hide and to gate actions).
 def can_view_case(ctx): return has_permission(ctx, PERM_VIEW_CASE)
 def can_view_clinical_content(ctx): return has_permission(ctx, PERM_VIEW_CLINICAL_CONTENT)
-def can_run_assessment(ctx): return has_permission(ctx, PERM_RUN_ASSESSMENT)
-def can_submit_review(ctx): return has_permission(ctx, PERM_SUBMIT_REVIEW)
+def can_record_vitals(ctx): return has_permission(ctx, PERM_RECORD_VITALS)
+def can_update_vitals(ctx): return has_permission(ctx, PERM_UPDATE_VITALS)
+def can_provide_requested_information(ctx): return has_permission(ctx, PERM_PROVIDE_REQUESTED_INFORMATION)
+def can_run_assessment(ctx): return has_permission(ctx, PERM_RUN_TRIAGE_ASSESSMENT)
+def can_review_ai_prediction(ctx): return has_permission(ctx, PERM_REVIEW_AI_PREDICTION)
+def can_accept_acuity(ctx): return has_permission(ctx, PERM_ACCEPT_ACUITY)
+def can_override_acuity(ctx): return has_permission(ctx, PERM_OVERRIDE_ACUITY)
+def can_request_information(ctx): return has_permission(ctx, PERM_REQUEST_INFORMATION)
+def can_escalate_case(ctx): return has_permission(ctx, PERM_ESCALATE_CASE)
+def can_review_escalation(ctx): return has_permission(ctx, PERM_REVIEW_ESCALATION)
+def can_resolve_escalation(ctx): return has_permission(ctx, PERM_RESOLVE_ESCALATION)
+def can_close_case(ctx): return has_permission(ctx, PERM_CLOSE_CASE)
+def can_acknowledge_overdue_vitals(ctx): return has_permission(ctx, PERM_ACKNOWLEDGE_OVERDUE_VITALS)
 def can_view_workflow_queue(ctx): return has_permission(ctx, PERM_VIEW_WORKFLOW_QUEUE)
 def can_ask_chatbot(ctx): return has_permission(ctx, PERM_ASK_CHATBOT)
 def can_explain_case_acuity(ctx): return has_permission(ctx, PERM_EXPLAIN_CASE_ACUITY)

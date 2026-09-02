@@ -638,48 +638,43 @@ def safe_multiagent_explanation_response(case_uid: str, source_dataset: str,
                                          team_result: Dict[str, Any]) -> Dict[str, Any]:
     """Safe response DTO for the case_uid AutoGen explainer route."""
     from app.security.redaction import redact_text
-
-    # Agent turns were previously identifier-redacted but NOT safety-checked and
-    # NOT length-capped, while final_explanation got both. The UI renders these
-    # verbatim behind "Show how the agents reached this", so an unsafe or
-    # enormous turn reached the clinician through the expander even though the
-    # same content would have been caught in the summary. Same treatment for
-    # both, or the summary's guarantees are only cosmetic.
-    from app.agents.autogen_multi_agent_team import condense_explanation
+    from app.agents.autogen_multi_agent_team import (
+        _validate_team_explanation_safety,
+        condense_explanation,
+    )
     from app.rules.llm_safety_filter import check_forbidden_phrases
-
-    agent_turns = []
-    turn_safety_failures: list[str] = []
-    for turn in team_result.get("agent_turns") or []:
-        agent = str(turn.get("agent") or "")
-        raw = str(turn.get("text") or "")
-        hits = check_forbidden_phrases(raw)
-        if hits:
-            turn_safety_failures.extend(f"{agent}: {h}" for h in hits)
-            text = (
-                "[Withheld: this agent turn contained directive clinical advice, "
-                "which this system must not present. The finding is recorded in "
-                "safety_failures.]"
-            )
-        else:
-            text = condense_explanation(redact_text(raw))
-        agent_turns.append({"agent": agent, "text": text})
+    upstream_status = str(team_result.get("status") or "")
+    raw_final = redact_text(str(team_result.get("final_explanation") or ""))
+    final = condense_explanation(raw_final) if upstream_status == "PASS" else raw_final
+    failures = list(team_result.get("safety_failures") or [])
+    if upstream_status == "PASS":
+        failures.extend(_validate_team_explanation_safety(final) if final else ["EMPTY_RESPONSE"])
+    # Agent transcripts remain internal, but hidden is not the same as trusted:
+    # an unsafe intermediate instruction can influence the final synthesis. Scan
+    # every turn at the API boundary and fail closed without returning the turn.
+    for index, turn in enumerate(team_result.get("agent_turns") or []):
+        text = redact_text(str((turn or {}).get("text") or ""))
+        for finding in check_forbidden_phrases(text):
+            failures.append(f"AGENT_TURN_{index + 1}_{finding}")
+    failures = list(dict.fromkeys(str(item) for item in failures if item))
+    status = "SAFETY_FAIL" if failures else team_result.get("status")
+    if failures:
+        final = (
+            "The generated explanation was withheld because it did not meet the "
+            "clinical safety constraints. Clinician review is required."
+        )
     out = {
         "case_uid": case_uid,
         "source_dataset": source_dataset,
         **_traceability(),
         "multiagent": True,
-        # A withheld agent turn previously left status as PASS, and the UI only
-        # warns on SAFETY_FAIL — so a real safety finding was visible only to
-        # someone who expanded the agent steps. The status must reflect the
-        # worst finding in the payload, not just the summary's.
-        "status": (
-            "SAFETY_FAIL" if turn_safety_failures
-            else team_result.get("status")
-        ),
-        "agent_turns": agent_turns,
-        "final_explanation": redact_text(str(team_result.get("final_explanation") or "")),
-        "safety_failures": list(team_result.get("safety_failures") or []) + turn_safety_failures,
+        "status": status,
+        # Only the final Explanation Agent synthesis crosses the API boundary.
+        # Intake/validation/safety turns are internal coordination, not four
+        # separate clinician-facing answers.
+        "final_explanation": final,
+        "safety_failures": failures,
+        "explanation_agent_only": True,
         "explanation_only": True,
         "clinician_review_required": True,
         "research_only": True,

@@ -130,15 +130,11 @@ class TestRbacAcrossRoutes:
         r = client.get("/governance/report", headers=self._h(["triage-nurses"]))
         assert r.status_code == 403
 
-    def test_supervisor_can_view_governance(self, monkeypatch):
+    def test_removed_supervisor_group_has_no_governance_access(self, monkeypatch):
         monkeypatch.setenv("PATIENT_DATA_MODE", "true")
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
         r = client.get("/governance/report", headers=self._h(["clinical-supervisors"]))
-        # RBAC must let a supervisor through (not 403). The handler may return 200
-        # (report present), 404 (report not generated in this env), or 500 (gen
-        # error) — all of which mean RBAC allowed the request.
-        assert r.status_code in (200, 404, 500)
-        assert r.status_code != 403
+        assert r.status_code == 403
 
     def test_governance_auditor_can_view_governance(self, monkeypatch):
         monkeypatch.setenv("PATIENT_DATA_MODE", "true")
@@ -250,7 +246,7 @@ class TestDemoModeStillEnforcesRbac:
         assert r.status_code == 200
         payload = r.json()
         assert payload["authenticated"] is True
-        assert "can_run_assessment" in payload["permissions"]
+        assert "can_run_triage_assessment" in payload["permissions"]
         assert "can_ask_chatbot" not in payload["permissions"]
         assert "triage_review" in payload["visible_tabs"]
         assert "explainability" in payload["visible_tabs"]
@@ -346,7 +342,7 @@ class TestDemoModeStillEnforcesRbac:
         assert "LOCAL_RESEARCH_ROLE" in payload["local_role_change_instruction"]
         assert "Role switching disabled" in payload["demo_role_switcher_reason"]
         assert payload["roles"] == ["researcher"]
-        assert "can_run_assessment" not in payload["permissions"]
+        assert "can_run_triage_assessment" not in payload["permissions"]
         assert "audit_dashboard" not in payload["visible_tabs"]
         assert "model_performance" in payload["visible_tabs"]
         assert "cost_runtime" not in payload["visible_tabs"]
@@ -367,10 +363,10 @@ class TestDemoModeStillEnforcesRbac:
         r = client.get("/auth/session", headers={"X-Demo-Role": "triage_nurse"})
         assert r.status_code == 200
         payload = r.json()
-        assert payload["current_mode"] == "azure_supervisor_demo"
+        assert payload["current_mode"] == "azure_role_switcher_demo"
         assert payload["demo_role_switcher_available"] is True
         assert payload["source"] == "azure_supervisor_demo_stub"
-        assert "can_run_assessment" in payload["permissions"]
+        assert "can_run_triage_assessment" in payload["permissions"]
 
     def test_security_admin_is_displayed_as_itd_with_all_tabs(self, monkeypatch):
         for v in [
@@ -430,6 +426,23 @@ class TestDemoModeStillEnforcesRbac:
         assert "audit sink" in answer
         assert "read-only" in answer
 
+        scale = client.post(
+            "/system/assistant",
+            headers={"X-Demo-Role": "security_admin"},
+            json={"question": "What acuity scale does the model use?"},
+        )
+        assert scale.status_code == 200
+        assert "acuity levels 1–5" in scale.json()["answer"]
+
+        roles = client.post(
+            "/system/assistant",
+            headers={"X-Demo-Role": "security_admin"},
+            json={"question": "What roles exist and what can each role do?"},
+        )
+        assert roles.status_code == 200
+        assert "ED Nurse" in roles.json()["answer"]
+        assert "Retired historical role values" in roles.json()["answer"]
+
     def test_trusted_proxy_without_principal_does_not_fall_back_to_stub(self, monkeypatch):
         for v in ["PATIENT_DATA_MODE", "AUTH_REQUIRED", "LOCAL_CREDENTIALED_RESEARCH"]:
             monkeypatch.delenv(v, raising=False)
@@ -449,7 +462,7 @@ class TestDemoModeStillEnforcesRbac:
             "/auth/ui-access",
             headers={"X-Demo-Role": "triage_nurse"},
             json={
-                "permission": "can_run_assessment",
+                "permission": "can_run_triage_assessment",
                 "action": "test_run_tab",
                 "page": "Triage Review",
             },
@@ -460,7 +473,7 @@ class TestDemoModeStillEnforcesRbac:
             "/auth/ui-access",
             headers={"X-Demo-Role": "researcher"},
             json={
-                "permission": "can_run_assessment",
+                "permission": "can_run_triage_assessment",
                 "action": "test_run_tab",
                 "page": "Triage Review",
             },
@@ -524,7 +537,7 @@ class TestStatusRoutes:
         r = client.get("/status/llm")
         assert r.status_code == 200
         payload = r.json()
-        assert payload["active_profile"] == "azure_supervisor_demo"
+        assert payload["active_profile"] == "azure_role_switcher_demo"
         assert payload["azure_credentials_present"] is True
         assert payload["credentialed_mimic_active"] is True
         assert payload["blocked_by_credentialed_mimic_cloud_policy"] is True

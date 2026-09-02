@@ -385,8 +385,23 @@ class TestRunTeamExplanation:
 
 class TestValidateTeamExplanationSafety:
     def test_safe_explanation_passes(self):
-        text = "No category assigned. A clinician must review this case before any action."
+        text = (
+            "The main reason this acuity level was suggested was that the recorded observations "
+            "need prompt review. A clinician must review this case before any action."
+        )
         assert _validate_team_explanation_safety(text) == []
+
+    def test_negated_review_sentence_fails_closed(self):
+        text = (
+            "The main reason this acuity level was suggested was the recorded observations. "
+            "No clinician review is required."
+        )
+        failures = _validate_team_explanation_safety(text)
+        assert "MISSING_HUMAN_REVIEW_REQUIREMENT" in failures
+
+    def test_required_opening_is_enforced(self):
+        text = "The observations drove the estimate. Clinician review is required before any action."
+        assert "MISSING_REQUIRED_OPENING" in _validate_team_explanation_safety(text)
 
     def test_forbidden_phrase_caught(self):
         text = "The patient is assigned red. A clinician should review."

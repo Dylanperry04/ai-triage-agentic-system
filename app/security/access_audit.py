@@ -48,7 +48,16 @@ def _audit_path() -> Path:
                 "LOCAL_CREDENTIALED_OUTPUT_DIR outside the repo."
             )
         return base / "audit" / "access_audit.jsonl"
-    base = Path(base_raw or "data/processed")
+    # ALTER_DATA_ROOT is the deployment-wide writable-state root. Honour it
+    # here too: otherwise Azure package deployments persist workflow records
+    # under /home/data but silently attempt the access log beneath the read-only
+    # application package. ACCESS_AUDIT_DIR remains the most specific override.
+    if base_raw:
+        base = Path(base_raw)
+    elif os.environ.get("ALTER_DATA_ROOT"):
+        base = Path(os.environ["ALTER_DATA_ROOT"]).expanduser() / "processed"
+    else:
+        base = Path("data/processed")
     return assert_safe_local_credentialed_output(
         base / "access_audit.jsonl", purpose="ACCESS_AUDIT_DIR"
     )

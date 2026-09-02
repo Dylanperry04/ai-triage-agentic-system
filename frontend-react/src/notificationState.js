@@ -25,3 +25,25 @@ export function mergeNotificationFallback(durable, fallback) {
     ),
   ];
 }
+
+export function notificationDestination(notification, rolesInput, navItems) {
+  const roles = new Set(rolesInput || []);
+  const nav = new Set(navItems || []);
+  const first = (navItems || [])[0] || null;
+  if (notification?.kind === "monthly_retraining") {
+    return { tab: nav.has("itd") ? "itd" : first, selection: "none" };
+  }
+  if (["recheck", "information_request"].includes(notification?.kind)) {
+    return { tab: nav.has("triage") ? "triage" : first, selection: "selected" };
+  }
+  if (notification?.kind === "triage_review" && roles.has("triage_nurse")) {
+    return { tab: nav.has("triage") ? "triage" : first, selection: "selected" };
+  }
+  if (notification?.kind === "triage_review" && roles.has("ed_doctor")) {
+    return { tab: nav.has("escalations") ? "escalations" : first, selection: "focus" };
+  }
+  return {
+    tab: nav.has("escalations") ? "escalations" : nav.has("review") ? "review" : first,
+    selection: "focus",
+  };
+}

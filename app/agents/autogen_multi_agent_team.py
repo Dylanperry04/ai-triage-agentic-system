@@ -285,9 +285,10 @@ STRICT RULES:
 8. Do not simply repeat all vital signs. Mention a vital only if it is abnormal,
    missing, triggered an override/rule, or explicitly explains why vitals did
    not drive the estimate.
-9. LENGTH IS A HARD LIMIT. Write FIVE SENTENCES OR FEWER as a single plain
-   prose paragraph. Aim for three or four. Cover, in this order and only as
-   far as the evidence supports: the estimated category shown; the one or two
+9. LENGTH IS A HARD LIMIT. Write THREE OR FOUR SENTENCES as a single plain
+   prose paragraph and never exceed four. Begin exactly: "The main reason this
+   acuity level was suggested was ..." Cover, in this order and only as far as
+   the evidence supports: the estimated category shown; the one or two
    findings that actually drove it; any limitation or missing data that
    materially qualifies it; and that clinician review is required. Do not use
    headings, bullet points, labels, markdown, bold, or asterisks — the client
@@ -298,8 +299,8 @@ STRICT RULES:
 """
 
 
-MAX_EXPLANATION_SENTENCES = 5
-MAX_EXPLANATION_CHARS = 900
+MAX_EXPLANATION_SENTENCES = 4
+MAX_EXPLANATION_CHARS = 650
 
 # The mandated closing statement. Matched loosely because the model phrases it
 # several ways ("clinician review is required", "a clinician must review").
@@ -315,7 +316,10 @@ _REVIEW_SENTENCE_RE = _re_module.compile(
     r"(?:is|will\s+be|remains|are)\s+(?:still\s+)?(?:required|needed|necessary)\b"
     r"|\b(?:a\s+)?clinician\s+must\s+(?:review|confirm|sign\s+off)\b"
     r"|\brequires?\s+clinician\s+(?:review|confirmation)\b"
-    r"|\bmust\s+be\s+(?:reviewed|confirmed)\s+by\s+a\s+clinician\b",
+    r"|\bmust\s+be\s+(?:reviewed|confirmed)\s+by\s+a\s+clinician\b"
+    r"|\bhuman\s+clinical\s+review\s+(?:is|remains|will\s+be)\s+"
+    r"(?:still\s+)?(?:required|needed|necessary)\b"
+    r"|\bclinician\s+review\s+(?:required|needed|necessary)\b",
     _re_module.IGNORECASE,
 )
 
@@ -335,7 +339,7 @@ def condense_explanation(text: str, max_sentences: int = MAX_EXPLANATION_SENTENC
                          max_chars: int = MAX_EXPLANATION_CHARS) -> str:
     """Deterministically enforce the clinician-facing explanation contract.
 
-    The prompt asks for <=5 plain-prose sentences, but a prompt is a request,
+    The prompt asks for <=4 plain-prose sentences, but a prompt is a request,
     not a guarantee: models overshoot and emit markdown. This makes the contract
     hold server-side regardless of what the model returns.
 
@@ -359,6 +363,17 @@ def condense_explanation(text: str, max_sentences: int = MAX_EXPLANATION_SENTENC
         return ""
     parts = [p for p in re.split(r"(?<=[.!?])\s+", cleaned) if p.strip()]
 
+    # The clinician-facing contract promises a predictable plain-language
+    # opening. Enforce it after presentation cleanup instead of trusting the
+    # model prompt alone. This is a presentation-only prefix; the generated
+    # evidence statement itself is not paraphrased or reordered.
+    required_opening = "The main reason this acuity level was suggested was "
+    if parts and not parts[0].lower().startswith(required_opening.lower()):
+        first = parts[0].strip()
+        if first:
+            first = first[0].lower() + first[1:]
+            parts[0] = required_opening + first
+
     # Lift the mandatory clinician-review statement out BEFORE any truncation.
     # It is the last sentence by design, so both the sentence cap and the
     # character cap would otherwise delete precisely the sentence the safety
@@ -376,7 +391,7 @@ def condense_explanation(text: str, max_sentences: int = MAX_EXPLANATION_SENTENC
     out = " ".join(kept).strip()
 
     # A sentence cap alone does not bound length: one 3,000-character sentence
-    # satisfies "five sentences or fewer" and reproduces exactly the wall of text
+    # satisfies "four sentences or fewer" and reproduces exactly the wall of text
     # this function exists to prevent. Drop whole sentences until the text fits,
     # and only hard-truncate if even the first sentence is oversized -- so the
     # reader never sees a clause that changes meaning when cut mid-way.
@@ -410,6 +425,13 @@ def condense_explanation(text: str, max_sentences: int = MAX_EXPLANATION_SENTENC
         # approved statement, which satisfies the requirement within the cap.
         if len(review_sentence) > limit:
             review_sentence = "Clinician review is required before any action."
+        if not kept:
+            fallback_driver = (
+                "The main reason this acuity level was suggested was the verified "
+                "recorded evidence for this assessment."
+            )
+            if len(fallback_driver) + len(review_sentence) + 1 <= limit:
+                kept.append(fallback_driver)
         kept.append(review_sentence)
         out = " ".join(kept).strip()
         if len(out) > limit:
@@ -574,9 +596,12 @@ def _validate_team_explanation_safety(text: str) -> list[str]:
     EXPLANATION_SYSTEM_MESSAGE's own rule 7 (must mention human review).
     """
     failures = check_forbidden_phrases(text)
-    lower = text.lower()
-    if "human review" not in lower and "clinical review" not in lower and "clinician" not in lower:
+    parts = [part for part in _re_module.split(r"(?<=[.!?])\s+", text) if part.strip()]
+    if not any(_is_affirmative_review_sentence(part) for part in parts):
         failures.append("MISSING_HUMAN_REVIEW_REQUIREMENT")
+    required_opening = "The main reason this acuity level was suggested was "
+    if not text.strip().lower().startswith(required_opening.lower()):
+        failures.append("MISSING_REQUIRED_OPENING")
     return failures
 
 

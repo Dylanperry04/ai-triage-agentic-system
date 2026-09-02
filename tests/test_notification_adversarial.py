@@ -59,7 +59,7 @@ class _Provider:
 def _eligible_record(*, case_uid: str = "canary-1", event: str = "2026-08-14T12:01:00Z"):
     return NotificationRecord.create(
         kind="escalation", case_uid=case_uid, event_key=event,
-        target_role="clinical_supervisor", title="Escalation awaiting review",
+        target_role="ed_doctor", title="Escalation awaiting review",
         body="This case needs review.", created_at=event,
         sms_enabled=True, sms_eligible=True,
     )
@@ -71,17 +71,17 @@ def test_activation_watermark_and_case_allowlist_fail_closed(tmp_path):
     before, _ = create_notification_for_event(
         repository=repository, settings=settings, kind="escalation",
         case_uid="canary-1", event_key="2026-08-14T11:59:59Z",
-        target_role="clinical_supervisor", created_at="2026-08-14T11:59:59Z",
+        target_role="ed_doctor", created_at="2026-08-14T11:59:59Z",
     )
     wrong_case, _ = create_notification_for_event(
         repository=repository, settings=settings, kind="escalation",
         case_uid="not-allowlisted", event_key="2026-08-14T12:01:00Z",
-        target_role="clinical_supervisor", created_at="2026-08-14T12:01:00Z",
+        target_role="ed_doctor", created_at="2026-08-14T12:01:00Z",
     )
     canary, _ = create_notification_for_event(
         repository=repository, settings=settings, kind="escalation",
         case_uid="canary-1", event_key="2026-08-14T12:01:00Z",
-        target_role="clinical_supervisor", created_at="2026-08-14T12:01:00Z",
+        target_role="ed_doctor", created_at="2026-08-14T12:01:00Z",
     )
 
     assert (before.sms_state, before.sms_ineligible_reason) == (
@@ -102,7 +102,7 @@ def test_101_historical_events_create_no_sms_eligible_work(tmp_path):
         record, created = create_notification_for_event(
             repository=repository, settings=settings, kind="escalation",
             case_uid=f"historical-{index}", event_key="2026-08-13T12:00:00Z",
-            target_role="clinical_supervisor", created_at="2026-08-13T12:00:00Z",
+            target_role="ed_doctor", created_at="2026-08-13T12:00:00Z",
         )
         assert created
         assert not record.sms_eligible
@@ -119,7 +119,7 @@ def test_canary_daily_cap_blocks_attempt_two(tmp_path):
         NotificationRecord.create(
             kind="escalation", case_uid=f"canary-{index}",
             event_key="2026-08-14T12:01:00Z",
-            target_role="clinical_supervisor", title="Escalation awaiting review",
+            target_role="ed_doctor", title="Escalation awaiting review",
             body="This case needs review.", created_at="2026-08-14T12:01:00Z",
             sms_enabled=True, sms_eligible=True,
         )
@@ -178,11 +178,11 @@ def test_old_schedule_worker_cannot_consume_or_cancel_replacement(tmp_path):
     repository = SQLiteNotificationRepository(settings.sqlite_path)
     old, _ = repository.upsert_schedule(ScheduleRecord.create(
         case_uid="canary-1", reference_at=utc_iso(utc_now() - timedelta(hours=8)),
-        due_minutes=210, target_role="triage_nurse", sms_eligible=True,
+        due_minutes=210, target_role="ed_nurse", sms_eligible=True,
     ))
     replacement, _ = repository.upsert_schedule(ScheduleRecord.create(
         case_uid="canary-1", reference_at=utc_iso(utc_now() - timedelta(minutes=5)),
-        due_minutes=210, target_role="triage_nurse", sms_eligible=True,
+        due_minutes=210, target_role="ed_nurse", sms_eligible=True,
     ))
 
     notification, outcome = materialize_schedule(
@@ -241,20 +241,20 @@ def test_notification_pagination_exposes_item_31_and_exact_total(tmp_path):
     for index in range(35):
         repository.create_notification(NotificationRecord.create(
             kind="escalation", case_uid=f"case-{index}",
-            event_key=f"event-{index}", target_role="clinical_supervisor",
+            event_key=f"event-{index}", target_role="ed_doctor",
             title="Escalation awaiting review", body="This case needs review.",
             created_at=utc_iso(utc_now() + timedelta(seconds=index)), sms_enabled=False,
         ))
     first = repository.list_notifications(
-        roles=["clinical_supervisor"], user_id="reader", limit=30, offset=0,
+        roles=["ed_doctor"], user_id="reader", limit=30, offset=0,
     )
     second = repository.list_notifications(
-        roles=["clinical_supervisor"], user_id="reader", limit=30, offset=30,
+        roles=["ed_doctor"], user_id="reader", limit=30, offset=30,
     )
     assert len(first) == 30
     assert len(second) == 5
     assert repository.count_notifications(
-        roles=["clinical_supervisor"], user_id="reader"
+        roles=["ed_doctor"], user_id="reader"
     ) == 35
     assert not ({row["notification_id"] for row in first} & {
         row["notification_id"] for row in second
@@ -276,7 +276,7 @@ def test_equivalent_timestamp_spellings_create_one_notification(tmp_path):
         record, _ = create_notification_for_event(
             repository=repository, settings=settings, kind="escalation",
             case_uid="canary-1", event_key=timestamp,
-            target_role="clinical_supervisor", created_at=timestamp,
+            target_role="ed_doctor", created_at=timestamp,
         )
         ids.append(record.notification_id)
     assert len(set(ids)) == 1
@@ -474,7 +474,7 @@ def test_real_uhl_case_uid_is_accepted_across_sms_validation_layers(tmp_path):
         kind="escalation",
         case_uid=case_uid,
         event_key="2026-08-14T12:01:00Z",
-        target_role="clinical_supervisor",
+        target_role="ed_doctor",
         title="Escalation awaiting review",
         body="This case needs review.",
         created_at="2026-08-14T12:01:00Z",
