@@ -11,8 +11,10 @@ def _read(relative: str) -> str:
 
 def test_infrastructure_is_secure_by_default_and_preserves_hard_limits():
     template = _read("infra/notifications/main.bicep")
-    assert "param existingWebAppName string = 'Triage'" in template
+    parameters = _read("infra/notifications/main.bicepparam")
+    assert "param existingWebAppName string = 'ai-triage-agentic-system'" in template
     assert "param existingCommunicationName string = 'Alter'" in template
+    assert "param messagingConnectApiKey = ''" in parameters
     assert "MESSAGING_CONNECT_API_KEY: messagingConnectApiKey" in template
     assert "MESSAGING_CONNECT_PARTNER: 'infobip'" in template
     assert "MESSAGING_CONNECT_API_VERSION: '2025-05-29-preview'" in template
@@ -39,8 +41,8 @@ def test_infrastructure_is_secure_by_default_and_preserves_hard_limits():
 
 def test_notification_identity_does_not_overwrite_existing_app_identity_setting():
     script = _read("scripts/configure-notification-app.ps1")
-    assert "$ResourceGroup = 'Triage_System'" in script
-    assert "$WebAppName = 'Triage'" in script
+    assert "$ResourceGroup = 'Ai-triaging'" in script
+    assert "$WebAppName = 'ai-triage-agentic-system'" in script
     assert "NOTIFICATION_MANAGED_IDENTITY_CLIENT_ID=$clientId" in script
     assert '"AZURE_CLIENT_ID=$clientId"' not in script
     assert "$functionAppName = $outputs.functionAppName.value" in script
@@ -67,8 +69,8 @@ def test_resource_creation_is_manual_confirmed_and_sms_remains_disabled():
     workflow = _read(".github/workflows/notifications-infrastructure.yml")
     assert "workflow_dispatch:" in workflow
     assert "CREATE-NOTIFICATION-RESOURCES" in workflow
-    assert "RESOURCE_GROUP: Triage_System" in workflow
-    assert "AZURE_WEBAPP_NAME: Triage" in workflow
+    assert "RESOURCE_GROUP: Ai-triaging" in workflow
+    assert "AZURE_WEBAPP_NAME: ai-triage-agentic-system" in workflow
     assert "Verify authoritative Azure deployment target" in workflow
     assert "smsPublishEnabled=false smsEnabled=false" in workflow
     assert "SMS publication and chargeable submission remain disabled" in workflow
@@ -81,15 +83,15 @@ def test_single_authoritative_app_service_workflow_targets_college_app():
     assert not (workflow_dir / "main_ai-triage-agentic-system.yml").exists()
     deploy = _read(".github/workflows/deploy-azure.yml")
     infrastructure = _read(".github/workflows/notifications-infrastructure.yml")
-    assert "AZURE_WEBAPP_NAME: Triage" in deploy
-    assert "AZURE_RESOURCE_GROUP: Triage_System" in deploy
-    assert "Ai-triaging" not in deploy
-    assert "Ai-triaging" not in infrastructure
+    assert "AZURE_WEBAPP_NAME: ai-triage-agentic-system" in deploy
+    assert "AZURE_RESOURCE_GROUP: Ai-triaging" in deploy
+    assert "Triage_System" not in deploy
+    assert "Triage_System" not in infrastructure
     assert "Verify authoritative Azure deployment target" in deploy
     correct_credentials = (
-        "AZUREAPPSERVICE_CLIENTID_2B94629E82AA43D98825950AD42E01B5",
-        "AZUREAPPSERVICE_TENANTID_3937CAF14CC74CAD9EAC49C6E9A6CE74",
-        "AZUREAPPSERVICE_SUBSCRIPTIONID_808E0EF24FFD4D20920164B3B173BF54",
+        "AZUREAPPSERVICE_CLIENTID_BD0090C04EFB406F8635DC9131E5EAC7",
+        "AZUREAPPSERVICE_TENANTID_C617D75FF5BE4DC89A52C293A09788D4",
+        "AZUREAPPSERVICE_SUBSCRIPTIONID_AF58CC7D0B264843975E5FF090DEE3C6",
     )
     for secret_name in correct_credentials:
         assert secret_name in deploy
@@ -155,6 +157,9 @@ def test_canary_runbook_and_gate_require_zero_eligible_backlog():
 def test_demo_recipient_is_not_defaulted_in_source_configuration():
     env_example = _read(".env.example")
     assert "DEMO_SMS_RECIPIENT=" not in env_example
+    assert "AZURE_OPENAI_API_KEY=replace-with-your-azure-openai-key" in env_example
+    assert "CORS_ALLOWED_ORIGINS=http://localhost:8501,http://127.0.0.1:8501" in env_example
+    assert "](" not in env_example
 
 
 def test_local_proxy_and_privacy_cleanup_paths_are_present():
