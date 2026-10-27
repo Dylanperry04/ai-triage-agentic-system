@@ -264,7 +264,7 @@ def _parse_pain(t: TriageTimeInput) -> Optional[int]:
     try:
         val = int(float(str(t.pain).strip()))
         return val if 0 <= val <= 10 else None
-    except (ValueError, TypeError):
+    except (ValueError, TypeError, OverflowError):
         return None
 
 
@@ -537,41 +537,27 @@ def run_manchester_engine(triage_input: TriageTimeInput) -> ManchesterDecision:
 
     pathway_fn = _select_pathway(triage_input)
 
-    if pathway_fn is None:
-        # Unrecognised complaint — use pain score fallback
-        pain = _parse_pain(triage_input)
-        if not ruleset:
-            codes = [f"UNRECOGNISED_COMPLAINT"]
-            if concern_flags:
-                codes += concern_flags
-            return _awaiting_ruleset(codes)
-        if pain is not None and pain >= 7:
-            return _make_decision(
-                CAT_URGENT, [f"UNRECOGNISED_COMPLAINT_SEVERE_PAIN_{pain}"], ruleset
-            )
-        if pain is not None and 4 <= pain < 7:
-            return _make_decision(
-                CAT_STANDARD, [f"UNRECOGNISED_COMPLAINT_MODERATE_PAIN_{pain}"], ruleset
-            )
-        if pain is not None and pain < 4:
-            return _make_decision(
-                CAT_NON_URGENT, [f"UNRECOGNISED_COMPLAINT_MILD_PAIN_{pain}"], ruleset
-            )
-        return _make_decision(
-            CAT_STANDARD, ["UNRECOGNISED_COMPLAINT_NO_PAIN_SCORE"], ruleset
-        )
-
     if not ruleset:
-        # Pathway matched but no approved ruleset — produce concern/awaiting status
-        pathway_name = pathway_fn.__name__.replace("_pathway_", "").upper()
-        codes = [f"PATHWAY_MATCHED_{pathway_name}"]
+        codes = (["UNRECOGNISED_COMPLAINT"] if pathway_fn is None else
+                 [f"PATHWAY_MATCHED_{pathway_fn.__name__.replace('_pathway_', '').upper()}"])
         if concern_flags:
-            codes += concern_flags
-            return _safety_alert(codes, severity="CONCERN")
+            return _safety_alert(codes + concern_flags, severity="CONCERN")
         return _awaiting_ruleset(codes)
 
-    # Pathway with approved ruleset — run it
-    result = pathway_fn(triage_input, ruleset)
+    if pathway_fn is None:
+        # The fallback must pass through the same concern-vital handling as
+        # recognised pathways; an early return used to discard those flags.
+        pain = _parse_pain(triage_input)
+        if pain is not None and pain >= 7:
+            result = _make_decision(CAT_URGENT, [f"UNRECOGNISED_COMPLAINT_SEVERE_PAIN_{pain}"], ruleset)
+        elif pain is not None and pain >= 4:
+            result = _make_decision(CAT_STANDARD, [f"UNRECOGNISED_COMPLAINT_MODERATE_PAIN_{pain}"], ruleset)
+        elif pain is not None:
+            result = _make_decision(CAT_NON_URGENT, [f"UNRECOGNISED_COMPLAINT_MILD_PAIN_{pain}"], ruleset)
+        else:
+            result = _make_decision(CAT_STANDARD, ["UNRECOGNISED_COMPLAINT_NO_PAIN_SCORE"], ruleset)
+    else:
+        result = pathway_fn(triage_input, ruleset)
 
     # Upgrade to Very Urgent if concern vitals and result is Urgent or lower
     if concern_flags and result.priority is not None and result.priority >= 3:
@@ -582,9 +568,15 @@ def run_manchester_engine(triage_input: TriageTimeInput) -> ManchesterDecision:
             category=f"{name} ({colour})",
             priority=priority,
             max_wait_minutes=wait,
-            reason_codes=list(result.reason_codes) + ["CONCERN_VITAL_UPGRADE"] + concern_flags + extra,
+            reason_codes=list(dict.fromkeys(result.reason_codes + ["CONCERN_VITAL_UPGRADE"] + concern_flags + extra)),
             requires_clinician_review=True,
             ruleset_id=ruleset["ruleset_id"],
         )
 
+    if concern_flags:
+        if result.priority is None:
+            return _safety_alert(result.reason_codes + concern_flags, severity="CONCERN")
+        result = result.model_copy(update={
+            "reason_codes": list(dict.fromkeys(result.reason_codes + concern_flags))
+        })
     return result

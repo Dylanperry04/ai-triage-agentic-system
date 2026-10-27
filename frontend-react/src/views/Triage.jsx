@@ -3,6 +3,7 @@ import { CheckCircle2, ArrowUpRight, Ambulance, Footprints, Activity, Sparkles, 
 import { T, MTS, catOf, priorityFromCategory, toC, vitalState, patientLabel, encounterLabel, patientWithEncounter, acuityLabel } from "../theme.js";
 import { Card, Btn, Eyebrow, ConfBar, Modal, Pill, Spinner, EmptyState, ErrorNote } from "../atoms.jsx";
 import { api, decisions } from "../api.js";
+import DiscriminatorEvidence from "../DiscriminatorEvidence.jsx";
 
 const QUEUE_STATES = new Set(["new_unreviewed", "request_more_info"]);
 const DECIDED_REVIEW = new Set(["accepted_as_presented", "overridden", "uncertain"]);
@@ -56,8 +57,8 @@ function QueueCard({ c, selected, onClick, prio }) {
   );
 }
 
-function VitalTile({ label, k, v, unit, note }) {
-  const st = vitalState(k, v);
+function VitalTile({ label, k, v, severityValue = v, unit, note }) {
+  const st = vitalState(k, severityValue);
   const c = st === "crit" ? T.red : st === "warn" ? "#B25E00" : T.ink;
   const edge = st === "crit" ? T.red : st === "warn" ? "#E86C00" : T.borderSoft;
   return (
@@ -72,7 +73,7 @@ function VitalTile({ label, k, v, unit, note }) {
   );
 }
 
-function CaseDetail({ c, presentation, canReviewAi = true }) {
+export function CaseDetail({ c, presentation, canReviewAi = true }) {
   if (!c) return <EmptyState>Select a patient from the queue to begin triage.</EmptyState>;
   const t = c.triage || {}; const d = c.demographics || {};
   const ws = c.workflow_state || {};
@@ -97,9 +98,10 @@ function CaseDetail({ c, presentation, canReviewAi = true }) {
           {info === "reassessed" && <Pill colour={T.green900} bg={T.green50} border="#CBEADF">REASSESSED — DECISION NEEDED</Pill>}
         </div>
       </div>
+      {c.is_curated_demo && <div style={{ marginTop: 12, fontSize: 12, color: T.slate }}>{c.demo_data_notice}</div>}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 14, marginTop: 22 }}>
         <VitalTile label="Heart rate" k="heartrate" v={t.heartrate != null ? Math.round(t.heartrate) : null} unit="bpm" />
-        <VitalTile label="BP" k="sbp" v={t.sbp != null ? `${Math.round(t.sbp)}/${t.dbp != null ? Math.round(t.dbp) : "—"}` : null} unit="mmHg" />
+        <VitalTile label="BP" k="sbp" severityValue={t.sbp} v={t.sbp != null ? `${Math.round(t.sbp)}/${t.dbp != null ? Math.round(t.dbp) : "—"}` : null} unit="mmHg" />
         <VitalTile label="SpO₂" k="o2sat" v={t.o2sat != null ? Math.round(t.o2sat) : null} unit="%" />
         <VitalTile label="Resp rate" k="resprate" v={t.resprate != null ? Math.round(t.resprate) : null} unit="/min" />
         <VitalTile label="Temp" k="tempC" v={tempC} unit="°C" note={converted ? "converted from °F" : null} />
@@ -107,14 +109,16 @@ function CaseDetail({ c, presentation, canReviewAi = true }) {
       </div>
       {ws.latest_triage_updates_at && (
         <div style={{ fontSize: 12, color: T.green900, background: T.green50, border: "1px solid #CBEADF", borderRadius: 9, padding: "8px 11px", marginTop: 10 }}>
-          Observations updated {String(ws.latest_triage_updates_at).replace("T", " ").slice(0, 16)} UTC{ws.information_response_by_role ? ` by ${String(ws.information_response_by_role).replace(/_/g, " ")}` : ""} — the values above reflect the latest recorded observations{canReviewAi ? " and the linked advisory has been refreshed" : ""}.
+          Observations updated {String(ws.latest_triage_updates_at).replace("T", " ").slice(0, 16)} UTC{ws.information_response_by_role ? ` by ${String(ws.information_response_by_role).replace(/_/g, " ")}` : ""} — the values above reflect the latest recorded observations.{canReviewAi ? " Check the model estimate against these observations before recording a decision." : ""}
         </div>
       )}
     </div>
   );
 }
 
-function AdvisoryPanel({ c, assessment, loading, loadingLabel, error, onAccept, onOverride, onEscalate, onRequestInfo, onRetry, canRunAssessment, canAccept, canOverride, canEscalate, canRequestInfo, workflowRunId }) {
+const probability = (value) => typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1 ? value : null;
+
+export function AdvisoryPanel({ c, assessment, loading, loadingLabel, error, onAccept, onOverride, onEscalate, onRequestInfo, onRetry, canRunAssessment, canAccept, canOverride, canEscalate, canRequestInfo, workflowRunId }) {
   if (!c) return null;
   if (loading) return (
     <Card style={{ padding: 16 }}>
@@ -142,9 +146,11 @@ function AdvisoryPanel({ c, assessment, loading, loadingLabel, error, onAccept, 
   const prio = priorityFromCategory(assessment.final_category ?? assessment.predicted_acuity);
   const cat = catOf(prio);
   const probs = assessment.class_probabilities || assessment.mimic_acuity_probabilities || null;
-  const conf = assessment.assigned_acuity_probability
-    ?? assessment.top_class_confidence
-    ?? assessment.confidence;
+  // A policy or safety override can change the displayed class. The modal
+  // confidence must never be relabelled as that new class's probability.
+  const conf = prio == null ? null : probability(assessment.assigned_acuity_probability)
+    ?? probability(probs?.[prio])
+    ?? (assessment.argmax_acuity === prio ? probability(assessment.top_class_confidence ?? assessment.confidence) : null);
   const mlDown = !assessment.ml_prediction_available;
   const anyDecision = canAccept || canOverride || canEscalate || canRequestInfo;
   return (
@@ -157,7 +163,7 @@ function AdvisoryPanel({ c, assessment, loading, loadingLabel, error, onAccept, 
             <div style={{ width: 52, height: 52, borderRadius: 12, background: cat.colour, color: cat.text, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: T.mono, fontSize: 26, fontWeight: 700 }}>{prio ?? "—"}</div>
             <div>
               <div style={{ fontSize: 16.5, fontWeight: 700 }}>{cat.name}</div>
-              <div style={{ fontSize: 12.5, color: T.slate }}>{prio ? `Target time to treatment ${MTS[prio].target}` : "No acuity assigned"}</div>
+              <div style={{ fontSize: 12.5, color: T.slate }}>{prio ? `Target to first physician contact: ${MTS[prio].target}` : "No acuity assigned"}</div>
             </div>
           </div>
           {conf != null && (
@@ -168,12 +174,12 @@ function AdvisoryPanel({ c, assessment, loading, loadingLabel, error, onAccept, 
               <ConfBar v={Number(conf)} colour={cat.colour} />
             </div>
           )}
-          {mlDown && <div style={{ marginTop: 12, fontSize: 12.5, color: "#8A4B00", background: T.yellow50, border: "1px solid #EEDD9A", borderRadius: 8, padding: "8px 11px", lineHeight: 1.45 }}>{assessment.model_note || assessment.ml_prediction_error || "ML prediction unavailable in this profile."} {!assessment.model_note && "The acuity above comes from the deterministic rules engine."}</div>}
+          {mlDown && <div style={{ marginTop: 12, fontSize: 12.5, color: "#8A4B00", background: T.yellow50, border: "1px solid #EEDD9A", borderRadius: 8, padding: "8px 11px", lineHeight: 1.45 }}>{assessment.model_note || assessment.ml_prediction_error || "ML prediction unavailable in this profile."}</div>}
           {probs && (
             <div style={{ marginTop: 14 }}>
               <Eyebrow>Acuity probabilities</Eyebrow>
               <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 7 }}>
-                {Object.entries(probs).sort((a, b) => Number(a[0]) - Number(b[0])).map(([k, p]) => {
+                {Object.entries(probs).filter(([k, p]) => /^[1-5]$/.test(k) && probability(p) != null).sort((a, b) => Number(a[0]) - Number(b[0])).map(([k, p]) => {
                   const kp = priorityFromCategory(k); const km = catOf(kp);
                   return (
                     <div key={k}>
@@ -188,6 +194,7 @@ function AdvisoryPanel({ c, assessment, loading, loadingLabel, error, onAccept, 
               </div>
             </div>
           )}
+          <DiscriminatorEvidence evidence={assessment.discriminator_evidence} />
         </div>
       </Card>
       {anyDecision && (
@@ -376,22 +383,45 @@ export function ReassessModal({ c, onClose, onDone, toast }) {
 
 /* The backend may use several bounded internal checks, but the clinical UI
    deliberately exposes only the ExplanationAgent's concise final summary. */
-function MultiAgentExplanation({ caseUid, canExplain, toast }) {
+export function MultiAgentExplanation({ caseUid, assessmentKey, canExplain, toast }) {
   const [state, setState] = useState("idle");   // idle | loading | done | error
   const [result, setResult] = useState(null);
   const [err, setErr] = useState(null);
+  const requestVersion = useRef(0);
 
   // Reset when the selected case changes.
-  useEffect(() => { setState("idle"); setResult(null); setErr(null); }, [caseUid]);
+  useEffect(() => {
+    requestVersion.current += 1;
+    setState("idle"); setResult(null); setErr(null);
+    return () => { requestVersion.current += 1; };
+  }, [caseUid, assessmentKey]);
 
   if (!canExplain) return null;
 
   const run = () => {
     if (state === "loading") return;
+    const version = ++requestVersion.current;
     setState("loading"); setErr(null);
-    api.multiagentExplainCase(caseUid)
-      .then((r) => { setResult(r); setState("done"); if (r.status === "SAFETY_FAIL") toast("Explanation withheld", "The safety filter blocked the generated explanation.", "err"); })
-      .catch((e) => { setErr(e.detail?.reason || e.detail || e.message); setState("error"); });
+    api.multiagentExplainCase(caseUid, undefined, assessmentKey)
+      .then((r) => {
+        if (requestVersion.current !== version) return;
+        if (assessmentKey && r?.workflow_run_id !== assessmentKey) {
+          setErr("The explanation does not match the displayed assessment. Run a new assessment and try again.");
+          setState("error");
+          return;
+        }
+        if (!["PASS", "NOT_CONFIGURED", "SAFETY_FAIL"].includes(r?.status)) {
+          setErr(r?.reason || "The explanation service did not return a usable result.");
+          setState("error");
+          return;
+        }
+        setResult(r); setState("done");
+        if (r.status === "SAFETY_FAIL") toast("Explanation withheld", "The safety filter blocked the generated explanation.", "err");
+      })
+      .catch((e) => {
+        if (requestVersion.current !== version) return;
+        setErr(e.detail?.reason || e.detail || e.message); setState("error");
+      });
   };
 
   const notConfigured = result && result.status === "NOT_CONFIGURED";
@@ -471,6 +501,16 @@ export default function Triage({ cases, casesError, casesLoading = false, refres
   const [visibleCount, setVisibleCount] = useState(30);
   const busyRef = useRef(false);
   const explicitSelectRef = useRef(false);
+  const assessmentRequests = useRef({});
+  const observedRevisions = useRef({});
+  const detailRequest = useRef(0);
+  const selectedUidRef = useRef(selectedUid);
+  selectedUidRef.current = selectedUid;
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; assessmentRequests.current = {}; detailRequest.current += 1; };
+  }, []);
   const permissionSet = useMemo(() => new Set(permissions), [permissions]);
   const canRunAssessment = permissionSet.has("can_run_triage_assessment");
   const canAccept = permissionSet.has("can_accept_acuity");
@@ -479,7 +519,11 @@ export default function Triage({ cases, casesError, casesLoading = false, refres
   const canEscalate = permissionSet.has("can_escalate_case");
   const canUpdateVitals = permissionSet.has("can_update_vitals") || permissionSet.has("can_record_vitals") || permissionSet.has("can_provide_requested_information");
   const isObservationOnlyView = canUpdateVitals && !canRunAssessment;
-  const selectExplicit = (uid) => { explicitSelectRef.current = true; setSelectedUid(uid); };
+  const selectExplicit = (uid) => {
+    // Clicking the already auto-selected row is still an explicit consultation.
+    if (uid === selectedUid) { runAssess(uid); return; }
+    explicitSelectRef.current = true; setSelectedUid(uid);
+  };
 
   const queue = useMemo(() => {
     const rows = (cases || []).filter(isObservationOnlyView ? isObservationRow : isQueueRow);
@@ -502,24 +546,55 @@ export default function Triage({ cases, casesError, casesLoading = false, refres
 
   useEffect(() => { if (!selectedUid && queue.length) setSelectedUid(queue[0].case_uid); }, [queue, selectedUid, setSelectedUid]);
 
-  const loadDetail = (uid) => api.getCase(uid).then(setDetail).catch(() => setDetail(sel));
-  const runAssess = (uid, force = false) => {
+  const loadDetail = (uid, fallback = sel) => {
+    const version = ++detailRequest.current;
+    const current = () => mounted.current && selectedUidRef.current === uid && detailRequest.current === version;
+    return api.getCase(uid).then((d) => { if (current()) setDetail(d); }).catch(() => { if (current()) setDetail(fallback); });
+  };
+  const requestAssessment = (uid, preview = false, force = false) => {
     // Opening a case runs the REAL (audited) assessment: this is the clinician
     // consulting the model on the selected patient, which is recorded.
-    if (!canRunAssessment || (!force && assessState[uid] === "loading")) return;
-    setAssessState((s) => ({ ...s, [uid]: "loading" }));
-    api.runAssessment(uid)
-      .then((a) => { setAssessments((m) => ({ ...m, [uid]: a })); setAssessState((s) => ({ ...s, [uid]: "done" })); })
-      .catch((e) => setAssessState((s) => ({ ...s, [uid]: e.detail || e.message })));
+    if (!canRunAssessment || (!force && assessmentRequests.current[uid]?.state === "loading")) return;
+    const request = { state: preview ? "previewing" : "loading" };
+    assessmentRequests.current[uid] = request;
+    const current = () => mounted.current && assessmentRequests.current[uid] === request;
+    setAssessState((s) => ({ ...s, [uid]: request.state }));
+    (preview ? api.previewAssessment(uid) : api.runAssessment(uid))
+      .then((result) => {
+        if (!current()) return;
+        request.state = "done";
+        setAssessments((m) => ({ ...m, [uid]: result }));
+        setAssessState((s) => ({ ...s, [uid]: "done" }));
+      })
+      .catch((e) => {
+        if (!current()) return;
+        request.state = "error";
+        setAssessState((s) => ({ ...s, [uid]: preview ? "preview_failed" : e.detail || e.message }));
+      });
   };
+  const runAssess = (uid, force = false) => requestAssessment(uid, false, force);
 
   useEffect(() => {
-    let dead = false;
     setDetail(null);
+    detailRequest.current += 1;
     if (!sel) return;
     const wasExplicit = explicitSelectRef.current;
     explicitSelectRef.current = false;
-    api.getCase(sel.case_uid).then((d) => { if (!dead) setDetail(d); }).catch(() => { if (!dead) setDetail(sel); });
+    loadDetail(sel.case_uid, sel);
+    const observedAt = sel.workflow_state?.latest_triage_updates_at || "";
+    const previousObservedAt = observedRevisions.current[sel.case_uid];
+    observedRevisions.current[sel.case_uid] = observedAt;
+    const assessmentAt = Date.parse(assessments[sel.case_uid]?.assessment_timestamp_utc || "");
+    const changedObservations = previousObservedAt !== undefined && previousObservedAt !== observedAt;
+    const currentAssessmentIsNewer = Number.isFinite(assessmentAt) && assessmentAt >= Date.parse(observedAt);
+    if (canRunAssessment && changedObservations && !currentAssessmentIsNewer) {
+      // A different staff member may update observations while this screen is
+      // open. Invalidate both cached and pending estimates before showing new
+      // detail; a fresh preview still needs a logged run before any decision.
+      setAssessments((m) => { const next = { ...m }; delete next[sel.case_uid]; return next; });
+      requestAssessment(sel.case_uid, true, true);
+      return () => { detailRequest.current += 1; };
+    }
     if (canRunAssessment && wasExplicit) {
       // The clinician explicitly opened this patient — run the real, audited
       // assessment (recording that the model was consulted on this case).
@@ -527,18 +602,10 @@ export default function Triage({ cases, casesError, casesLoading = false, refres
     } else if (canRunAssessment && !assessments[sel.case_uid] && assessState[sel.case_uid] === undefined) {
       // Auto-landing / auto-advance: use the non-auditing preview so no
       // workflow-run record is created for a case the clinician did not pick.
-      setAssessState((s) => ({ ...s, [sel.case_uid]: "previewing" }));
-      api.previewAssessment(sel.case_uid)
-        .then((a) => {
-          if (!dead) {
-            setAssessments((m) => ({ ...m, [sel.case_uid]: a }));
-            setAssessState((s) => s[sel.case_uid] === "previewing" ? { ...s, [sel.case_uid]: "done" } : s);
-          }
-        })
-        .catch(() => { if (!dead) setAssessState((s) => s[sel.case_uid] === "previewing" ? { ...s, [sel.case_uid]: "preview_failed" } : s); });
+      requestAssessment(sel.case_uid, true);
     }
-    return () => { dead = true; };
-  }, [sel?.case_uid, sel?.workflow_state?.updated_at_utc, canRunAssessment]);
+    return () => { detailRequest.current += 1; };
+  }, [sel?.case_uid, sel?.workflow_state?.updated_at_utc, sel?.workflow_state?.latest_triage_updates_at, canRunAssessment]);
 
   const a = sel ? assessments[sel.case_uid] : null;
   const selectedAssessState = sel ? assessState[sel.case_uid] : null;
@@ -550,7 +617,8 @@ export default function Triage({ cases, casesError, casesLoading = false, refres
     ? "Running validation, rules, model prediction, and safety review..."
     : "Preparing the model estimate...";
   const sysPred = a?.final_category ?? (a?.predicted_acuity != null ? String(a.predicted_acuity) : null);
-  const workflowRunId = a?.workflow_run_id || detail?.workflow_state?.latest_workflow_run_id || null;
+  // A decision may refer only to the exact assessment currently displayed.
+  const workflowRunId = a?.workflow_run_id || null;
   const advance = () => { const i = queue.findIndex((c) => c.case_uid === sel?.case_uid); const nxt = queue[i + 1] || queue[0]; setSelectedUid(nxt && nxt.case_uid !== sel?.case_uid ? nxt.case_uid : null); };
 
   /* decidedAcuity is passed EXPLICITLY by each caller and forwarded to
@@ -602,7 +670,7 @@ export default function Triage({ cases, casesError, casesLoading = false, refres
         </div>
       </div>
       <Card style={{ flex: 1, minWidth: 0, padding: 32, overflowY: "auto" }}>
-        <CaseDetail c={detail} presentation={presentation} canReviewAi={!isObservationOnlyView} />
+        <CaseDetail c={detail?.case_uid === sel?.case_uid ? detail : null} presentation={presentation} canReviewAi={!isObservationOnlyView} />
       </Card>
       <div style={{ width: 330, flexShrink: 0, overflowY: "auto", paddingRight: 2 }}>
         {canUpdateVitals && <ObservationActions c={sel} onRecord={() => setModal("reassess")} />}
@@ -613,7 +681,7 @@ export default function Triage({ cases, casesError, casesLoading = false, refres
           onEscalate={() => setModal("escalate")}
           onRequestInfo={() => { setInfoFields([]); setModal("info"); }}
           onRetry={() => runAssess(sel.case_uid, true)} />}
-        {canRunAssessment && sel && <MultiAgentExplanation caseUid={sel.case_uid} canExplain={canExplainAcuity} toast={toast} />}
+        {canRunAssessment && sel && !selectedAssessLoading && workflowRunId && <MultiAgentExplanation key={`${sel.case_uid}:${workflowRunId}`} caseUid={sel.case_uid} assessmentKey={workflowRunId} canExplain={canExplainAcuity} toast={toast} />}
       </div>
 
       {modal === "override" && sel && (
@@ -661,7 +729,7 @@ export default function Triage({ cases, casesError, casesLoading = false, refres
           </div>
         </Modal>
       )}
-      {modal === "reassess" && sel && <ReassessModal c={detail || sel} onClose={() => setModal(null)} onDone={onReassessDone} toast={toast} />}
+      {modal === "reassess" && sel && <ReassessModal key={sel.case_uid} c={detail?.case_uid === sel.case_uid ? detail : sel} onClose={() => setModal(null)} onDone={onReassessDone} toast={toast} />}
     </div>
   );
 }

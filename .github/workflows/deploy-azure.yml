@@ -20,14 +20,35 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  AZURE_WEBAPP_NAME: ai-triage-agentic-system
-  AZURE_RESOURCE_GROUP: Ai-triaging
   PYTHON_VERSION: "3.11"
 
 jobs:
   test-and-deploy:
+    name: Test and deploy ${{ matrix.app }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    strategy:
+      # The apps are in different tenants; a failure on one must not cancel
+      # verification/deployment of the other.
+      fail-fast: false
+      matrix:
+        include:
+          - app: ai-triage-agentic-system
+            resource_group: Ai-triaging
+            subscription: 3e06b774-e965-4c81-aa02-897ec6647dcd
+            client_secret: AZUREAPPSERVICE_CLIENTID_BD0090C04EFB406F8635DC9131E5EAC7
+            tenant_secret: AZUREAPPSERVICE_TENANTID_C617D75FF5BE4DC89A52C293A09788D4
+            subscription_secret: AZUREAPPSERVICE_SUBSCRIPTIONID_AF58CC7D0B264843975E5FF090DEE3C6
+          - app: EDTRIAGE
+            resource_group: Triage
+            subscription: 4b5b261f-4692-4c6f-afd6-18874e1a0487
+            client_secret: AZURE_CLIENT_ID_EDTRIAGE
+            tenant_secret: AZURE_TENANT_ID_EDTRIAGE
+            subscription_secret: AZURE_SUBSCRIPTION_ID_EDTRIAGE
+    env:
+      AZURE_WEBAPP_NAME: ${{ matrix.app }}
+      AZURE_RESOURCE_GROUP: ${{ matrix.resource_group }}
+      EXPECTED_SUBSCRIPTION_ID: ${{ matrix.subscription }}
 
     steps:
       - name: Checkout repository
@@ -94,9 +115,9 @@ jobs:
         if: ${{ env.ROLLBACK_REQUESTED == 'true' }}
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_BD0090C04EFB406F8635DC9131E5EAC7 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_C617D75FF5BE4DC89A52C293A09788D4 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_AF58CC7D0B264843975E5FF090DEE3C6 }}
+          client-id: ${{ secrets[matrix.client_secret] }}
+          tenant-id: ${{ secrets[matrix.tenant_secret] }}
+          subscription-id: ${{ secrets[matrix.subscription_secret] }}
 
       - name: Verify authoritative Azure rollback target
         if: ${{ env.ROLLBACK_REQUESTED == 'true' }}
@@ -108,8 +129,8 @@ jobs:
             --name "${AZURE_WEBAPP_NAME}" \
             --query id \
             --output tsv 2>/dev/null || true)"
-          expected_suffix="/resourcegroups/${AZURE_RESOURCE_GROUP,,}/providers/microsoft.web/sites/${AZURE_WEBAPP_NAME,,}"
-          if [ -z "$target_id" ] || [[ "${target_id,,}" != *"${expected_suffix}" ]]; then
+          expected_id="/subscriptions/${EXPECTED_SUBSCRIPTION_ID}/resourcegroups/${AZURE_RESOURCE_GROUP,,}/providers/microsoft.web/sites/${AZURE_WEBAPP_NAME,,}"
+          if [ "${target_id,,}" != "${expected_id,,}" ]; then
             echo "::error::Azure login did not resolve the authoritative rollback target ${AZURE_RESOURCE_GROUP}/${AZURE_WEBAPP_NAME}."
             exit 1
           fi
@@ -283,11 +304,11 @@ jobs:
           test -f startup-backend.sh
           test -f app/main.py
           test -f frontend-react/dist/index.html
-          test -f data/uhl_dataset_final.csv.gz
+          test -f data/uhl_demo_100.json
           test -f artifacts/model/uhl_synthetic_acuity_selected.joblib
           test -f artifacts/reports/single_seed/uhl_synthetic_training_provenance.json
 
-          test "$(sha256sum data/uhl_dataset_final.csv.gz | awk '{print $1}')" = "f3a6b4b8c7ee081fc02c924978ee1c5ecb5d7ebffbd32a2058d10cbd1bf1cd5c"
+          test "$(sha256sum data/uhl_demo_100.json | awk '{print $1}')" = "1fb5aad5fec098da3335065f7932da6e832104988b579d4c991209e5e561f691"
           test "$(sha256sum artifacts/model/uhl_synthetic_acuity_selected.joblib | awk '{print $1}')" = "7dddf3cc673f5598d73d7e6d56546cad49639edcae77b44b17b677f0b0d1395b"
 
           if [ "${NOTIFICATION_SOURCE_PRESENT}" = true ]; then
@@ -330,6 +351,7 @@ jobs:
             --exclude 'mimic-iv-ed*/' \
             --exclude 'data/processed/' \
             --exclude 'data/cache/' \
+            --exclude 'data/uhl_dataset_final.csv.gz' \
             --exclude '.env' \
             --exclude '.env.*' \
             --exclude '*.parquet' \
@@ -372,7 +394,7 @@ jobs:
               from app.config import settings
               from ml_training.uhl_synthetic.serving import validate_uhl_serving_bundle
 
-              assert settings.uhl_data_path.is_file(), settings.uhl_data_path
+              assert settings.serving_data_path.is_file(), settings.serving_data_path
               assert settings.uhl_model_path.is_file(), settings.uhl_model_path
               validate_uhl_serving_bundle(
                   joblib.load(settings.uhl_model_path),
@@ -472,7 +494,7 @@ jobs:
           import sklearn
           import uvicorn
 
-          assert settings.uhl_data_path.is_file(), settings.uhl_data_path
+          assert settings.serving_data_path.is_file(), settings.serving_data_path
           assert settings.uhl_model_path.is_file(), settings.uhl_model_path
           validate_uhl_serving_bundle(
               joblib.load(settings.uhl_model_path),
@@ -529,11 +551,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          unzip -l deployment.zip | grep -q '.python_packages/lib/site-packages/uvicorn/__init__.py'
-          unzip -l deployment.zip | grep -q '.python_packages/lib/site-packages/fastapi/__init__.py'
-          unzip -l deployment.zip | grep -q '.python_packages/lib/site-packages/catboost/__init__.py'
-          unzip -l deployment.zip | grep -q 'data/uhl_dataset_final.csv.gz'
-          unzip -l deployment.zip | grep -q 'artifacts/model/uhl_synthetic_acuity_selected.joblib'
+          python scripts/verify_runtime_assets.py deployment.zip
 
           echo "Deployment ZIP includes runtime dependencies and pinned UHL assets."
 
@@ -547,9 +565,9 @@ jobs:
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_BD0090C04EFB406F8635DC9131E5EAC7 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_C617D75FF5BE4DC89A52C293A09788D4 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_AF58CC7D0B264843975E5FF090DEE3C6 }}
+          client-id: ${{ secrets[matrix.client_secret] }}
+          tenant-id: ${{ secrets[matrix.tenant_secret] }}
+          subscription-id: ${{ secrets[matrix.subscription_secret] }}
 
       - name: Verify authoritative Azure deployment target
         shell: bash
@@ -560,8 +578,8 @@ jobs:
             --name "${AZURE_WEBAPP_NAME}" \
             --query id \
             --output tsv 2>/dev/null || true)"
-          expected_suffix="/resourcegroups/${AZURE_RESOURCE_GROUP,,}/providers/microsoft.web/sites/${AZURE_WEBAPP_NAME,,}"
-          if [ -z "$target_id" ] || [[ "${target_id,,}" != *"${expected_suffix}" ]]; then
+          expected_id="/subscriptions/${EXPECTED_SUBSCRIPTION_ID}/resourcegroups/${AZURE_RESOURCE_GROUP,,}/providers/microsoft.web/sites/${AZURE_WEBAPP_NAME,,}"
+          if [ "${target_id,,}" != "${expected_id,,}" ]; then
             echo "::error::Azure login did not resolve the authoritative App Service ${AZURE_RESOURCE_GROUP}/${AZURE_WEBAPP_NAME}."
             exit 1
           fi
@@ -647,6 +665,24 @@ jobs:
             --resource-group "${AZURE_RESOURCE_GROUP}" \
             --name "${NOTIFICATION_FUNCTION_NAME}" \
             --settings "ALTER_BUILD_ID=${DEPLOY_SHA}" \
+            --output none
+
+      - name: Configure the packaged Python runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          az webapp config set \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --name "${AZURE_WEBAPP_NAME}" \
+            --linux-fx-version "PYTHON|${PYTHON_VERSION}" \
+            --startup-file "bash startup-backend.sh" \
+            --output none
+          # Dependencies are built and verified on Linux above. Do not rebuild
+          # them in Oryx or load the full training CSV on each app restart.
+          az webapp config appsettings set \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --name "${AZURE_WEBAPP_NAME}" \
+            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=false ENABLE_ORYX_BUILD=false WEBSITE_RUN_FROM_PACKAGE=0 UHL_CASE_COHORT=demo_100 PREWARM_UHL_CACHE_ON_STARTUP=false \
             --output none
 
       - name: Deploy to Azure Web App
@@ -744,12 +780,20 @@ jobs:
             done
           fi
 
+  tag-release:
+    name: Tag the release after both apps pass
+    needs: test-and-deploy
+    runs-on: ubuntu-latest
+    # A single tag avoids matrix races and only marks a release when BOTH
+    # deployments and their smoke checks succeeded.
+    if: ${{ github.event_name == 'push' && github.event.inputs.git_ref == '' }}
+    steps:
+      - uses: actions/checkout@v4
       - name: Tag this deploy as a rollback point
-        # Only auto-tag real pushes to main (not manual rollbacks, which already point at a tag).
-        if: ${{ github.event_name == 'push' && github.event.inputs.git_ref == '' }}
         shell: bash
         run: |
           set -euo pipefail
+          DEPLOY_SHA="$(git rev-parse HEAD)"
           TAG="release-${{ github.run_number }}"
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"

@@ -44,7 +44,7 @@ COPY frontend-react/dist/ ./frontend-react/dist/
 COPY ml_training/ ./ml_training/
 COPY data/models/ ./data/models/
 # Pinned UHL synthetic cohort, selected serving artifact, and aggregate reports.
-COPY data/uhl_dataset_final.csv.gz ./data/uhl_dataset_final.csv.gz
+COPY data/uhl_demo_100.json ./data/uhl_demo_100.json
 COPY artifacts/ ./artifacts/
 COPY startup-backend.sh ./
 RUN mkdir -p ./data/processed/ ./data/cache/

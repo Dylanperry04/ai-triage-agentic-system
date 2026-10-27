@@ -29,7 +29,7 @@ async function request(method, path, body) {
     });
   } catch (e) {
     if (e?.name === "AbortError") {
-      throw new ApiError(408, "Request timed out. The workflow did not finish; try again or check the backend logs.");
+      throw new ApiError(408, "Request timed out. The server may still have completed it; refresh the case before retrying.");
     }
     throw e;
   } finally {
@@ -130,7 +130,7 @@ export const api = {
      summary is exposed. Returns { status, final_explanation, safety_failures }.
      status may be PASS, NOT_CONFIGURED
      (no Azure OpenAI), SAFETY_FAIL, or ERROR. */
-  multiagentExplainCase: (uid, question) => post(`/cases/${encodeURIComponent(uid)}/multiagent-explanations`, question ? { question } : {}),
+  multiagentExplainCase: (uid, question, workflowRunId) => post(`/cases/${encodeURIComponent(uid)}/multiagent-explanations`, { ...(question ? { question } : {}), ...(workflowRunId ? { workflow_run_id: workflowRunId } : {}) }),
   submitReview: (uid, body) => post(`/cases/${encodeURIComponent(uid)}/reviews`, {
     ...body,
     action_id: body?.action_id || globalThis.crypto?.randomUUID?.()

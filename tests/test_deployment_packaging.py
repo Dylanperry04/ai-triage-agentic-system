@@ -103,8 +103,10 @@ def test_azure_deploy_workflow_excludes_runtime_data_and_cleans_generated_caches
     assert "-iname '*.pkl'" in text
     assert "-iname '*.joblib'" in text
     assert "Verify deployment ZIP contains runtime dependencies" in text
-    assert ".python_packages/lib/site-packages/uvicorn/__init__.py" in text
-    assert ".python_packages/lib/site-packages/fastapi/__init__.py" in text
+    assert "python scripts/verify_runtime_assets.py deployment.zip" in text
+    verifier = (REPO / "scripts" / "verify_runtime_assets.py").read_text(encoding="utf-8")
+    assert ".python_packages/lib/site-packages/uvicorn/__init__.py" in verifier
+    assert ".python_packages/lib/site-packages/fastapi/__init__.py" in verifier
     assert "rm -rf deployment/data/processed deployment/data/cache" in text
     assert '-r "deployment/${RUNTIME_REQUIREMENTS}"' in text
     assert "max_zip_bytes=900000000" in text
@@ -225,12 +227,12 @@ def test_package_hygiene_allows_only_pinned_deployment_model_artifact(tmp_path):
 def test_uhl_dataset_and_selected_model_are_packaged_sources():
     import hashlib
 
-    dataset = REPO / "data" / "uhl_dataset_final.csv.gz"
+    dataset = REPO / "data" / "uhl_demo_100.json"
     model = REPO / "artifacts" / "model" / "uhl_synthetic_acuity_selected.joblib"
     assert dataset.is_file()
     assert model.is_file()
     assert hashlib.sha256(dataset.read_bytes()).hexdigest() == (
-        "f3a6b4b8c7ee081fc02c924978ee1c5ecb5d7ebffbd32a2058d10cbd1bf1cd5c"
+        "1fb5aad5fec098da3335065f7932da6e832104988b579d4c991209e5e561f691"
     )
     assert hashlib.sha256(model.read_bytes()).hexdigest() == (
         "7dddf3cc673f5598d73d7e6d56546cad49639edcae77b44b17b677f0b0d1395b"

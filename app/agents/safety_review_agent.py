@@ -98,7 +98,7 @@ def run_safety_review(triage_input: TriageTimeInput) -> SafetyReviewResult:
                     "Maximum pain score with completely normal SpO2 and resting HR — "
                     "please verify data entry."
                 )
-        except (ValueError, TypeError):
+        except (ValueError, TypeError, OverflowError):
             pass
 
     # ── Missing chief complaint ───────────────────────────────────────────────
@@ -129,6 +129,9 @@ def run_safety_review(triage_input: TriageTimeInput) -> SafetyReviewResult:
         has_critical_physiology = True
     if triage_input.sbp is not None and triage_input.sbp < 90:
         data_quality_flags.append("CRITICAL_PHYSIOLOGY:HYPOTENSION_SBP_BELOW_90")
+        has_critical_physiology = True
+    if triage_input.sbp is not None and triage_input.sbp > 220:
+        data_quality_flags.append("CRITICAL_PHYSIOLOGY:HYPERTENSION_SBP_ABOVE_220")
         has_critical_physiology = True
     temp_c = _temperature_c(triage_input)
     if temp_c is not None and (temp_c >= 41.0 or temp_c < 35.0):

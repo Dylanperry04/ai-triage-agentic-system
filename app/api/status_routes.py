@@ -319,7 +319,7 @@ def system_assistant(
         "security_mode": security.get("current_mode"),
         "auth_provider": security.get("auth_provider"),
         "is_safe_configuration": security.get("is_safe"),
-        "uhl_dataset_present": settings.uhl_data_path.is_file(),
+        "uhl_dataset_present": settings.serving_data_path.is_file(),
         "uhl_model_present": model_path_exists,
         "model_path_configured": bool(model_raw),
         "model_file_exists": model_path_exists,
@@ -1276,7 +1276,7 @@ def _uhl_model_performance_payload() -> Dict[str, Any]:
         "model_comparison": {
             "candidates": normalized_candidates,
             "split_kind": reports["distribution"].get("split_kind"),
-            "patient_overlap_train_test": 0,
+            "patient_overlap_train_test": reports["distribution"].get("patient_overlap_train_test"),
             "selected_model": comparison.get("selected_model"),
             "experimental_non_serving_candidates": [
                 row.get("model_name")
@@ -1296,13 +1296,29 @@ def _uhl_model_performance_payload() -> Dict[str, Any]:
         "selected_decision_rule": selection.get("decision_rule")
         or comparison.get("selected_decision_rule"),
     }
+    from app.agents.ml_prediction_agent import UHL_URGENT_CLASS_PROBABILITY_THRESHOLD
+    artifacts["evaluation_policy"] = artifacts["selected_decision_rule"]
+    artifacts["serving_policy"] = {
+        "type": "modal_with_urgent_class_threshold",
+        "threshold": UHL_URGENT_CLASS_PROBABILITY_THRESHOLD,
+        "threshold_scope": "individual_more_urgent_class",
+    }
+    artifacts["metrics_apply_to_serving_policy"] = (
+        artifacts["evaluation_policy"] == artifacts["serving_policy"]
+    )
+    artifacts["metric_scope_note"] = (
+        "Packaged test metrics describe the recorded training evaluation policy. "
+        "They do not evaluate the current deployment selection policy plus vital "
+        "safety overrides. Patient-level split overlap is unverified unless "
+        "explicitly recorded in the source report."
+    )
 
     issues: List[str] = []
-    if not settings.uhl_data_path.is_file():
+    if not settings.serving_data_path.is_file():
         issues.append("packaged UHL dataset is missing")
     else:
-        actual = hashlib.sha256(settings.uhl_data_path.read_bytes()).hexdigest()
-        if actual != settings.expected_dataset_sha256 or actual != DATASET_SHA256:
+        actual = hashlib.sha256(settings.serving_data_path.read_bytes()).hexdigest()
+        if actual != settings.expected_serving_data_sha256:
             issues.append("packaged UHL dataset hash mismatch")
     if not settings.uhl_model_path.is_file():
         issues.append("packaged UHL model is missing")
@@ -1327,6 +1343,14 @@ def _uhl_model_performance_payload() -> Dict[str, Any]:
     for key in required_reports:
         if not reports[key]:
             issues.append(f"required UHL report missing or invalid: {key}")
+    if selection.get("promoted_artifact_sha256") != MODEL_SHA256:
+        issues.append("selection report is not bound to the pinned model")
+    if reports["dataset_card"].get("dataset_sha256") != DATASET_SHA256:
+        issues.append("dataset report is not bound to the pinned cohort")
+    run_id = selection.get("training_run_id")
+    if not run_id or any(reports[key].get("training_run_id") != run_id
+                         for key in ("comparison", "distribution")):
+        issues.append("training report run identifiers disagree")
 
     ready = not issues
     return {
@@ -1335,7 +1359,10 @@ def _uhl_model_performance_payload() -> Dict[str, Any]:
         "package_checkpoint": PACKAGE_CHECKPOINT,
         "dataset": DATASET_SOURCE,
         "data_dir_configured": True,
-        "data_loadable": settings.uhl_data_path.is_file(),
+        "data_loadable": settings.serving_data_path.is_file(),
+        "case_cohort": settings.uhl_case_cohort,
+        "serving_case_count": settings.expected_case_rows,
+        "curated_demo_is_evaluation": False,
         "model_path_env_set": bool(os.environ.get("UHL_MODEL_PATH")),
         "model_file_exists": settings.uhl_model_path.is_file(),
         "model_hash_configured": True,

@@ -1094,6 +1094,7 @@ def run_assessment(case_uid: str,
 
 class ExplanationRequest(BaseModel):
     question: Optional[str] = None
+    workflow_run_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
 
 
 @router.post("/cases/{case_uid}/explanations")
@@ -1148,10 +1149,25 @@ async def multiagent_explain_case(
     if body.question:
         screened_question = body.question.strip()
 
-    result = run_workflow(case, include_llm_explanation=False)
-    workflow_dict = result.model_dump(mode="json")
-    evidence = safe_dto.safe_multiagent_evidence(
-        rc.case_uid, rc.source_dataset, workflow_dict)
+    if body.workflow_run_id:
+        from app.config import settings
+        from app.storage.workflow_run_repository import read_workflow_run
+        try:
+            record = read_workflow_run(settings.processed_dir / "workflow_runs.jsonl",
+                                       body.workflow_run_id, rc.case_uid)
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail="Assessment evidence could not be read.") from exc
+        evidence = (record or {}).get("explanation_evidence")
+        if (not isinstance(evidence, dict) or not evidence
+                or evidence.get("case_uid") != rc.case_uid
+                or evidence.get("source_dataset") != rc.source_dataset):
+            raise HTTPException(status_code=409, detail="Evidence for this assessment is unavailable. Run a new logged assessment.")
+    else:
+        # Compatibility for existing API clients that request a current-case
+        # explanation without displaying a particular recorded assessment.
+        result = run_workflow(case, include_llm_explanation=False)
+        evidence = safe_dto.safe_multiagent_evidence(
+            rc.case_uid, rc.source_dataset, result.model_dump(mode="json"))
     safe_dto.assert_no_raw_identifiers(evidence)
 
     from app.security.agent_gateway import authorise_agent_call
@@ -1196,6 +1212,8 @@ async def multiagent_explain_case(
 
     out = safe_dto.safe_multiagent_explanation_response(
         rc.case_uid, rc.source_dataset, team_result)
+    if body.workflow_run_id:
+        out["workflow_run_id"] = body.workflow_run_id
     safe_dto.assert_no_raw_identifiers(out)
     return out
 

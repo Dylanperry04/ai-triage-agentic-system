@@ -17,6 +17,8 @@ pydantic==2.10.6
 scikit-learn==1.5.1
 joblib==1.4.2
 catboost==1.2.5
+# Security-fixed image dependency also imported transitively by plotting tools.
+Pillow==13.0.0
 
 # AutoGen explanation runtime and Azure OpenAI client.
 openai==2.41.0

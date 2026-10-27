@@ -1,6 +1,7 @@
 """Project-wide configuration for the 22.4 runtime with UHL data/model assets."""
 import os
 from pathlib import Path
+from typing import Literal
 from pydantic import BaseModel
 
 
@@ -172,6 +173,30 @@ class Settings(BaseModel):
         "UHL_MODEL_SHA256",
         "7dddf3cc673f5598d73d7e6d56546cad49639edcae77b44b17b677f0b0d1395b",
     ).strip().lower()
+
+    # The web demo serves a small immutable cohort; the full training cohort is
+    # an optional offline asset and its hash still binds the trained model.
+    uhl_case_cohort: Literal["demo_100", "full"] = os.environ.get("UHL_CASE_COHORT", "demo_100")
+    uhl_demo_data_path: Path = Path(os.environ.get("UHL_DEMO_DATA_PATH", str(project_root / "data/uhl_demo_100.json"))).expanduser()
+
+    @property
+    def serving_data_path(self) -> Path:
+        return self.uhl_demo_data_path if self.uhl_case_cohort == "demo_100" else self.uhl_data_path
+
+    @property
+    def expected_serving_data_sha256(self) -> str:
+        from app.constants import DEMO_COHORT_SHA256
+        return DEMO_COHORT_SHA256 if self.uhl_case_cohort == "demo_100" else self.expected_dataset_sha256
+
+    @property
+    def expected_case_rows(self) -> int:
+        from app.constants import DEMO_COHORT_ROWS, EXPECTED_SOURCE_ROWS
+        return DEMO_COHORT_ROWS if self.uhl_case_cohort == "demo_100" else EXPECTED_SOURCE_ROWS
+
+    @property
+    def expected_model_scope_rows(self) -> int:
+        from app.constants import DEMO_COHORT_ROWS, EXPECTED_MODEL_ROWS
+        return DEMO_COHORT_ROWS if self.uhl_case_cohort == "demo_100" else EXPECTED_MODEL_ROWS
 
     # Compatibility aliases used by the transplanted, narrowly scoped UHL
     # repository.  Keeping these as properties avoids replacing the 22.4

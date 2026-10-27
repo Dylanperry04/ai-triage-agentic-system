@@ -27,7 +27,7 @@ from __future__ import annotations
 from typing import Optional, List, Tuple, Dict, Any
 
 from app.schemas.internal import TriageTimeInput
-from app.rules.vitals import temperature_c
+from app.rules.discriminators import evaluate_vital_discriminators
 from app.rules.acuity_mts_mapping import map_acuity_to_mts
 
 OVERRIDE_RULE_VERSION = "acuity_override_v1"
@@ -38,49 +38,13 @@ _ORANGE_PRIORITY = 2
 
 
 def _extreme_flags(t: TriageTimeInput) -> List[str]:
-    flags: List[str] = []
-    if t.o2sat is not None and t.o2sat < 85:
-        flags.append("EXTREME_HYPOXIA_SPO2_BELOW_85")
-    if t.heartrate is not None and t.heartrate > 150:
-        flags.append("EXTREME_TACHYCARDIA_HR_ABOVE_150")
-    if t.heartrate is not None and t.heartrate < 35:
-        flags.append("EXTREME_BRADYCARDIA_HR_BELOW_35")
-    if t.resprate is not None and t.resprate > 35:
-        flags.append("EXTREME_TACHYPNOEA_RR_ABOVE_35")
-    if t.resprate is not None and t.resprate < 6:
-        flags.append("EXTREME_BRADYPNOEA_RR_BELOW_6")
-    if t.sbp is not None and t.sbp < 80:
-        flags.append("EXTREME_HYPOTENSION_SBP_BELOW_80")
-    tc = temperature_c(t)
-    if tc is not None and tc >= 41.5:
-        flags.append("EXTREME_HYPERPYREXIA_TEMP_ABOVE_41_5C")
-    if tc is not None and tc < 32.0:
-        flags.append("EXTREME_HYPOTHERMIA_TEMP_BELOW_32C")
-    return flags
+    return [item["code"] for item in evaluate_vital_discriminators(t)
+            if item["priority"] == 1 and item["status"] == "matched"]
 
 
 def _critical_flags(t: TriageTimeInput) -> List[str]:
-    flags: List[str] = []
-    if t.o2sat is not None and t.o2sat < 90:
-        flags.append("CRITICAL_HYPOXIA_SPO2_BELOW_90")
-    if t.heartrate is not None and t.heartrate > 130:
-        flags.append("CRITICAL_HEART_RATE_ABOVE_130")
-    if t.heartrate is not None and t.heartrate < 40:
-        flags.append("CRITICAL_HEART_RATE_BELOW_40")
-    if t.resprate is not None and t.resprate > 29:
-        flags.append("CRITICAL_RESPIRATORY_RATE_ABOVE_29")
-    if t.resprate is not None and t.resprate < 8:
-        flags.append("CRITICAL_RESPIRATORY_RATE_BELOW_8")
-    if t.sbp is not None and t.sbp < 90:
-        flags.append("CRITICAL_HYPOTENSION_SBP_BELOW_90")
-    if t.sbp is not None and t.sbp > 220:
-        flags.append("CRITICAL_HYPERTENSION_SBP_ABOVE_220")
-    tc = temperature_c(t)
-    if tc is not None and tc >= 41.0:
-        flags.append("CRITICAL_HYPERPYREXIA_TEMP_ABOVE_41C")
-    if tc is not None and tc < 35.0:
-        flags.append("CRITICAL_HYPOTHERMIA_TEMP_BELOW_35C")
-    return flags
+    return [item["code"] for item in evaluate_vital_discriminators(t)
+            if item["priority"] == 2 and item["status"] == "matched"]
 
 
 def apply_acuity_override(
@@ -97,8 +61,11 @@ def apply_acuity_override(
       override_applied (bool), override_tier ("EXTREME"|"CRITICAL"|None),
       override_flags (list), override_note (str), override_rule_version
     """
-    extreme = _extreme_flags(triage_input)
-    critical = _critical_flags(triage_input)
+    evaluated = evaluate_vital_discriminators(triage_input)
+    extreme = [item["code"] for item in evaluated
+               if item["priority"] == 1 and item["status"] == "matched"]
+    critical = [item["code"] for item in evaluated
+                if item["priority"] == 2 and item["status"] == "matched"]
 
     # Floor acuity from vitals (1 = Red, 2 = Orange). None if no floor.
     floor_acuity: Optional[int] = None
@@ -138,6 +105,7 @@ def apply_acuity_override(
         note = "No extreme/critical vital override triggered."
 
     return {
+        "evaluated_discriminators": evaluated,
         "final_acuity": final_acuity,
         "final_mts": map_acuity_to_mts(final_acuity),
         "override_applied": override_applied,

@@ -113,6 +113,14 @@ def _between(value: float, field: str, low: float, high: float, row_number: int)
         )
 
 
+def get_case_repository(settings: Settings):
+    """Select the serving cohort without changing the model's training contract."""
+    if settings.uhl_case_cohort == "demo_100":
+        from app.data_pipeline.uhl_demo_repository import UhlDemoCaseRepository
+        return UhlDemoCaseRepository(settings)
+    return UhlCaseRepository(settings)
+
+
 class UhlCaseRepository:
     def __init__(self, settings: Settings):
         self.settings = settings

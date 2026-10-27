@@ -59,6 +59,8 @@ class WorkflowRunRecord(BaseModel):
     # Deterministic safety + governance.
     rules_classification_status: Optional[str] = None
     safety_flags: List[str] = Field(default_factory=list)
+    discriminator_evidence: Dict[str, Any] = Field(default_factory=dict)
+    explanation_evidence: Dict[str, Any] = Field(default_factory=dict)
     workflow_action: Optional[str] = None
     llm_status: Optional[str] = None
     clinician_review_required: bool = True
@@ -149,11 +151,13 @@ def build_workflow_run_record(result, run_id: str, timestamp_utc: str,
             )
         }
     safety_flags = list(getattr(result.safety_review, "data_quality_flags", []) or [])
+    from app.api.safe_dto import safe_multiagent_evidence
+    case_uid = make_case_uid(ti.source_dataset, result.stay_id)
 
     return WorkflowRunRecord(
         workflow_run_id=run_id,
         timestamp_utc=timestamp_utc,
-        case_uid=make_case_uid(ti.source_dataset, result.stay_id),
+        case_uid=case_uid,
         source_dataset=ti.source_dataset,
         stay_id=result.stay_id,
         input_snapshot=input_snapshot,
@@ -169,15 +173,18 @@ def build_workflow_run_record(result, run_id: str, timestamp_utc: str,
         override_tier=getattr(fa, "override_tier", None),
         rules_classification_status=getattr(dec, "classification_status", None),
         safety_flags=safety_flags,
+        discriminator_evidence=getattr(result, "discriminator_evidence", {}),
+        explanation_evidence=safe_multiagent_evidence(
+            case_uid, ti.source_dataset, result.model_dump(mode="json")),
         workflow_action=getattr(result, "workflow_action", None),
-        llm_status=getattr(result.explanation, "status", None) if hasattr(result, "explanation") else None,
+        llm_status=getattr(result.explanation, "explanation_status", None) if hasattr(result, "explanation") else None,
         clinician_review_required=getattr(dec, "requires_clinician_review", True),
         human_review_status="PENDING",
         app_version=app_version,
         package_checkpoint=PACKAGE_CHECKPOINT,
         model_version=getattr(ml, "model_version", None),
         model_sha256=MODEL_SHA256 if input_schema else None,
-        mapping_rule_version=getattr(ml, "mapping_rule_version", None),
+        mapping_rule_version=getattr(fa, "mapping_rule_version", None) or getattr(ml, "mapping_rule_version", None),
         override_rule_version=getattr(fa, "override_rule_version", None),
         rules_version=getattr(dec, "ruleset_id", None),
         performed_by_user_id=getattr(ctx, "user_id", None),

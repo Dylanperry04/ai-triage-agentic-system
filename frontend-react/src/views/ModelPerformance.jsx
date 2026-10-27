@@ -66,7 +66,8 @@ export default function ModelPerformance() {
   return (
     <div>
       <div style={{ fontSize: 19, fontWeight: 700 }}>Model evidence</div>
-      <div style={{ fontSize: 13, color: T.slate, marginTop: 2, lineHeight: 1.5 }}>Training artefacts for the deployed acuity model — generated once on the approved environment, reported on the untouched test split.</div>
+      <div style={{ fontSize: 13, color: T.slate, marginTop: 2, lineHeight: 1.5 }}>Packaged training reports for the selected acuity model, including the recorded test-split results.</div>
+      {a.metric_scope_note && <div role="note" style={{ fontSize: 12.5, color: "#8A4B00", background: T.yellow50, padding: 12, borderRadius: 8, marginTop: 12, lineHeight: 1.5 }}>{a.metric_scope_note}</div>}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
         <Pill colour={T.green900} bg={T.green50} border="#CBEADF">{card.model_name}</Pill>
         <Pill>{card.model_kind}</Pill>
@@ -99,7 +100,7 @@ export default function ModelPerformance() {
                 </React.Fragment>
               ))}
             </div>
-            <div style={{ fontSize: 11.5, color: T.grey500, marginTop: 10 }}>Green diagonal = correct; red = miss. Mass above the diagonal is over-triage (safe direction); below is under-triage.</div>
+            <div style={{ fontSize: 11.5, color: T.grey500, marginTop: 10 }}>Green diagonal = correct; red = miss. For acuities ordered 1–5, above the diagonal is under-triage (predicted less urgent than true); below is over-triage.</div>
           </Card>
         )}
         {distRows.length > 0 && (

@@ -81,11 +81,13 @@ def map_acuity_to_mts(acuity: Optional[int]) -> Optional[Dict[str, Any]]:
     or not one of 1-5 (so callers can handle "no mapping" explicitly rather
     than guessing).
     """
-    if acuity is None:
+    if acuity is None or isinstance(acuity, bool):
         return None
     try:
         key = int(acuity)
-    except (TypeError, ValueError):
+        if float(acuity) != key:
+            return None
+    except (TypeError, ValueError, OverflowError):
         return None
     base = MIMIC_ACUITY_TO_MTS.get(key)
     if base is None:

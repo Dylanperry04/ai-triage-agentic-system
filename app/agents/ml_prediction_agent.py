@@ -219,13 +219,14 @@ def _select_uhl_serving_acuity(
     threshold: float = UHL_URGENT_CLASS_PROBABILITY_THRESHOLD,
 ) -> int:
     """Use the modal class unless a more urgent class clears the threshold."""
-    probabilities = {
-        int(label): float(probability)
-        for label, probability in class_probabilities.items()
-        if int(label) in {1, 2, 3, 4, 5}
-    }
-    if not probabilities:
-        raise ValueError("UHL model returned no class probabilities")
+    if set(class_probabilities) != {"1", "2", "3", "4", "5"}:
+        raise ValueError("UHL model must return probabilities for exactly acuities 1..5")
+    probabilities = {int(label): float(value) for label, value in class_probabilities.items()}
+    if (not all(math.isfinite(value) and 0 <= value <= 1 for value in probabilities.values())
+            or not math.isclose(sum(probabilities.values()), 1.0, abs_tol=1e-6)):
+        raise ValueError("UHL class probabilities must be finite, in 0..1, and sum to one")
+    if not math.isfinite(threshold) or not 0 <= threshold <= 1:
+        raise ValueError("UHL decision threshold must be finite and in 0..1")
     modal = min(probabilities, key=lambda label: (-probabilities[label], label))
     urgent_qualifiers = [
         label
@@ -238,7 +239,8 @@ def _select_uhl_serving_acuity(
 def _successful_mimic_prediction(model, pred: int, probabilities, *, model_name: str,
                                  model_version: str | None = None,
                                  decision_rule: dict | None = None,
-                                 artefact_threshold: float | None = None) -> MLPredictionResult:
+                                 artefact_threshold: float | None = None,
+                                 threshold_source: str | None = None) -> MLPredictionResult:
     class_probs = _class_probability_dict(model, probabilities)
     high_prob = None
     if probabilities is not None:
@@ -283,7 +285,7 @@ def _successful_mimic_prediction(model, pred: int, probabilities, *, model_name:
         decision_rule_type=rule_type,
         decision_rule_threshold=rule_threshold,
         decision_rule_threshold_source=(
-            "deployment_override" if artefact_threshold is not None else "artefact"
+            threshold_source or ("deployment_override" if artefact_threshold is not None else "artefact")
         ),
         artefact_decision_rule_threshold=artefact_threshold,
         decision_rule_changed_prediction=bool(
@@ -380,6 +382,10 @@ def _run_uhl_prediction(triage_input: TriageTimeInput) -> MLPredictionResult:
         )
         model = bundle["model"]
         probabilities = model.predict_proba(frame)
+        classes = np.asarray(getattr(model, "classes_", []))
+        if (classes.shape != (5,) or set(classes.tolist()) != {1, 2, 3, 4, 5}
+                or np.asarray(probabilities).shape != (1, 5)):
+            raise ValueError("UHL model returned an invalid class/probability shape")
         class_probabilities = _class_probability_dict(model, probabilities)
         prediction = _select_uhl_serving_acuity(class_probabilities)
         decision_rule = {
@@ -397,6 +403,7 @@ def _run_uhl_prediction(triage_input: TriageTimeInput) -> MLPredictionResult:
             model_name=kind or "uhl_synthetic_acuity_model",
             model_version=version,
             decision_rule=decision_rule,
+            threshold_source="deployment_policy",
         )
     except Exception as exc:
         return MLPredictionResult(

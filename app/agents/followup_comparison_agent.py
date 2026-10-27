@@ -82,6 +82,7 @@ _STATUS_SEVERITY_RANK: dict[str, int] = {
     "AWAITING_APPROVED_CLINICAL_RULESET": 1,
     "PHYSIOLOGY_CONCERN_FLAGGED": 2,
     "MTS_CATEGORY_ASSIGNED_PENDING_CLINICIAN_REVIEW": 2,
+    "PROVISIONAL_MTS_CATEGORY_PENDING_CLINICIAN_REVIEW": 2,
     "CRITICAL_PHYSIOLOGY_FLAGGED": 3,
 }
 
@@ -199,7 +200,7 @@ def _compare_vital(
     if previous is None and new is not None:
         return VitalDelta(
             field_name=field_name, previous_value=None, new_value=new,
-            delta=None, unit=unit, direction="NEWLY_AVAILABLE", clinically_notable=False,
+            delta=None, unit=unit, direction="NEWLY_AVAILABLE", clinically_notable=_band(field_name, new) != "NORMAL",
         )
 
     delta = round(new - previous, 2)
@@ -266,7 +267,7 @@ def compare_follow_up(
     new_rank = _STATUS_SEVERITY_RANK.get(new_status, 1)
 
     any_vital_worsened = any(
-        d.direction in ("WORSENED", "NEWLY_MISSING") and d.clinically_notable
+        d.direction in ("WORSENED", "NEWLY_MISSING", "NEWLY_AVAILABLE") and d.clinically_notable
         for d in deltas
     )
     status_worsened = new_rank > prev_rank
@@ -290,7 +291,9 @@ def compare_follow_up(
     p_cat = n_cat = p_ov = n_ov = None
     category_movement: Optional[str] = None
 
-    if same_dataset and str(prev_ti.source_dataset or "").startswith("MIMIC-IV-ED"):
+    from app.constants import DATASET_SOURCE
+    if same_dataset and (prev_ti.source_dataset == DATASET_SOURCE
+                         or str(prev_ti.source_dataset or "").startswith("MIMIC-IV-ED")):
         p_final = getattr(prev_fa, "final_acuity", None)
         p_newf = getattr(new_fa, "final_acuity", None)
         p_cat = getattr(prev_fa, "category", None)
@@ -307,9 +310,7 @@ def compare_follow_up(
                 category_movement = "DE_ESCALATION"
             else:
                 category_movement = "NO_CHANGE"
-    # (The KTAS-class comparison branch was removed: KTAS is not a prediction
-    #  source and predicted_ktas_class is never populated.)
-                category_movement = "NO_CHANGE"
+
 
     # workflow_action is derived purely from values already computed
     # above -- it adds no new decision logic of its own. Precedence:
@@ -343,8 +344,10 @@ def compare_follow_up(
         worsened_vitals = [
             f"{d.field_name} ({d.previous_value} -> {d.new_value} {d.unit or ''})".strip()
             for d in deltas
-            if d.direction in ("WORSENED", "NEWLY_MISSING") and d.clinically_notable
+            if d.direction in ("WORSENED", "NEWLY_MISSING", "NEWLY_AVAILABLE") and d.clinically_notable
         ]
+        if category_movement == "ESCALATION":
+            reasons.append(f"the displayed acuity changed from {p_final} to {p_newf}")
         if worsened_vitals:
             reasons.append("the following vital(s) crossed into a more concerning range: "
                             + "; ".join(worsened_vitals))

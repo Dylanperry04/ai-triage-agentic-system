@@ -220,6 +220,12 @@ def safe_case_summary(
 
 
 def _demo_notice(case: Dict[str, Any]) -> Dict[str, Any]:
+    if case.get("curated_demo"):
+        from app.constants import DEMO_COHORT_NOTICE
+        return {
+            "is_curated_demo": True,
+            "demo_data_notice": DEMO_COHORT_NOTICE,
+        }
     if case.get("synthetic_demo"):
         return {
             "is_synthetic_demo": True,
@@ -293,7 +299,9 @@ def safe_assessment_response(case_uid: str, source_dataset: str,
         or ml_prediction.get("acuity")
     )
     final_acuity = faa.get("final_acuity")
-    final_category = faa.get("category") or decision.get("category")
+    # A separate heuristic pathway is not the displayed/audited ML result.
+    # Keep its category in rules_category when prediction is unavailable.
+    final_category = faa.get("category") if final_acuity is not None else None
     out = {
         "case_uid": case_uid,
         "source_dataset": source_dataset,
@@ -362,6 +370,7 @@ def safe_assessment_response(case_uid: str, source_dataset: str,
         "high_risk_complaint_detected": safety_review.get("high_risk_complaint_detected"),
         "is_safe_to_present": safety_review.get("is_safe_to_present"),
         "reason_codes": decision.get("reason_codes") or [],
+        "discriminator_evidence": workflow_result.get("discriminator_evidence") or {},
         "classification_status": decision.get("classification_status"),
         "missing_fields": missing,
         "clinician_review_required": True,
@@ -401,15 +410,13 @@ def safe_multiagent_evidence(case_uid: str, source_dataset: str,
         ),
         "top_class_confidence": ml_prediction.get("top_class_confidence"),
         "mimic_acuity_probabilities": ml_prediction.get("mimic_acuity_probabilities"),
+        "displayed_acuity_probability": _probability_for_acuity(
+            ml_prediction.get("mimic_acuity_probabilities"), faa.get("final_acuity")),
+        "selection_policy": (workflow_result.get("discriminator_evidence") or {}).get("model_policy") or {},
     }
     primary_drivers: List[str] = []
-    if triage_input.get("chiefcomplaint"):
-        primary_drivers.append(
-            f"Chief complaint recorded as: {triage_input.get('chiefcomplaint')}"
-        )
-    primary_drivers.extend([f"Rules reason code: {code}" for code in reason_codes])
-    primary_drivers.extend([f"Safety flag: {flag}" for flag in safety_flags])
-    primary_drivers.extend([f"Override flag: {flag}" for flag in override_flags])
+    if faa.get("override_applied"):
+        primary_drivers.extend([f"Applied safety override: {flag}" for flag in override_flags])
     if ml_prediction.get("prediction_available"):
         primary_drivers.append(
             "UHL ML research estimate predicted acuity "
@@ -425,17 +432,15 @@ def safe_multiagent_evidence(case_uid: str, source_dataset: str,
                 "ML top-class confidence: "
                 f"{ml_prediction.get('top_class_confidence')}"
             )
-    if not reason_codes and not safety_flags and not override_flags:
-        primary_drivers.append(
-            "No deterministic critical-vital or safety reason code is present in "
-            "the exposed evidence."
-        )
     category_reasoning = {
         "task": (
             "Explain why the already-computed research estimate / provisional "
             "Manchester-style display category was shown. Do not re-list every "
             "vital sign; mention only decision-driving, abnormal, missing, or "
-            "explicitly non-driving normal findings."
+            "explicitly non-driving normal findings. The separate heuristic "
+            "pathway and safety-review context do not determine the ML output. "
+            "No model feature attribution has been computed: do not claim that "
+            "an input feature caused the model prediction."
         ),
         "target_output": {
             "ml_predicted_acuity": faa.get("ml_predicted_acuity")
@@ -448,6 +453,7 @@ def safe_multiagent_evidence(case_uid: str, source_dataset: str,
             "override_note": faa.get("override_note"),
         },
         "primary_drivers": primary_drivers,
+        "parallel_safety_context": {"reason_codes": reason_codes, "safety_flags": safety_flags},
         "missing_or_limited_data": missing_fields,
         "model_probability_summary": model_probability_summary,
         "rules_summary": {
@@ -487,6 +493,7 @@ def safe_multiagent_evidence(case_uid: str, source_dataset: str,
         "missing_fields": missing_fields,
         "rules_engine_status": decision.get("classification_status"),
         "rules_engine_reason_codes": reason_codes,
+        "discriminator_evidence": workflow_result.get("discriminator_evidence") or {},
         "rules_engine_note": (
             "No clinician-approved Manchester category is assigned. If a "
             "category is present, it was produced by a provisional, unvalidated "

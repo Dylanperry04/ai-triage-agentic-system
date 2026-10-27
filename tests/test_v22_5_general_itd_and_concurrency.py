@@ -456,4 +456,5 @@ def test_development_manifest_contains_retired_ui_test_dependency():
     from pathlib import Path
 
     content = Path("requirements-dev.txt").read_text(encoding="utf-8")
-    assert "streamlit==1.54.0" in content
+    assert "streamlit==1.66.1" in content
+    assert "pyarrow==24.0.0" in content

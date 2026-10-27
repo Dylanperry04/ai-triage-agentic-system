@@ -1,4 +1,6 @@
 # Retired Streamlit presentation retained for source-history use only.
 # It is not installed into the active FastAPI/React Azure deployment.
 -r requirements-runtime.txt
-streamlit==1.54.0
+streamlit==1.66.1
+# Keep the retired UI compatible with the serving NumPy pin.
+pyarrow==24.0.0

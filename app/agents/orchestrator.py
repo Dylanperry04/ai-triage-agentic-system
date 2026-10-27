@@ -83,6 +83,8 @@ def run_workflow(
     # UHL model estimate is available.
     from app.schemas.workflow import FinalAcuityAssessment
     final_acuity_assessment = FinalAcuityAssessment()
+    from app.rules.discriminators import evaluate_vital_discriminators, build_discriminator_evidence
+    evaluated_discriminators = evaluate_vital_discriminators(triage_input)
     if (
         triage_input.source_dataset == "UHL_SYNTHETIC_TRIAGE_VITALS_ACUITY_FINAL_20260402"
         and ml_prediction.prediction_available
@@ -90,6 +92,7 @@ def run_workflow(
     ):
         from app.rules.acuity_override import apply_acuity_override
         ov = apply_acuity_override(ml_prediction.predicted_mimic_acuity, triage_input)
+        evaluated_discriminators = ov["evaluated_discriminators"]
         mts = ov.get("final_mts") or {}
         final_acuity_assessment = FinalAcuityAssessment(
             applicable=True,
@@ -109,6 +112,25 @@ def run_workflow(
         )
 
     # ── Step 6: LLM Explanation (optional, only if requested) ─────────────────
+    discriminator_evidence = build_discriminator_evidence(
+        evaluated_discriminators,
+        override_applied=final_acuity_assessment.override_applied,
+        model_policy={
+            "type": ml_prediction.decision_rule_type,
+            "threshold": ml_prediction.decision_rule_threshold,
+            "changed_prediction": ml_prediction.decision_rule_changed_prediction,
+            "modal_acuity": ml_prediction.argmax_acuity,
+            "ml_acuity": ml_prediction.predicted_mimic_acuity,
+        },
+        pathway={
+            "ruleset_id": decision.ruleset_id,
+            "classification_status": decision.classification_status,
+            "reason_codes": decision.reason_codes,
+            "priority": decision.priority,
+            "affects_displayed_acuity": False,
+        },
+    )
+
     if include_llm_explanation:
         from app.agents.llm_explanation_agent import run_llm_explanation
         evidence_package = {
@@ -132,6 +154,7 @@ def run_workflow(
             "missing_vitals": safety_review.critical_missing_vitals,
             "ml_prediction": ml_prediction.model_dump(mode="json"),
             "final_acuity_assessment": final_acuity_assessment.model_dump(mode="json"),
+            "discriminator_evidence": discriminator_evidence,
         }
         llm_kwargs = {}
         if clinician_question is not None:
@@ -164,9 +187,9 @@ def run_workflow(
             "LLM does not assign triage categories or make clinical decisions."
         ),
         "ml_policy": (
-            "ML prediction is full-MIMIC-only. If MIMIC_FULL_MODEL_PATH is not "
-            "configured or the artifact is incompatible, prediction fails closed "
-            "rather than substituting a retired demo or non-MIMIC model. A "
+            "The active ML prediction uses the pinned UHL model and its exact "
+            "input contract. Missing or incompatible assets withhold prediction "
+            "rather than substituting another model. A "
             "deterministic escalate-only vital override may raise (never lower) "
             "the displayed acuity for extreme/critical vitals. All ML outputs "
             "are research-grade only and do not replace deterministic safety "
@@ -233,6 +256,7 @@ def run_workflow(
         safety_review=safety_review,
         ml_prediction=ml_prediction,
         final_acuity_assessment=final_acuity_assessment,
+        discriminator_evidence=discriminator_evidence,
         explanation=explanation,
         audit=audit,
         workflow_action=workflow_action,

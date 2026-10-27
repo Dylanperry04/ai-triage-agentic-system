@@ -6,13 +6,14 @@ from app.agents.ml_prediction_agent import _select_uhl_serving_acuity, run_ml_pr
 from app.api import case_resolver
 from app.api.status_routes import _uhl_model_performance_payload
 from app.config import settings
-from app.constants import DATASET_SHA256, DATASET_SOURCE, MODEL_SHA256
+from app.constants import DATASET_SOURCE, DEMO_COHORT_SHA256, MODEL_SHA256
 from app.schemas.internal import EDTriageCase
 
 
 def test_pinned_uhl_assets_are_the_active_source():
     assert settings.default_dataset == "uhl"
-    assert hashlib.sha256(settings.uhl_data_path.read_bytes()).hexdigest() == DATASET_SHA256
+    assert settings.uhl_case_cohort == "demo_100"
+    assert hashlib.sha256(settings.serving_data_path.read_bytes()).hexdigest() == DEMO_COHORT_SHA256
     assert hashlib.sha256(settings.uhl_model_path.read_bytes()).hexdigest() == MODEL_SHA256
 
 

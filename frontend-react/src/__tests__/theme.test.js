@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { priorityFromCategory, toC, vitalState, catOf, MTS, NEUTRAL_CAT } from "../theme.js";
+import { priorityFromCategory, acuityLabel, toC, vitalState, catOf, MTS, NEUTRAL_CAT } from "../theme.js";
 
 describe("priorityFromCategory", () => {
   it("maps backend category strings to MTS-style priorities", () => {
@@ -18,6 +18,18 @@ describe("priorityFromCategory", () => {
     expect(priorityFromCategory(9)).toBeNull();
     expect(priorityFromCategory("no category here", null)).toBeNull();
     expect(priorityFromCategory(null, 3)).toBe(3);
+  });
+  it.each(["None", "non-clinical", "Not configured", "no red flags", "unassigned", "3.7", "5abc", "15", true, NaN, Infinity])(
+    "does not invent an acuity from missing/status/invalid input %s", (value) => {
+      expect(priorityFromCategory(value)).toBeNull();
+      expect(catOf(priorityFromCategory(value))).toBe(NEUTRAL_CAT);
+      expect(acuityLabel(value)).toBe("Acuity pending");
+    });
+  it("accepts explicit acuity labels and consistent saved override formats", () => {
+    expect(priorityFromCategory("Acuity 3")).toBe(3);
+    expect(priorityFromCategory("Very Urgent (Orange) (acuity 2)")).toBe(2);
+    expect(priorityFromCategory("Non-urgent (acuity 5)")).toBe(5);
+    expect(priorityFromCategory("Urgent (Blue)")).toBeNull();
   });
 });
 

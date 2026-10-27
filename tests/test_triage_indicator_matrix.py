@@ -24,14 +24,10 @@ were found this way that a guess would likely have gotten wrong:
      same shape, derived from the Python function name, not from
      anything inside the pathway function.
 
-  2. An UNRECOGNISED complaint with a concern-level vital produces
-     AWAITING_APPROVED_CLINICAL_RULESET (codes: UNRECOGNISED_COMPLAINT +
-     the concern flag(s) + MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET).
-     A MATCHED pathway with a concern-level vital instead produces
-     PHYSIOLOGY_CONCERN_FLAGGED (codes: PATHWAY_MATCHED_X + the concern
-     flag(s), with NO disabled-ruleset suffix). These are genuinely
-     different branches in run_manchester_engine() with different
-     output shapes -- not the same behaviour with different labels.
+  2. Concern-level physiology must produce PHYSIOLOGY_CONCERN_FLAGGED
+     with or without a recognised complaint. The October audit corrected
+     an early fallback that hid this alert for unrecognised complaints.
+     No clinical category is assigned in either case without a ruleset.
 
 Every pathway-match row below uses a chief complaint with otherwise
 CLEAN vitals, specifically to isolate "pathway detected, no category
@@ -94,8 +90,8 @@ VITAL_INDICATOR_CASES: list[IndicatorTestCase] = [
         "SpO2 below 90 is always critical regardless of ruleset status.",
     ),
     IndicatorTestCase(
-        "Concern SpO2 low", {"o2sat": 92.0}, "AWAITING_APPROVED_CLINICAL_RULESET",
-        ["UNRECOGNISED_COMPLAINT", "CONCERN_SPO2_90_TO_94", "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"],
+        "Concern SpO2 low", {"o2sat": 92.0}, "PHYSIOLOGY_CONCERN_FLAGGED",
+        ["UNRECOGNISED_COMPLAINT", "CONCERN_SPO2_90_TO_94"],
         "Concern-band SpO2 (90-94) with an unrecognised complaint.",
     ),
     IndicatorTestCase(
@@ -109,8 +105,8 @@ VITAL_INDICATOR_CASES: list[IndicatorTestCase] = [
         "Resprate below 8 is critical.",
     ),
     IndicatorTestCase(
-        "Concern respiratory rate high", {"resprate": 27.0}, "AWAITING_APPROVED_CLINICAL_RULESET",
-        ["UNRECOGNISED_COMPLAINT", "CONCERN_RESPIRATORY_RATE_25_TO_29", "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"],
+        "Concern respiratory rate high", {"resprate": 27.0}, "PHYSIOLOGY_CONCERN_FLAGGED",
+        ["UNRECOGNISED_COMPLAINT", "CONCERN_RESPIRATORY_RATE_25_TO_29"],
         "Concern-band resprate (25-29). NOTE: engine has no low-side concern band for resprate, only the critical-low cutoff at 8.",
     ),
     IndicatorTestCase(
@@ -124,8 +120,8 @@ VITAL_INDICATOR_CASES: list[IndicatorTestCase] = [
         "Heart rate below 40 is critical.",
     ),
     IndicatorTestCase(
-        "Concern heart rate high", {"heartrate": 115.0}, "AWAITING_APPROVED_CLINICAL_RULESET",
-        ["UNRECOGNISED_COMPLAINT", "CONCERN_HEART_RATE_101_TO_130", "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"],
+        "Concern heart rate high", {"heartrate": 115.0}, "PHYSIOLOGY_CONCERN_FLAGGED",
+        ["UNRECOGNISED_COMPLAINT", "CONCERN_HEART_RATE_101_TO_130"],
         "Concern-band heart rate (101-130). NOTE: engine has no low-side concern band for heart rate, only the critical-low cutoff at 40.",
     ),
     IndicatorTestCase(
@@ -139,8 +135,8 @@ VITAL_INDICATOR_CASES: list[IndicatorTestCase] = [
         "SBP above 220 is critical.",
     ),
     IndicatorTestCase(
-        "Concern systolic BP low", {"sbp": 95.0}, "AWAITING_APPROVED_CLINICAL_RULESET",
-        ["UNRECOGNISED_COMPLAINT", "CONCERN_SBP_90_TO_99", "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"],
+        "Concern systolic BP low", {"sbp": 95.0}, "PHYSIOLOGY_CONCERN_FLAGGED",
+        ["UNRECOGNISED_COMPLAINT", "CONCERN_SBP_90_TO_99"],
         "Concern-band SBP (90-99). NOTE: engine has no high-side concern band for SBP, only the critical-high cutoff at 220.",
     ),
     IndicatorTestCase(
@@ -154,8 +150,8 @@ VITAL_INDICATOR_CASES: list[IndicatorTestCase] = [
         "Temperature < 35C is critical.",
     ),
     IndicatorTestCase(
-        "Concern high fever", {"temperature": 40.0}, "AWAITING_APPROVED_CLINICAL_RULESET",
-        ["UNRECOGNISED_COMPLAINT", "CONCERN_HIGH_FEVER_39_5_TO_41C", "MTS_PATHWAY_DISABLED_NO_APPROVED_RULESET"],
+        "Concern high fever", {"temperature": 40.0}, "PHYSIOLOGY_CONCERN_FLAGGED",
+        ["UNRECOGNISED_COMPLAINT", "CONCERN_HIGH_FEVER_39_5_TO_41C"],
         "Concern-band fever (39.5-41C). NOTE: engine has no low-temperature concern band, only the critical-low cutoff at 35C.",
     ),
 ]

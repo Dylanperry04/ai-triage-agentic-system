@@ -75,14 +75,41 @@ def test_resource_creation_is_manual_confirmed_and_sms_remains_disabled():
     assert "az provider register" not in workflow
 
 
-def test_single_authoritative_app_service_workflow_targets_college_app():
+def test_single_authoritative_app_service_workflow_targets_both_apps():
+    import yaml
     workflow_dir = ROOT / ".github" / "workflows"
     assert not (workflow_dir / "main_triage.yml").exists()
     assert not (workflow_dir / "main_ai-triage-agentic-system.yml").exists()
     deploy = _read(".github/workflows/deploy-azure.yml")
     infrastructure = _read(".github/workflows/notifications-infrastructure.yml")
-    assert "AZURE_WEBAPP_NAME: ai-triage-agentic-system" in deploy
-    assert "AZURE_RESOURCE_GROUP: Ai-triaging" in deploy
+    config = yaml.safe_load(deploy)
+    job = config["jobs"]["test-and-deploy"]
+    targets = job["strategy"]["matrix"]["include"]
+    assert job["strategy"]["fail-fast"] is False
+    assert {(t["app"], t["resource_group"], t["subscription"]) for t in targets} == {
+        ("ai-triage-agentic-system", "Ai-triaging", "3e06b774-e965-4c81-aa02-897ec6647dcd"),
+        ("EDTRIAGE", "Triage", "4b5b261f-4692-4c6f-afd6-18874e1a0487"),
+    }
+    assert len(targets) == 2
+    for key in ("client_secret", "tenant_secret", "subscription_secret"):
+        assert len({t[key] for t in targets}) == 2
+    logins = [step for step in job["steps"] if step.get("uses") == "azure/login@v2"]
+    assert len(logins) == 2  # ordinary release and early rollback safety
+    for login in logins:
+        assert login["with"] == {
+            "client-id": "${{ secrets[matrix.client_secret] }}",
+            "tenant-id": "${{ secrets[matrix.tenant_secret] }}",
+            "subscription-id": "${{ secrets[matrix.subscription_secret] }}",
+        }
+    assert '${target_id,,}" != "${expected_id,,}' in deploy
+    assert '/subscriptions/${EXPECTED_SUBSCRIPTION_ID}/resourcegroups/' in deploy
+    assert config["env"]["PYTHON_VERSION"] == "3.11"
+    assert '--linux-fx-version "PYTHON|${PYTHON_VERSION}"' in deploy
+    assert '--startup-file "bash startup-backend.sh"' in deploy
+    assert "UHL_CASE_COHORT=demo_100 PREWARM_UHL_CACHE_ON_STARTUP=false" in deploy
+    assert deploy.index("Configure the packaged Python runtime") < deploy.index("Deploy to Azure Web App")
+    assert config["jobs"]["tag-release"]["needs"] == "test-and-deploy"
+    assert not any("git tag" in step.get("run", "") for step in job["steps"])
     assert "Triage_System" not in deploy
     assert "Triage_System" not in infrastructure
     assert "Verify authoritative Azure deployment target" in deploy

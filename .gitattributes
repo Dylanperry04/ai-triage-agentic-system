@@ -1,0 +1,4 @@
+# Linux startup scripts must remain executable by the Azure shell.
+*.sh text eol=lf
+# Integrity-pinned serving data must have identical bytes on every checkout.
+data/uhl_demo_100.json -text

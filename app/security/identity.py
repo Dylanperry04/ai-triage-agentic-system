@@ -20,6 +20,7 @@ without touching call sites.
 from __future__ import annotations
 
 import base64
+import ipaddress
 import re
 import json
 import os
@@ -83,7 +84,7 @@ DEFAULT_GROUP_ROLE_MAP = {
 
 
 def map_groups_to_roles(groups: List[str], group_role_map: Optional[dict] = None) -> List[str]:
-    m = group_role_map or DEFAULT_GROUP_ROLE_MAP
+    m = DEFAULT_GROUP_ROLE_MAP if group_role_map is None else group_role_map
     roles = []
     for g in groups or []:
         key = str(g).strip().lower()
@@ -115,7 +116,7 @@ class AzureTrustedHeaderProvider:
     ID_HEADER = "X-MS-CLIENT-PRINCIPAL-ID"
 
     def __init__(self, group_role_map: Optional[dict] = None):
-        self.group_role_map = group_role_map or DEFAULT_GROUP_ROLE_MAP
+        self.group_role_map = DEFAULT_GROUP_ROLE_MAP if group_role_map is None else group_role_map
 
     def get_context(self, request_headers: Optional[dict] = None) -> AuthContext:
         headers = {k.lower(): v for k, v in (request_headers or {}).items()}
@@ -129,13 +130,22 @@ class AzureTrustedHeaderProvider:
             return AuthContext(authenticated=False, source="azure_header_missing")
 
         try:
-            decoded = base64.b64decode(principal_b64).decode("utf-8")
+            decoded = base64.b64decode(principal_b64, validate=True).decode("utf-8")
             principal = json.loads(decoded)
+            if not isinstance(principal, dict):
+                raise ValueError("principal must be an object")
+            claims = principal.get("claims", [])
+            if not isinstance(claims, list) or any(
+                not isinstance(claim, dict)
+                or not isinstance(claim.get("typ"), str)
+                or not isinstance(claim.get("val"), str)
+                for claim in claims
+            ):
+                raise ValueError("principal claims must contain string types and values")
         except Exception:
             return AuthContext(authenticated=False, source="azure_header_malformed")
 
         # Azure principal: {"auth_typ":..., "claims":[{"typ":..,"val":..}, ...]}
-        claims = principal.get("claims", [])
         def _claim(*types):
             for c in claims:
                 if c.get("typ") in types:
@@ -361,12 +371,12 @@ def is_loopback_host(host: str) -> bool:
     if not host:
         return False
     h = host.strip().lower()
-    if h in {"127.0.0.1", "::1", "localhost"}:
+    if h == "localhost":
         return True
-    # Any 127.x.x.x address is loopback.
-    if h.startswith("127."):
-        return True
-    return False
+    try:
+        return ipaddress.ip_address(h).is_loopback
+    except ValueError:
+        return False
 
 
 def assert_local_research_bind_is_loopback() -> None:

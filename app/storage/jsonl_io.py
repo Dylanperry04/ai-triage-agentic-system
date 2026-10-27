@@ -55,7 +55,8 @@ def read_jsonl_dicts(path: Path, *, limit: int | None = None) -> List[Dict[str, 
             if isinstance(value, dict):
                 rows.append(value)
     if limit is not None:
-        return rows[-max(0, int(limit)):]
+        count = max(0, int(limit))
+        return rows[-count:] if count else []
     return rows
 
 

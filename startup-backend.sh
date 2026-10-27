@@ -3,6 +3,7 @@ set -e
 
 export PYTHONUNBUFFERED=1
 export PORT="${PORT:-8000}"
+export UHL_CASE_COHORT="${UHL_CASE_COHORT:-demo_100}"
 export PYTHONPATH="/home/site/wwwroot/.python_packages/lib/site-packages:/home/site/wwwroot:${PYTHONPATH:-}"
 
 if [ -n "${WEBSITE_SITE_NAME:-}" ] || [ -n "${WEBSITE_INSTANCE_ID:-}" ] || [ -n "${WEBSITES_PORT:-}" ]; then
@@ -38,7 +39,10 @@ if [ "${LOCAL_CREDENTIALED_RESEARCH:-false}" = "true" ] && [ "${IS_AZURE_APP_SER
     echo "For a secured tenant deployment, use PATIENT_DATA_MODE=true with App Service Authentication / Microsoft Entra."
     exit 78
 fi
-if [ "${PREWARM_UHL_CACHE_ON_STARTUP:-false}" = "true" ]; then
+if [ "${UHL_CASE_COHORT}" = "demo_100" ]; then
+    echo "Serving curated 100-case cohort; full CSV and SQLite seed are not loaded."
+fi
+if [ "${PREWARM_UHL_CACHE_ON_STARTUP:-false}" = "true" ] && [ "${UHL_CASE_COHORT}" = "full" ]; then
     echo "===== PREPARING UHL CASE CACHE BEFORE SERVER START ====="
 
     python - <<'PY'

@@ -92,8 +92,8 @@ _UHL_REPOSITORY = None
 def _uhl_repository():
     global _UHL_REPOSITORY
     if _UHL_REPOSITORY is None:
-        from app.data_pipeline.uhl_repository import UhlCaseRepository
-        _UHL_REPOSITORY = UhlCaseRepository(settings)
+        from app.data_pipeline.uhl_repository import get_case_repository
+        _UHL_REPOSITORY = get_case_repository(settings)
     return _UHL_REPOSITORY
 
 
@@ -103,8 +103,9 @@ def _cache_signature(dataset: str) -> Any:
     mtime (serving). Never reads patient data; only stat()s."""
     sig: list = [dataset]
     if dataset == "uhl":
+        sig.append(("case_cohort", settings.uhl_case_cohort, str(settings.serving_data_path)))
         try:
-            st = settings.uhl_data_path.stat()
+            st = settings.serving_data_path.stat()
             sig.append(("uhl_dataset", st.st_mtime_ns, st.st_size))
         except OSError:
             sig.append(("uhl_dataset", "missing"))

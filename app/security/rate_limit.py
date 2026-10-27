@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import os
 import time
+import threading
 from collections import defaultdict, deque
 from dataclasses import dataclass
 from typing import Deque, Dict, Tuple
@@ -27,7 +28,8 @@ from typing import Deque, Dict, Tuple
 
 def _int_env(name: str, default: int) -> int:
     try:
-        return int(os.environ.get(name, default))
+        value = int(os.environ.get(name, default))
+        return value if value > 0 else default
     except (TypeError, ValueError):
         return default
 
@@ -56,12 +58,14 @@ def repeated_block_threshold() -> int:
 # In-process state (per user_id).
 _request_times: Dict[str, Deque[float]] = defaultdict(deque)
 _block_counts: Dict[str, int] = defaultdict(int)
+_state_lock = threading.Lock()
 
 
 def reset_state() -> None:
     """Clear all rate-limit state (used by tests)."""
-    _request_times.clear()
-    _block_counts.clear()
+    with _state_lock:
+        _request_times.clear()
+        _block_counts.clear()
 
 
 @dataclass
@@ -87,29 +91,32 @@ def check_rate(user_id: str, now: float | None = None) -> RateDecision:
     window = rate_limit_window_seconds()
     limit = rate_limit_max_requests()
 
-    times = _request_times[uid]
-    # Drop timestamps outside the window.
-    cutoff = now - window
-    while times and times[0] < cutoff:
-        times.popleft()
+    with _state_lock:
+        times = _request_times[uid]
+        # The check and reservation must be atomic across FastAPI worker threads.
+        cutoff = now - window
+        while times and times[0] < cutoff:
+            times.popleft()
 
-    if len(times) >= limit:
-        retry = int(window - (now - times[0])) + 1
-        return RateDecision(allowed=False,
-                            reason=f"rate limit: {limit} requests / {window}s exceeded",
-                            retry_after_seconds=max(1, retry))
-    times.append(now)
-    return RateDecision(allowed=True)
+        if len(times) >= limit:
+            retry = int(window - (now - times[0])) + 1
+            return RateDecision(allowed=False,
+                                reason=f"rate limit: {limit} requests / {window}s exceeded",
+                                retry_after_seconds=max(1, retry))
+        times.append(now)
+        return RateDecision(allowed=True)
 
 
 def record_block(user_id: str) -> int:
     """Increment and return a user's blocked-attempt counter."""
     uid = user_id or "anonymous"
-    _block_counts[uid] += 1
-    return _block_counts[uid]
+    with _state_lock:
+        _block_counts[uid] += 1
+        return _block_counts[uid]
 
 
 def repeated_blocks_exceeded(user_id: str) -> bool:
     """True if the user has crossed the repeated-block alert threshold."""
     uid = user_id or "anonymous"
-    return _block_counts[uid] >= repeated_block_threshold()
+    with _state_lock:
+        return _block_counts[uid] >= repeated_block_threshold()

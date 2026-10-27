@@ -16,8 +16,11 @@ import requests
 
 PUBLIC_ENDPOINTS = ("/", "/health", "/status/uhl", "/runtime/status", "/ready")
 NOTIFICATION_ENDPOINTS = ("/notifications", "/notifications/system/health")
-EXPECTED_SOURCE_ROWS = 777176
-EXPECTED_MODEL_SCOPE_ROWS = 777174
+EXPECTED_SOURCE_ROWS = 100
+EXPECTED_MODEL_SCOPE_ROWS = 100
+COHORT_COUNTS = {"demo_100": (100, 100), "full": (777176, 777174)}
+EXPECTED_DEMO_COHORT_SHA256 = "1fb5aad5fec098da3335065f7932da6e832104988b579d4c991209e5e561f691"
+EXPECTED_DEMO_ACUITY_COUNTS = {"1": 1, "2": 59, "3": 27, "4": 8, "5": 5}
 
 
 def _request(
@@ -68,7 +71,9 @@ def _attempt(
     check_notifications: bool,
     require_notification_worker: bool,
     check_assistant: bool = False,
+    case_cohort: str = "demo_100",
 ) -> dict[str, Any]:
+    expected_source_rows, expected_model_rows = COHORT_COUNTS[case_cohort]
     session = requests.Session()
     if demo_role:
         session.headers.update(
@@ -89,10 +94,18 @@ def _attempt(
     if not isinstance(payloads["/status/uhl"], dict):
         raise RuntimeError("/status/uhl did not return a JSON object")
     uhl = payloads["/status/uhl"]
+    if uhl.get("case_cohort", case_cohort) != case_cohort:
+        raise RuntimeError("Active case cohort does not match the requested release")
     if not all(uhl.get(key) is True for key in (
         "dataset_ready", "model_ready", "data_hash_verified", "model_hash_verified",
     )):
         raise RuntimeError("UHL dataset/model assets are not ready and hash-verified")
+    if case_cohort == "demo_100" and (
+        uhl.get("serving_data_sha256") != EXPECTED_DEMO_COHORT_SHA256
+        or uhl.get("expected_matched_cases") != 60
+        or uhl.get("expected_acuity_counts") != EXPECTED_DEMO_ACUITY_COUNTS
+    ):
+        raise RuntimeError("Deployed demo cohort does not match the reviewed 60-match release")
     readiness = payloads.get("/ready")
     if not isinstance(readiness, dict) or readiness.get("ready") is not True:
         raise RuntimeError("deep readiness endpoint did not report ready=true")
@@ -101,14 +114,14 @@ def _attempt(
     if readiness.get("runtime_storage_writable") is not True:
         raise RuntimeError("runtime storage is not writable")
     if (
-        readiness.get("source_rows") != EXPECTED_SOURCE_ROWS
-        or readiness.get("model_scope_rows") != EXPECTED_MODEL_SCOPE_ROWS
+        readiness.get("source_rows") != expected_source_rows
+        or readiness.get("model_scope_rows") != expected_model_rows
     ):
         raise RuntimeError("UHL case repository row counts do not match the pinned release")
     runtime = payloads.get("/runtime/status")
     if not isinstance(runtime, dict) or (runtime.get("model") or {}).get("loadable") is not True:
         raise RuntimeError("runtime status does not report a loadable model")
-    if (runtime.get("uhl") or {}).get("case_count") != EXPECTED_SOURCE_ROWS:
+    if (runtime.get("uhl") or {}).get("case_count") != expected_source_rows:
         raise RuntimeError("runtime case index count does not match the pinned UHL release")
 
     if check_notifications:
@@ -185,6 +198,7 @@ def main(argv=None) -> int:
     parser.add_argument("--check-notifications", action="store_true")
     parser.add_argument("--require-notification-worker", action="store_true")
     parser.add_argument("--check-assistant", action="store_true")
+    parser.add_argument("--cohort", choices=tuple(COHORT_COUNTS), default="demo_100")
     parser.add_argument("--timeout", type=float, default=30.0)
     parser.add_argument("--attempts", type=int, default=30)
     parser.add_argument("--retry-seconds", type=float, default=10.0)
@@ -208,6 +222,7 @@ def main(argv=None) -> int:
                 check_notifications=args.check_notifications,
                 require_notification_worker=args.require_notification_worker,
                 check_assistant=args.check_assistant,
+                case_cohort=args.cohort,
             )
             result["attempt"] = attempt
             result["base_url"] = base_url

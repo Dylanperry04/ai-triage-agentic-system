@@ -10,7 +10,21 @@ flow into TriageTimeInput.
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+
+class _VitalInputModel(BaseModel):
+    model_config = {"allow_inf_nan": False}
+
+    @field_validator("temperature_unit", check_fields=False)
+    @classmethod
+    def validate_temperature_unit(cls, value: str) -> str:
+        unit = value.strip().upper()
+        if unit in {"F", "FAHRENHEIT"}:
+            return "F"
+        if unit in {"C", "CELSIUS", "CENTIGRADE"}:
+            return "C"
+        raise ValueError("temperature_unit must be Celsius or Fahrenheit")
 
 
 class EDStaySource(BaseModel):
@@ -25,7 +39,7 @@ class EDStaySource(BaseModel):
     disposition: Optional[str] = None
 
 
-class TriageSource(BaseModel):
+class TriageSource(_VitalInputModel):
     subject_id: int
     stay_id: int
 
@@ -58,7 +72,7 @@ class TriageSource(BaseModel):
     acuity: Optional[float] = None
 
 
-class VitalSignRecord(BaseModel):
+class VitalSignRecord(_VitalInputModel):
     subject_id: int
     stay_id: int
     charttime: Optional[str] = None
@@ -104,7 +118,7 @@ class PyxisRecord(BaseModel):
     gsn: Optional[str] = None
 
 
-class TriageTimeInput(BaseModel):
+class TriageTimeInput(_VitalInputModel):
     """
     Triage-time input record.
 

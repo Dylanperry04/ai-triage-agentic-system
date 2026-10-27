@@ -20,16 +20,16 @@ def _report_dir() -> tuple[object, bool]:
 def _uhl_status_payload():
     import hashlib
     from app.config import settings
-    from app.constants import DATASET_SOURCE
+    from app.constants import DATASET_SOURCE, DEMO_COHORT_CATEGORY_COUNTS, DEMO_COHORT_MATCHED_ROWS
 
-    data_present = settings.uhl_data_path.is_file()
+    data_present = settings.serving_data_path.is_file()
     model_present = settings.uhl_model_path.is_file()
     data_hash_verified = False
     model_hash_verified = False
     try:
         data_hash_verified = data_present and hashlib.sha256(
-            settings.uhl_data_path.read_bytes()
-        ).hexdigest() == settings.expected_dataset_sha256
+            settings.serving_data_path.read_bytes()
+        ).hexdigest() == settings.expected_serving_data_sha256
     except OSError:
         pass
     try:
@@ -45,7 +45,13 @@ def _uhl_status_payload():
         "data_hash_verified": bool(data_hash_verified),
         "model_hash_verified": bool(model_hash_verified),
         "active_case_source": DATASET_SOURCE if data_hash_verified else "not_configured",
-        "active_case_source_mode": "packaged_uhl",
+        "active_case_source_mode": "curated_demo_100" if settings.uhl_case_cohort == "demo_100" else "packaged_uhl",
+        "case_cohort": settings.uhl_case_cohort,
+        "expected_case_count": settings.expected_case_rows,
+        "curated_demonstration": settings.uhl_case_cohort == "demo_100",
+        "serving_data_sha256": settings.expected_serving_data_sha256 if data_hash_verified else None,
+        "expected_matched_cases": DEMO_COHORT_MATCHED_ROWS if settings.uhl_case_cohort == "demo_100" else None,
+        "expected_acuity_counts": DEMO_COHORT_CATEGORY_COUNTS if settings.uhl_case_cohort == "demo_100" else None,
         "reason": "ok" if data_hash_verified and model_hash_verified else "missing_or_invalid_asset",
         "not_clinically_validated": True,
     }
@@ -59,8 +65,7 @@ def _readiness_payload() -> dict:
     import joblib
 
     from app.config import settings
-    from app.constants import EXPECTED_MODEL_ROWS, EXPECTED_SOURCE_ROWS
-    from app.data_pipeline.uhl_repository import UhlCaseRepository
+    from app.data_pipeline.uhl_repository import get_case_repository
     from ml_training.uhl_synthetic.serving import validate_uhl_serving_bundle
 
     asset = _uhl_status_payload()
@@ -76,7 +81,7 @@ def _readiness_payload() -> dict:
     repository_status: dict = {}
     repository_error = ""
     try:
-        repository_status = UhlCaseRepository(settings).status()
+        repository_status = get_case_repository(settings).status()
     except Exception as exc:
         repository_error = exc.__class__.__name__
 
@@ -100,8 +105,8 @@ def _readiness_payload() -> dict:
         and asset["model_hash_verified"]
         and model_loadable
         and repository_status.get("dataset_ready") is True
-        and source_rows == EXPECTED_SOURCE_ROWS
-        and model_rows == EXPECTED_MODEL_ROWS
+        and source_rows == settings.expected_case_rows
+        and model_rows == settings.expected_model_scope_rows
         and storage_writable
     )
     return {
@@ -113,9 +118,9 @@ def _readiness_payload() -> dict:
         "model_hash_verified": bool(asset["model_hash_verified"]),
         "model_loadable": model_loadable,
         "source_rows": source_rows,
-        "expected_source_rows": EXPECTED_SOURCE_ROWS,
+        "expected_source_rows": settings.expected_case_rows,
         "model_scope_rows": model_rows,
-        "expected_model_scope_rows": EXPECTED_MODEL_ROWS,
+        "expected_model_scope_rows": settings.expected_model_scope_rows,
         "runtime_storage_writable": storage_writable,
         "errors": {
             "model": model_error,

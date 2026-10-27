@@ -1,0 +1,16 @@
+.git
+.env
+.env.*
+.venv
+venv
+**/node_modules
+**/__pycache__
+**/.pytest_cache
+data/uhl_dataset_final.csv.gz
+data/cache
+data/processed
+data/raw
+mimic_data
+wandb
+wandb-offline
+wandb_logs

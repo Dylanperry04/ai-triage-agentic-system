@@ -73,7 +73,7 @@ _ALLOWED_EVIDENCE_FIELDS = {
     "missing_fields", "rules_engine_status", "rules_engine_reason_codes",
     "rules_engine_note", "safety_flags", "is_safe_to_present",
     "ml_research_estimate", "final_acuity_assessment", "followup_comparison",
-    "category_reasoning", "policy",
+    "category_reasoning", "discriminator_evidence", "policy",
 }
 
 

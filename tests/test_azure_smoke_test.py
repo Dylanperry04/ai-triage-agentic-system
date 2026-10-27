@@ -43,6 +43,9 @@ def _responses(*, heartbeat=True):
         "/status/uhl": _Response({
             "dataset_ready": True, "model_ready": True,
             "data_hash_verified": True, "model_hash_verified": True,
+            "serving_data_sha256": azure_smoke_test.EXPECTED_DEMO_COHORT_SHA256,
+            "expected_matched_cases": 60,
+            "expected_acuity_counts": azure_smoke_test.EXPECTED_DEMO_ACUITY_COUNTS,
         }),
         "/runtime/status": _Response({
             "model": {"loadable": True},
@@ -74,6 +77,24 @@ def _responses(*, heartbeat=True):
             }
         ),
     }
+
+
+@pytest.mark.parametrize("field,value", [
+    ("serving_data_sha256", "old-release"),
+    ("expected_matched_cases", 70),
+    ("expected_acuity_counts", {"5": 100}),
+    ("serving_data_sha256", None),
+])
+def test_smoke_check_rejects_stale_or_different_demo_release(monkeypatch, field, value):
+    responses = _responses()
+    responses["/status/uhl"]._payload[field] = value
+    monkeypatch.setattr(azure_smoke_test.requests, "Session", lambda: _Session(responses))
+    with pytest.raises(RuntimeError, match="reviewed 60-match release"):
+        azure_smoke_test._attempt(
+            base_url="https://triage.example", timeout=1,
+            demo_role="security_admin", expected_build_id="",
+            check_notifications=False, require_notification_worker=False,
+        )
 
 
 def test_smoke_check_is_read_only_and_requires_matching_worker(monkeypatch):
@@ -164,3 +185,23 @@ def test_smoke_can_exercise_exact_itd_assistant_question(monkeypatch):
     )
     assert result["assistant_checked"] is True
     assert any(url.endswith("/system/assistant") for url, _ in session.calls)
+
+
+@pytest.mark.parametrize("cohort,source_rows,model_rows,passes", [
+    ("demo_100", 100, 100, True),
+    ("demo_100", 777176, 777174, False),
+    ("full", 777176, 777174, True),
+])
+def test_smoke_checks_expected_cohort_counts(monkeypatch, cohort, source_rows, model_rows, passes):
+    responses = _responses()
+    responses["/ready"]._payload.update(source_rows=source_rows, model_scope_rows=model_rows)
+    responses["/runtime/status"]._payload["uhl"]["case_count"] = source_rows
+    monkeypatch.setattr(azure_smoke_test.requests, "Session", lambda: _Session(responses))
+    kwargs = dict(base_url="https://triage.example", timeout=1, demo_role="security_admin",
+                  expected_build_id="", check_notifications=False,
+                  require_notification_worker=False, case_cohort=cohort)
+    if passes:
+        assert azure_smoke_test._attempt(**kwargs)["status"] == "PASS"
+    else:
+        with pytest.raises(RuntimeError, match="row counts"):
+            azure_smoke_test._attempt(**kwargs)

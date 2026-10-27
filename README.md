@@ -4,6 +4,11 @@
 > clinician review. The project does not implement an official or clinically
 > validated Manchester Triage System ruleset.
 
+The October 2026 code audit adds assessment-linked discriminator evidence and
+regression fixes. See [the audit report](CODE_AUDIT_2026-10-26.md),
+[specification and Irish applicability review](MTS_REQUIREMENTS_REVIEW.md), and
+[discriminator-based ML migration](DISCRIMINATOR_PIPELINE.md).
+
 This release deliberately keeps the working 22.4.0 application as the base. It
 switches only the active dataset, model-serving contract, model evidence, and
 the dataset-dependent parts of the React UI to the supplied UHL synthetic
@@ -18,10 +23,49 @@ See `UHL_SWAP_NOTES.md` for the detailed boundary.
 
 | Asset | Packaged path | SHA-256 |
 |---|---|---|
-| UHL synthetic cohort (777,176 rows) | `data/uhl_dataset_final.csv.gz` | `f3a6b4b8c7ee081fc02c924978ee1c5ecb5d7ebffbd32a2058d10cbd1bf1cd5c` |
+| Curated runtime demo (100 cases) | `data/uhl_demo_100.json` | `1fb5aad5fec098da3335065f7932da6e832104988b579d4c991209e5e561f691` |
 | Selected UHL CatBoost bundle | `artifacts/model/uhl_synthetic_acuity_selected.joblib` | `7dddf3cc673f5598d73d7e6d56546cad49639edcae77b44b17b677f0b0d1395b` |
 | Single-seed evidence | `artifacts/reports/single_seed/` | See its manifest/provenance files |
 | Five-seed stability evidence | `artifacts/reports/five_seed/` | See `SHA256_MANIFEST.txt` |
+
+The default `UHL_CASE_COHORT=demo_100` loads the small JSON directly into memory.
+It does not scan the full CSV, build SQLite, or restore a large cache seed on
+restart. The current cohort has **1 / 59 / 27 / 8 / 5** cases in Acuities 1-5.
+Exactly **60** cases match at least one existing vital safety check. Of these,
+**22** are raised to a more urgent category; **38** already have an ML result
+as urgent as the required floor. The other **40** retain their ML result.
+The safety layer never lowers urgency or moves a patient to Acuity 5.
+
+All 777,176 original source rows were scanned. Selection uses the unchanged ML
+pipeline, followed by the existing escalate-only safety floor. The separate
+keyword pathway does not determine the recommendation. The final result matches
+the CSV's estimated label; baseline model probability is at least 50%.
+Cases are ranked closer to source vital medians within the source's 1st-99th
+percentiles, with varied complaints. Pain is capped at the source 90th percentile
+(8/10). These statistical limits are not clinical normal ranges.
+Every selected value comes unchanged from the original Git-tracked CSV. Its
+SHA-256 is identical to the subsequently attached `uhl_dataset_final.csv.gz`.
+No new measurements are generated or imputed. To verify all 100 source records:
+
+```text
+python scripts/verify_demo_source.py --source /path/to/uhl_dataset_final.csv.gz --output verification.json
+```
+
+The supplied dataset card identifies synthetic vitals and estimated labels;
+these cases are **not verified real patient observations**. This is a curated
+demonstration selected using labels, **not an evaluation cohort or approved MTS validation**. The
+interface discloses the synthetic vitals and selection.
+
+The full training source remains an optional offline asset with SHA-256
+`f3a6b4b8c7ee081fc02c924978ee1c5ecb5d7ebffbd32a2058d10cbd1bf1cd5c`.
+Docker and Azure deployment packages exclude it. To run the original full-cohort
+mode, explicitly set `UHL_CASE_COHORT=full` and mount the pinned CSV through
+`UHL_DATA_PATH`. Model training provenance and packaged evaluation metrics still
+describe the original dataset and recorded evaluation policy, not these 100 cases.
+See [the 60-matched-case report](COHORT_60_MATCHES_2026-10-27.md) for current
+selection, provenance and verification. The [earlier revision](COHORT_REVISION_2026-10-26.md)
+records the previous milder sample; the [initial follow-up](FOLLOWUP_2026-10-26.md)
+records the balanced sample and earlier UI changes.
 
 The live model accepts exactly these 13 fields: age, month, hour, time bin,
 season, presenting complaint, temperature, heart rate, respiratory rate,
@@ -70,7 +114,8 @@ The packaged defaults work without path configuration. These settings are only
 needed when assets or writable data are mounted elsewhere:
 
 ```text
-UHL_DATA_PATH=/path/to/uhl_dataset_final.csv.gz
+UHL_CASE_COHORT=demo_100
+UHL_DEMO_DATA_PATH=/path/to/uhl_demo_100.json
 UHL_MODEL_PATH=/path/to/uhl_synthetic_acuity_selected.joblib
 UHL_REPORT_DIR=/path/to/single_seed
 UHL_CASE_CACHE_PATH=/writable/path/uhl_cases.sqlite3
@@ -166,9 +211,9 @@ triage, diagnosis and treatment advice remains refused.
 - `/retraining/exports/generate` — ITD-only idempotent previous-month preparation
 - `/retraining/exports/{YYYY-MM}/download` — ITD-only integrity-checked CSV
 
-On Azure, `startup-backend.sh` restores or builds the validated SQLite case
-index before Uvicorn starts. Durable workflow state and a verified cache seed
-live under `/home/data`; the active high-volume SQLite index lives at
+On Azure, the default 100-case mode reads the immutable JSON in memory.
+Durable workflow state lives under `/home/data`. Only explicit full-cohort mode
+restores or builds the large SQLite case index at
 `/tmp/alter-uhl-cache/uhl_cases.sqlite3`. Keep the synthetic demo at one App
 Service instance and one Uvicorn worker because clinical transition locks are
 process-local.

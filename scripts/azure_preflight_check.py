@@ -40,7 +40,7 @@ def main() -> int:
     from app.agents.autogen_team import load_azure_config
     from app.security.security_status import build_security_status, unsafe_combinations
 
-    dataset_path = settings.uhl_data_path
+    dataset_path = settings.serving_data_path
     model_path = settings.uhl_model_path
     report_dir = settings.uhl_report_dir
 
@@ -68,7 +68,7 @@ def main() -> int:
     model_contract_ok = False
     model_contract_error = ""
     if dataset_path.is_file():
-        dataset_hash_ok = _sha256(dataset_path) == settings.expected_dataset_sha256
+        dataset_hash_ok = _sha256(dataset_path) == settings.expected_serving_data_sha256
     if model_path.is_file():
         model_hash_ok = _sha256(model_path) == settings.expected_model_sha256
         try:
@@ -108,7 +108,7 @@ def main() -> int:
             and "uvicorn app.main:app" in backend_text
         ),
         "dockerfile_ships_uhl_assets": (
-            "data/uhl_dataset_final.csv.gz" in docker_text
+            "data/uhl_demo_100.json" in docker_text
             and "COPY artifacts/" in docker_text
         ),
         "dockerfile_installs_complete_runtime_manifest": (

@@ -172,6 +172,7 @@ class WorkflowResult(BaseModel):
     safety_review: SafetyReviewResult
     ml_prediction: MLPredictionResult = Field(default_factory=MLPredictionResult)
     final_acuity_assessment: FinalAcuityAssessment = Field(default_factory=FinalAcuityAssessment)
+    discriminator_evidence: Dict[str, Any] = Field(default_factory=dict)
     explanation: ExplanationResult = Field(default_factory=ExplanationResult)
     audit: Dict[str, Any] = Field(default_factory=dict)
 

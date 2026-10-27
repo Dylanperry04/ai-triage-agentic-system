@@ -23,19 +23,27 @@ export const catOf = (p) => MTS[p] || NEUTRAL_CAT;
 /* Category strings from the backend look like "Very Urgent (Orange)" — map to priority. */
 export function priorityFromCategory(cat, fallback = null) {
   if (cat == null) return fallback;
-  if (typeof cat === "number") return MTS[cat] ? cat : fallback;
-  const s = String(cat).toLowerCase();
-  if (s.includes("immediate") || s.includes("red")) return 1;
-  if (s.includes("very") || s.includes("orange")) return 2;
-  if (s.includes("urgent") && !s.includes("non")) return 3;
-  if (s.includes("standard") || s.includes("green")) return 4;
-  if (s.includes("non") || s.includes("blue")) return 5;
-  const n = parseInt(s, 10);
-  return MTS[n] ? n : fallback;
+  if (typeof cat === "number") return Number.isInteger(cat) && MTS[cat] ? cat : fallback;
+  if (typeof cat !== "string") return fallback;
+  const s = cat.trim().toLowerCase().replace(/-/g, " ").replace(/\s+/g, " ");
+  const numeric = /^(?:acuity\s+)?([1-5])$/.exec(s);
+  if (numeric) return Number(numeric[1]);
+  const labels = { immediate: 1, red: 1, "very urgent": 2, orange: 2,
+    urgent: 3, yellow: 3, standard: 4, green: 4, "non urgent": 5, blue: 5 };
+  const match = /^(immediate|very urgent|urgent|standard|non urgent|red|orange|yellow|green|blue)((?:\s*\([^()]+\))*)$/.exec(s);
+  if (!match) return fallback;
+  const priority = labels[match[1]];
+  // Statuses such as "None" are not Non-urgent. Accept only the category
+  // formats the API emits, and reject contradictory colour/acuity suffixes.
+  const suffixes = [...match[2].matchAll(/\(\s*([^()]+?)\s*\)/g)];
+  return suffixes.every(([, label]) => {
+    const acuity = /^acuity\s+([1-5])$/.exec(label);
+    return (acuity ? Number(acuity[1]) : labels[label]) === priority;
+  }) ? priority : fallback;
 }
 
 export const acuityLabel = (value, fallback = "Acuity pending") => {
-  const p = priorityFromCategory(value, value);
+  const p = priorityFromCategory(value);
   return p == null || p === "" ? fallback : `Acuity ${p}`;
 };
 
