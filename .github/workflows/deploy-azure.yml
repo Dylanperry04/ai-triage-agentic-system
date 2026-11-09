@@ -414,6 +414,7 @@ jobs:
 
           export PYTHONPATH="$GITHUB_WORKSPACE/deployment/.python_packages/lib/site-packages:$GITHUB_WORKSPACE/deployment"
           export PYTHONDONTWRITEBYTECODE=1
+          export UHL_CASE_COHORT="$RELEASE_CASE_COHORT"
 
           # -S excludes the runner's globally installed site-packages, so a
           # missing dependency cannot be hidden by the earlier test install.
@@ -516,6 +517,7 @@ jobs:
           # before cleanup but fails in the deployed artifact.
           export PYTHONPATH="$GITHUB_WORKSPACE/deployment/.python_packages/lib/site-packages:$GITHUB_WORKSPACE/deployment"
           export PYTHONDONTWRITEBYTECODE=1
+          export UHL_CASE_COHORT="$RELEASE_CASE_COHORT"
 
           # Keep the verification isolated from the runner environment.
           python -S - <<'PY'
@@ -528,7 +530,9 @@ jobs:
           import fastapi
           import sklearn
           import uvicorn
+          from app.api import case_resolver
 
+          assert case_resolver.count_cases("uhl") == settings.expected_case_rows
           assert settings.serving_data_path.is_file(), settings.serving_data_path
           assert settings.uhl_model_path.is_file(), settings.uhl_model_path
           validate_uhl_serving_bundle(
@@ -717,10 +721,18 @@ jobs:
             --output none
           # Dependencies are built and verified on Linux above. Do not rebuild
           # them in Oryx or load the full training CSV on each app restart.
+          runtime_settings=(SCM_DO_BUILD_DURING_DEPLOYMENT=false ENABLE_ORYX_BUILD=false WEBSITE_RUN_FROM_PACKAGE=0 PREWARM_UHL_CACHE_ON_STARTUP=false)
+          # App-setting changes restart the currently installed code. The
+          # legacy cohort works on both versions; the balanced cohort does not.
+          # Select legacy before a rollback to an older package, and defer the
+          # balanced setting until the new package is installed.
+          if [ "$RELEASE_CASE_COHORT" = demo_100 ]; then
+            runtime_settings+=(UHL_CASE_COHORT=demo_100)
+          fi
           az webapp config appsettings set \
             --resource-group "${AZURE_RESOURCE_GROUP}" \
             --name "${AZURE_WEBAPP_NAME}" \
-            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=false ENABLE_ORYX_BUILD=false WEBSITE_RUN_FROM_PACKAGE=0 "UHL_CASE_COHORT=${RELEASE_CASE_COHORT}" PREWARM_UHL_CACHE_ON_STARTUP=false \
+            --settings "${runtime_settings[@]}" \
             --output none
 
       - name: Deploy to Azure Web App
@@ -737,7 +749,7 @@ jobs:
           az webapp config appsettings set \
             --resource-group "${AZURE_RESOURCE_GROUP}" \
             --name "${AZURE_WEBAPP_NAME}" \
-            --settings "ALTER_BUILD_ID=${DEPLOY_SHA}" \
+            --settings "ALTER_BUILD_ID=${DEPLOY_SHA}" "UHL_CASE_COHORT=${RELEASE_CASE_COHORT}" \
             --output none
 
       - name: Verify matching web and Function build identities

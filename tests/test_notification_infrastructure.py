@@ -111,7 +111,17 @@ def test_single_authoritative_app_service_workflow_targets_both_apps():
     assert config["env"]["PYTHON_VERSION"] == "3.11"
     assert '--linux-fx-version "PYTHON|${PYTHON_VERSION}"' in deploy
     assert '--startup-file "bash startup-backend.sh"' in deploy
-    assert '"UHL_CASE_COHORT=${RELEASE_CASE_COHORT}" PREWARM_UHL_CACHE_ON_STARTUP=false' in deploy
+    assert "PREWARM_UHL_CACHE_ON_STARTUP=false" in deploy
+    steps = job["steps"]
+    configure, upload, activate = (
+        next(i for i, step in enumerate(steps) if step["name"] == name)
+        for name in ("Configure the packaged Python runtime", "Deploy to Azure Web App",
+                     "Stamp the web build identity")
+    )
+    assert configure < upload < activate
+    assert "runtime_settings+=(UHL_CASE_COHORT=demo_100)" in steps[configure]["run"]
+    assert '"UHL_CASE_COHORT=${RELEASE_CASE_COHORT}"' not in steps[configure]["run"]
+    assert '"UHL_CASE_COHORT=${RELEASE_CASE_COHORT}"' in steps[activate]["run"]
     assert '--cohort "${RELEASE_CASE_COHORT}"' in deploy
     assert "unzip -p deployment.zip data/uhl_demo_balanced_100.json" in deploy
     assert deploy.index("Configure the packaged Python runtime") < deploy.index("Deploy to Azure Web App")
