@@ -327,7 +327,6 @@ def run_ml_prediction(triage_input: TriageTimeInput) -> MLPredictionResult:
 
 def _run_uhl_prediction(triage_input: TriageTimeInput) -> MLPredictionResult:
     """Run the pinned UHL model through its exact 13-field serving contract."""
-    import hashlib
     from types import SimpleNamespace
 
     from app.constants import (
@@ -348,10 +347,6 @@ def _run_uhl_prediction(triage_input: TriageTimeInput) -> MLPredictionResult:
             model_note="The pinned UHL model artefact is missing; clinician review required.",
         )
     try:
-        actual_sha = hashlib.sha256(model_path.read_bytes()).hexdigest()
-        if actual_sha != settings.expected_model_sha256:
-            raise ValueError("model SHA-256 does not match the pinned UHL release")
-
         from app.ml.trusted_artifact import load_verified_model
         bundle = load_verified_model(model_path, settings.expected_model_sha256)
         validate_uhl_serving_bundle(bundle, require_deployable=True)

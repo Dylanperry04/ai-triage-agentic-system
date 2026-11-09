@@ -573,12 +573,7 @@ export default function Triage({ cases, casesError, casesLoading = false, refres
     assessmentRequests.current[uid] = request;
     const current = () => mounted.current && assessmentRequests.current[uid] === request;
     setAssessState((s) => ({ ...s, [uid]: request.state }));
-    const pending = preview
-      ? api.currentAssessment(uid).then(saved => {
-        if (!current()) return null;
-        return saved.assessment || api.previewAssessment(uid);
-      })
-      : api.runAssessment(uid);
+    const pending = preview ? api.previewAssessment(uid) : api.runAssessment(uid);
     pending
       .then((result) => {
         if (!current()) return;

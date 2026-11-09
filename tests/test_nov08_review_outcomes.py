@@ -190,6 +190,9 @@ def test_saved_assessment_survives_real_workflow_and_guarded_persistence(monkeyp
     case = case_resolver.list_cases("uhl", limit=1)[0]
     ctx = AuthContext(authenticated=True, user_id="local-test", roles=["triage_nurse"], source="test")
     assert case_routes.current_assessment(case.case_uid, ctx)["assessment"] is None
+    preview = case_routes.run_assessment(case.case_uid, preview=True, prefer_saved=True, ctx=ctx)
+    assert preview["preview"] is True and not preview.get("workflow_run_id")
+    assert not (tmp_path / "workflow_runs.jsonl").exists()
     logged = case_routes.run_assessment(case.case_uid, ctx=ctx)
     run_path = tmp_path / "workflow_runs.jsonl"
     before = run_path.read_bytes()
@@ -199,7 +202,46 @@ def test_saved_assessment_survives_real_workflow_and_guarded_persistence(monkeyp
     assert restored["workflow_run_id"] == logged["workflow_run_id"]
     assert restored["final_acuity"] == logged["final_acuity"]
     assert restored["assessment_timestamp_utc"] == logged["assessment_timestamp_utc"]
+    def unexpected_prediction(*args, **kwargs):
+        pytest.fail("A valid saved assessment must not run inference again")
+    monkeypatch.setattr(case_routes, "run_workflow", unexpected_prediction)
+    assert case_routes.run_assessment(case.case_uid, preview=True, prefer_saved=True, ctx=ctx) == restored
     assert run_path.read_bytes() == before
+
+
+def test_case_listing_reads_one_current_snapshot_and_keeps_strict_integrity(monkeypatch, tmp_path):
+    from app.api import case_resolver, case_routes
+    from app.config import settings
+    from app.security.identity import AuthContext
+    from app.storage import case_state_repository
+    from app.storage.jsonl_io import EvidenceIntegrityError, append_jsonl
+
+    monkeypatch.setenv("PATIENT_DATA_MODE", "false")
+    monkeypatch.setenv("LOCAL_CREDENTIALED_RESEARCH", "false")
+    monkeypatch.setattr(settings, "processed_dir", tmp_path)
+    ctx = AuthContext(authenticated=True, roles=["triage_nurse"], source="test")
+    first = case_resolver.list_cases("uhl", limit=1)[0].case_uid
+    state_file = tmp_path / "case_workflow_state.jsonl"
+    append_jsonl(state_file, {"case_uid": first, "case_status": "accepted", "state_revision": 1})
+    actual_iter = case_state_repository._iter_local_case_states
+    scanned = []
+
+    def count_scans(path, *, strict=False):
+        scanned.append((path, strict))
+        return actual_iter(path, strict=strict)
+
+    monkeypatch.setattr(case_state_repository, "_iter_local_case_states", count_scans)
+    rows = case_routes.list_cases(dataset="uhl", limit=100, ctx=ctx)["cases"]
+    assert len(rows) == 100
+    assert rows[0]["workflow_state"]["case_status"] == "accepted"
+    assert not rows[1].get("workflow_state")
+    assert scanned == [(state_file, True)]
+    append_jsonl(state_file, {"case_uid": first, "case_status": "discharged", "state_revision": 2})
+    assert case_routes.list_cases(dataset="uhl", limit=1, ctx=ctx)["cases"][0]["workflow_state"]["case_status"] == "discharged"
+    with state_file.open("ab") as stream:
+        stream.write(b'{broken\n')
+    with pytest.raises(EvidenceIntegrityError):
+        case_routes.list_cases(dataset="uhl", limit=100, ctx=ctx)
 
 
 def test_assessment_digest_redaction_keeps_only_valid_metadata():

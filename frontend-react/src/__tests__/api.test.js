@@ -97,7 +97,7 @@ describe("multi-agent case-acuity explanation endpoint", () => {
 describe("read-only preview assessment", () => {
   it("previewAssessment targets the non-auditing preview endpoint", async () => {
     await api.previewAssessment("case-9");
-    expect(calls.at(-1).url).toBe("/cases/case-9/assessments?preview=true");
+    expect(calls.at(-1).url).toBe("/cases/case-9/assessments?preview=true&prefer_saved=true");
   });
   it("runAssessment (opened case) targets the auditing endpoint", async () => {
     await api.runAssessment("case-9");

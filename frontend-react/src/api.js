@@ -159,7 +159,7 @@ export const api = {
   /* Read-only acuity for queue colouring: computes the advisory
      category WITHOUT writing a workflow-run audit record, so rendering or
      scrolling a queue never creates review evidence or clinician attribution. */
-  previewAssessment: (uid) => post(`/cases/${encodeURIComponent(uid)}/assessments?preview=true`),
+  previewAssessment: (uid) => post(`/cases/${encodeURIComponent(uid)}/assessments?preview=true&prefer_saved=true`),
   uploadSupportingScan: (uid, file) => uploadFile(`/cases/${encodeURIComponent(uid)}/supporting-uploads`, file),
   /* ED Nurse reassessment / requested-information response.
      body: { updated_vitals?, updated_complaint?, updated_context?, scan_uploads? }

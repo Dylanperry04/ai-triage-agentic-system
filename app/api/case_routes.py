@@ -738,12 +738,14 @@ def _workflow_state_for_caller(
 
 def _public_case_view(
     rc: case_resolver.ResolvedCase, *, clinical: bool, ctx: AuthContext,
+    workflow_state: Dict[str, Any] | None = None,
 ) -> Dict[str, Any]:
     """Build a response that never includes raw identifiers or retrospective data.
     Clinical content (triage-time vitals/chief complaint) only when the caller
     holds can_view_clinical_content; otherwise a minimal non-clinical summary."""
     from app.api import safe_dto
-    workflow_state = _latest_workflow_state(rc.case_uid)
+    if workflow_state is None:
+        workflow_state = _latest_workflow_state(rc.case_uid)
     public_workflow_state = _workflow_state_for_caller(workflow_state, ctx)
     if not clinical:
         out = safe_dto.safe_case_summary(
@@ -849,8 +851,28 @@ def list_cases(dataset: Optional[str] = None,
     has_more = next_offset < total
     if q and search_meta.get("search_truncated"):
         has_more = True
+    # Read one consistent snapshot for a page of local cases. In App Service
+    # the workflow journal is on a shared mount, so opening and scanning it
+    # once per case dominates the work even for a small cohort.
+    states = None
+    if cases and not _patient_data_mode():
+        from app.storage.case_state_repository import read_latest_case_states
+        from app.storage.jsonl_io import EvidenceIntegrityError
+        try:
+            states = read_latest_case_states(_case_state_path())
+        except EvidenceIntegrityError:
+            raise
+        except OSError as exc:
+            raise HTTPException(
+                status_code=503,
+                detail="Workflow state could not be read from the configured state store.",
+            ) from exc
     return {
-        "cases": [_public_case_view(rc, clinical=clinical, ctx=ctx) for rc in cases],
+        "cases": [
+            _public_case_view(rc, clinical=clinical, ctx=ctx,
+                              workflow_state=states.get(rc.case_uid, {}) if states is not None else None)
+            for rc in cases
+        ],
         "pagination": {
             "total": total,
             "limit": effective_limit,
@@ -1032,57 +1054,70 @@ def get_case(case_uid: str,
     return _public_case_view(rc, clinical=clinical, ctx=ctx)
 
 
-@router.get("/cases/{case_uid}/assessments/current")
-@_serialized_case_transition
-def current_assessment(case_uid: str,
-                       ctx: AuthContext = Depends(requires(authz.PERM_REVIEW_AI_PREDICTION, "view_current_assessment"))):
-    """Read the exact current saved result; never manufacture a run on page load."""
+def _saved_current_assessment(rc, state, case: EDTriageCase | None = None):
+    """Return recorded evidence only while its input, checklist and policy match."""
     from app.config import settings
     from app.schemas.workflow_run import triage_input_fingerprint
     from app.storage.workflow_run_repository import read_workflow_run
     from app.rules.decision_policy import system_identity
     from app.api import safe_dto
 
-    rc = _resolve_or_404(case_uid)
-    state = _latest_workflow_state(rc.case_uid)
-    empty = {"case_uid": rc.case_uid, "assessment": None}
     run_id = state.get("latest_workflow_run_id")
     if not run_id or state.get("mts_checklist_requires_assessment"):
-        return empty
+        return None
     run = read_workflow_run(settings.processed_dir / "workflow_runs.jsonl", run_id, rc.case_uid, strict=True)
     if not run or not run.get("assessment_response"):
-        return empty
-    case = EDTriageCase(**_case_dict_with_workflow_updates(rc.case, state))
+        return None
+    if case is None:
+        case = EDTriageCase(**_case_dict_with_workflow_updates(rc.case, state))
     if (run.get("triage_input_sha256") != triage_input_fingerprint(case.to_triage_time_input())
             or (run.get("mts_assessment") or {}).get("checklist_revision") != case.mts_checklist_revision
             or (run.get("system_identity") or {}).get("system_policy_sha256") != system_identity()["system_policy_sha256"]):
-        return empty
+        return None
     saved = dict(run["assessment_response"])
     if saved.get("case_uid") != rc.case_uid or saved.get("source_dataset") != rc.source_dataset:
         raise HTTPException(503, "Saved assessment identity does not match this case")
     saved.update(workflow_run_id=run_id, assessment_timestamp_utc=run["timestamp_utc"],
                  workflow_state=state, saved_assessment=True)
     safe_dto.assert_no_raw_identifiers(saved)
-    return {"case_uid": rc.case_uid, "assessment": saved}
+    return saved
+
+
+@router.get("/cases/{case_uid}/assessments/current")
+@_serialized_case_transition
+def current_assessment(case_uid: str,
+                       ctx: AuthContext = Depends(requires(authz.PERM_REVIEW_AI_PREDICTION, "view_current_assessment"))):
+    """Read the exact current saved result without running inference."""
+    rc = _resolve_or_404(case_uid)
+    state = _latest_workflow_state(rc.case_uid)
+    return {"case_uid": rc.case_uid, "assessment": _saved_current_assessment(rc, state)}
 
 
 @router.post("/cases/{case_uid}/assessments")
 @_serialized_case_transition
 def run_assessment(case_uid: str,
                    preview: bool = False,
-                   ctx: AuthContext = Depends(requires(authz.PERM_RUN_TRIAGE_ASSESSMENT, "run_assessment"))):
+                   ctx: AuthContext = Depends(requires(authz.PERM_RUN_TRIAGE_ASSESSMENT, "run_assessment")),
+                   prefer_saved: bool = False):
     """Run the deterministic assessment workflow for a case.
 
     ``preview=true`` computes the advisory acuity for read-only purposes (queue
     colouring / ordering) and does NOT write a workflow-run audit record. It is
     used when a UI needs a case's provisional category without recording that a
     clinician reviewed the case — rendering a queue must not create
-    review evidence. The default (preview=false) is the real assessment action
+    review evidence. Preview callers can use prefer_saved=true to restore
+    current saved evidence in the same request. The default is the real assessment action
     a clinician takes on an opened case, and it IS audited.
     """
     rc = _resolve_or_404(case_uid)
     workflow_state = _latest_workflow_state(rc.case_uid)
     case = EDTriageCase(**_case_dict_with_workflow_updates(rc.case, workflow_state))
+    if preview and prefer_saved:
+        if not authz.has_permission(ctx, authz.PERM_REVIEW_AI_PREDICTION):
+            raise HTTPException(403, "Permission is required to view the saved assessment.")
+        saved = _saved_current_assessment(rc, workflow_state, case)
+        if saved is not None:
+            return saved
     result = run_workflow(case, include_llm_explanation=False)
     from app.api import safe_dto
     out = safe_dto.safe_assessment_response(

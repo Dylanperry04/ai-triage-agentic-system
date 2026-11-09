@@ -104,11 +104,12 @@ describe("assessment evidence and probability", () => {
 
 describe("asynchronous patient/run isolation", () => {
   it("restores the exact saved assessment on initial landing without logging a new run", async () => {
-    api.currentAssessment.mockResolvedValue({ assessment: assessment({ workflow_run_id: "saved-initial" }) });
+    api.previewAssessment.mockResolvedValueOnce(assessment({ workflow_run_id: "saved-initial" }));
     render(<Harness />);
     const accept = await screen.findByRole("button", { name: "Accept & log Acuity 3" });
     expect(accept.disabled).toBe(false);
-    expect(api.previewAssessment).not.toHaveBeenCalled();
+    expect(api.previewAssessment).toHaveBeenCalledExactlyOnceWith("a");
+    expect(api.currentAssessment).not.toHaveBeenCalled();
     expect(api.runAssessment).not.toHaveBeenCalled();
     expect(screen.queryByText(/Run a logged assessment before recording/)).toBeNull();
     fireEvent.click(accept);
@@ -119,7 +120,7 @@ describe("asynchronous patient/run isolation", () => {
     expect(await screen.findByRole("button", { name: "Run assessment" })).toBeTruthy();
     await screen.findByRole("button", { name: "Accept & log Acuity 3" });
     fireEvent.click(screen.getByRole("button", { name: "Open Patient b" }));
-    await waitFor(() => expect(api.currentAssessment).toHaveBeenCalledWith("b"));
+    await waitFor(() => expect(api.previewAssessment).toHaveBeenCalledWith("b"));
     await screen.findByRole("button", { name: "Accept & log Acuity 3" });
     fireEvent.click(screen.getByRole("button", { name: "Open Patient a" }));
     expect(api.runAssessment).not.toHaveBeenCalled();
@@ -129,7 +130,7 @@ describe("asynchronous patient/run isolation", () => {
     expect(api.runAssessment).toHaveBeenCalledWith("a");
   });
   it("surfaces current-assessment read failure instead of enabling stale acceptance", async () => {
-    api.currentAssessment.mockRejectedValueOnce(new Error("Evidence read failed"));
+    api.previewAssessment.mockRejectedValueOnce(new Error("Evidence read failed"));
     render(<Harness />);
     expect(await screen.findByRole("button", { name: "Try assessment again" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Accept & log Acuity 3" })).toBeNull();
