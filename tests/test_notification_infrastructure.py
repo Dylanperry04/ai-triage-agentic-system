@@ -76,6 +76,7 @@ def test_resource_creation_is_manual_confirmed_and_sms_remains_disabled():
 
 
 def test_single_authoritative_app_service_workflow_targets_both_apps():
+    import json
     import yaml
     workflow_dir = ROOT / ".github" / "workflows"
     assert not (workflow_dir / "main_triage.yml").exists()
@@ -84,7 +85,11 @@ def test_single_authoritative_app_service_workflow_targets_both_apps():
     infrastructure = _read(".github/workflows/notifications-infrastructure.yml")
     config = yaml.safe_load(deploy)
     job = config["jobs"]["test-and-deploy"]
-    targets = job["strategy"]["matrix"]["include"]
+    assert job["needs"] == "resolve-targets"
+    assert job["strategy"]["matrix"]["include"] == "${{ fromJSON(needs.resolve-targets.outputs.targets) }}"
+    selection = config["jobs"]["resolve-targets"]["steps"][0]
+    assert selection["env"]["TARGET"] == "${{ inputs.target || 'both' }}"
+    targets = json.loads(selection["env"]["TARGETS"])
     assert job["strategy"]["fail-fast"] is False
     assert {(t["app"], t["resource_group"], t["subscription"]) for t in targets} == {
         ("ai-triage-agentic-system", "Ai-triaging", "3e06b774-e965-4c81-aa02-897ec6647dcd"),
@@ -106,7 +111,9 @@ def test_single_authoritative_app_service_workflow_targets_both_apps():
     assert config["env"]["PYTHON_VERSION"] == "3.11"
     assert '--linux-fx-version "PYTHON|${PYTHON_VERSION}"' in deploy
     assert '--startup-file "bash startup-backend.sh"' in deploy
-    assert "UHL_CASE_COHORT=demo_100 PREWARM_UHL_CACHE_ON_STARTUP=false" in deploy
+    assert '"UHL_CASE_COHORT=${RELEASE_CASE_COHORT}" PREWARM_UHL_CACHE_ON_STARTUP=false' in deploy
+    assert '--cohort "${RELEASE_CASE_COHORT}"' in deploy
+    assert "unzip -p deployment.zip data/uhl_demo_balanced_100.json" in deploy
     assert deploy.index("Configure the packaged Python runtime") < deploy.index("Deploy to Azure Web App")
     assert config["jobs"]["tag-release"]["needs"] == "test-and-deploy"
     assert not any("git tag" in step.get("run", "") for step in job["steps"])
@@ -122,7 +129,7 @@ def test_single_authoritative_app_service_workflow_targets_both_apps():
         assert secret_name in deploy
         assert secret_name in infrastructure
     assert "python -m pytest tests/ -q" in deploy
-    assert "pnpm test" in deploy
+    assert "npm test" in deploy
     assert "az bicep build --file infra/notifications/main.bicep" in deploy
     assert deploy.index("Deploy matching notification Function code") < deploy.index(
         "Deploy to Azure Web App"

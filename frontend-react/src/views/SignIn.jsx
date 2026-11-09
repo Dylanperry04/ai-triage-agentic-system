@@ -20,21 +20,6 @@ const ICONS = {
   ScrollText,
 };
 
-const emailFor = (name) =>
-  name
-    .toLowerCase()
-    .replace(/prof\.|dr\.|mr\.|ms\./g, "")
-    .trim()
-    .replace(/[áà]/g, "a")
-    .replace(/[éè]/g, "e")
-    .replace(/[íì]/g, "i")
-    .replace(/[óò]/g, "o")
-    .replace(/[úù]/g, "u")
-    .replace(/[^a-z\s-]/g, "")
-    .trim()
-    .split(/\s+/)
-    .join(".") + "@hse.ie";
-
 export default function SignIn({ session, onSignIn }) {
   const demo = !!session?.demo_role_switcher_available;
   const options = session?.all_role_options || [];
@@ -46,18 +31,17 @@ export default function SignIn({ session, onSignIn }) {
   const [person, setPerson] = useState(
     (
       DEMO_STAFF[options[0]?.role] || [
-        { name: "Demo user", grade: "" },
+        { name: "Local user", grade: "" },
       ]
     )[0],
   );
 
-  const [password, setPassword] = useState("");
 
   useEffect(() => {
     setPerson(
       (
         DEMO_STAFF[role] || [
-          { name: "Demo user", grade: "" },
+          { name: "Local user", grade: "" },
         ]
       )[0],
     );
@@ -184,7 +168,7 @@ export default function SignIn({ session, onSignIn }) {
                 marginBottom: 18,
               }}
             >
-              Sign in
+              Open workspace
             </div>
 
             <Eyebrow style={{ marginBottom: 8 }}>
@@ -304,50 +288,7 @@ export default function SignIn({ session, onSignIn }) {
               />
             </div>
 
-            <Eyebrow style={{ marginBottom: 8 }}>
-              Email
-            </Eyebrow>
-
-            <input
-              readOnly
-              value={emailFor(person.name)}
-              style={{
-                width: "100%",
-                boxSizing: "border-box",
-                fontFamily: T.mono,
-                fontSize: 13.5,
-                padding: "11px 12px",
-                borderRadius: 9,
-                border: `1px solid ${T.border}`,
-                background: "#FAFBFB",
-                color: T.slate,
-                marginBottom: 14,
-              }}
-            />
-
-            <Eyebrow style={{ marginBottom: 8 }}>
-              Password
-            </Eyebrow>
-
-            <input
-              type="password"
-              value={password}
-              onChange={(event) =>
-                setPassword(event.target.value)
-              }
-              placeholder="Password"
-              style={{
-                width: "100%",
-                boxSizing: "border-box",
-                fontFamily: T.font,
-                fontSize: 14,
-                padding: "11px 12px",
-                borderRadius: 9,
-                border: `1px solid ${T.border}`,
-                marginBottom: 20,
-              }}
-            />
-
+            <p style={{ fontSize: 12.5, color: T.slate }}>Local role selection · staff identity is not verified.</p>
             <Btn
               onClick={() =>
                 onSignIn(role, person.name)
@@ -358,7 +299,7 @@ export default function SignIn({ session, onSignIn }) {
                 fontSize: 14.5,
               }}
             >
-              Sign in
+              Open workspace
             </Btn>
           </>
         )}

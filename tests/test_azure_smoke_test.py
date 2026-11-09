@@ -79,6 +79,31 @@ def _responses(*, heartbeat=True):
     }
 
 
+@pytest.mark.parametrize("bad", [None, "stale_catalog", "fabricated_accuracy"])
+def test_mts_smoke_checks_catalog_and_unevaluated_references(monkeypatch, bad):
+    from app.rules.mts_catalog import catalog_payload, catalog_hash
+    responses = _responses()
+    catalog = catalog_payload()
+    report = {"catalog_sha256": catalog_hash(), "reference_cases": 0,
+              "flowchart_selection": {"accuracy": None},
+              "by_presenting_complaint": dict.fromkeys(("chest_pain", "abdominal_pain", "trauma", "respiratory_symptoms", "all"), {})}
+    if bad == "stale_catalog":
+        catalog["sha256"] = "stale"
+    if bad == "fabricated_accuracy":
+        report["flowchart_selection"]["accuracy"] = 1
+    responses["/mts/catalog"] = _Response(catalog)
+    responses["/research/mts/evaluation"] = _Response(report)
+    session = _Session(responses)
+    monkeypatch.setattr(azure_smoke_test.requests, "Session", lambda: session)
+    kwargs = dict(base_url="https://test.invalid", timeout=1, demo_role="security_admin",
+                  expected_build_id="", check_notifications=False, require_notification_worker=False, check_mts=True)
+    if bad:
+        with pytest.raises(RuntimeError, match="MTS"):
+            azure_smoke_test._attempt(**kwargs)
+    else:
+        assert azure_smoke_test._attempt(**kwargs)["mts_checked"] is True
+
+
 @pytest.mark.parametrize("field,value", [
     ("serving_data_sha256", "old-release"),
     ("expected_matched_cases", 70),
@@ -204,4 +229,25 @@ def test_smoke_checks_expected_cohort_counts(monkeypatch, cohort, source_rows, m
         assert azure_smoke_test._attempt(**kwargs)["status"] == "PASS"
     else:
         with pytest.raises(RuntimeError, match="row counts"):
+            azure_smoke_test._attempt(**kwargs)
+
+
+@pytest.mark.parametrize("correct_digest", [True, False])
+def test_smoke_requires_the_reviewed_balanced_cohort(monkeypatch, correct_digest):
+    responses = _responses()
+    responses["/status/uhl"]._payload.update(
+        case_cohort="demo_balanced_100",
+        serving_data_sha256=(
+            azure_smoke_test.EXPECTED_BALANCED_COHORT_SHA256
+            if correct_digest else azure_smoke_test.EXPECTED_DEMO_COHORT_SHA256
+        ),
+    )
+    monkeypatch.setattr(azure_smoke_test.requests, "Session", lambda: _Session(responses))
+    kwargs = dict(base_url="https://triage.example", timeout=1, demo_role="security_admin",
+                  expected_build_id="", check_notifications=False,
+                  require_notification_worker=False, case_cohort="demo_balanced_100")
+    if correct_digest:
+        assert azure_smoke_test._attempt(**kwargs)["status"] == "PASS"
+    else:
+        with pytest.raises(RuntimeError, match="balanced cohort"):
             azure_smoke_test._attempt(**kwargs)

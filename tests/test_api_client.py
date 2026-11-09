@@ -137,6 +137,7 @@ def test_researcher_review_raises_403():
     cuid = api_client.list_cases()["cases"][0]["case_uid"]
     with pytest.raises(api_client.BackendError) as e:
         api_client.submit_review(cuid, {"review_status": "ACCEPTED_AS_PRESENTED",
+            "assessment_exception_reason": "Test fixture: incomplete observations acknowledged",
                                         "review_comment": "x"})
     assert e.value.status_code == 403
 
@@ -147,6 +148,7 @@ def test_demo_role_env_lets_nurse_submit(monkeypatch):
     api_client.run_assessment(cuid)
     run_id = api_client.get_case(cuid)["workflow_state"]["latest_workflow_run_id"]
     out = api_client.submit_review(cuid, {"review_status": "ACCEPTED_AS_PRESENTED",
+            "assessment_exception_reason": "Test fixture: incomplete observations acknowledged",
                                           "workflow_run_id": run_id,
                                           "review_comment": "x"})
     assert out["status"] == "recorded"

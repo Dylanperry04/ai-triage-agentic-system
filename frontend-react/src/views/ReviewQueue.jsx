@@ -4,6 +4,7 @@ import { T, MTS, catOf, NEUTRAL_CAT, priorityFromCategory, patientWithEncounter,
 import { Btn, Eyebrow, Modal, Pill, EmptyState, ErrorNote } from "../atoms.jsx";
 import { api, decisions } from "../api.js";
 import { isQueueRow } from "./Triage.jsx";
+import MTSReviewSummary from "../MTSReviewSummary.jsx";
 
 const CLOSED = new Set(["discharged", "closed", "case_closed"]);
 const QUEUEISH = new Set(["new_unreviewed", "request_more_info", "", "reopened"]);
@@ -174,7 +175,7 @@ export default function ReviewQueue({ cases, casesError, refresh, decisionMap, t
     <div>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
         <div>
-          <div style={{ fontSize: 19, fontWeight: 700 }}>{escalationsOnly ? "Escalations awaiting senior review" : senior ? "Patient disposition" : "Review queue"}</div>
+          <div style={{ fontSize: 19, fontWeight: 700 }}>{escalationsOnly ? "Escalations awaiting senior review" : "Patient disposition"}</div>
           <div style={{ fontSize: 13, color: T.slate, marginTop: 2 }}>{pool.length} case{pool.length === 1 ? "" : "s"} · sorted by latest review time</div>
         </div>
         {!escalationsOnly && (
@@ -226,6 +227,7 @@ export default function ReviewQueue({ cases, casesError, refresh, decisionMap, t
             {open.workflow_state?.overdue_vitals_alert_active && <Pill colour={T.red} bg={T.red50} border="#EFC5D1">Vitals recheck overdue</Pill>}
           </div>
           <div style={{ fontSize: 13.5, lineHeight: 1.6, color: T.ink, textTransform: "capitalize" }}>{open.triage?.chiefcomplaint || "Chief complaint withheld for this role"}.</div>
+          <MTSReviewSummary caseUid={open.case_uid} runId={open.workflow_state?.latest_workflow_run_id} />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(115px, 1fr))", gap: 7, marginTop: 12 }}>
             {[
               ["HR", open.triage?.heartrate, "bpm"], ["RR", open.triage?.resprate, "/min"],
@@ -254,7 +256,7 @@ export default function ReviewQueue({ cases, casesError, refresh, decisionMap, t
                 {canClose && !activeEscalation(open) && <Btn onClick={() => act(() => decisions.discharge(open.case_uid, { workflowRunId: open.workflow_state.latest_workflow_run_id, comment: note.trim() || undefined }), "Patient discharged", `${patientWithEncounter(open)} removed from live queues; the full record stays in the audit trail.`)}><BadgeCheck size={15} style={{ verticalAlign: -3, marginRight: 6 }} />Discharge patient</Btn>}
                 {canClose && !activeEscalation(open) && <Btn kind="quiet" onClick={() => act(() => decisions.closeAdmitted(open.case_uid, { workflowRunId: open.workflow_state.latest_workflow_run_id, comment: note.trim() || "Case closed — admitted to ward." }), "Case closed — admitted", `${patientWithEncounter(open)} removed from live queues; recorded as admitted, not discharged.`)}>Close case (admitted)</Btn>}
               </div>
-              <div style={{ fontSize: 11.5, color: T.grey500, marginTop: 10, lineHeight: 1.45 }}>Every action is linked to the exact model assessment and written to the audit trail with your authenticated identity and role.</div>
+              <div style={{ fontSize: 11.5, color: T.grey500, marginTop: 10, lineHeight: 1.45 }}>Actions are linked to the saved assessment and recorded with your role and identity verification status.</div>
             </div>
           )}
         </Modal>

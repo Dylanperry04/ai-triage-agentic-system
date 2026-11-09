@@ -68,6 +68,7 @@ def screen_user_input(text: str) -> Dict[str, Any]:
 # uses stay_id internally for tests/offline experiments, but the public app path
 # passes case_uid-only evidence.
 _ALLOWED_EVIDENCE_FIELDS = {
+    "mts_assessment",
     "case_uid", "stay_id", "source_dataset", "chief_complaint", "age", "gender",
     "arrival_transport", "triage_vitals", "data_validation_status",
     "missing_fields", "rules_engine_status", "rules_engine_reason_codes",
@@ -139,10 +140,16 @@ def authorise_agent_call(
     """
     auth_perm = required_permission or authz.PERM_ASK_CHATBOT
     # 1. Authorisation.
-    if not authz.has_permission(ctx, auth_perm):
+    permissions = authz.permissions_for(ctx)
+    missing_permission = None
+    if auth_perm not in permissions:
+        missing_permission = auth_perm
+    elif case_uid and authz.PERM_VIEW_CLINICAL_CONTENT not in permissions:
+        missing_permission = authz.PERM_VIEW_CLINICAL_CONTENT
+    if missing_permission:
         record_access(action=action, decision="DENIED", ctx=ctx, page=page,
-                      case_uid=case_uid, permission=auth_perm,
-                      detail=f"role lacks {auth_perm}")
+                      case_uid=case_uid, permission=missing_permission,
+                      detail=f"role lacks {missing_permission}")
         return GatewayDecision(allowed=False, reason="not_authorised")
 
     # 2. Input-size limit (cheap; before anything expensive).

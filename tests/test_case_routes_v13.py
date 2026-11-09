@@ -76,7 +76,7 @@ class TestCaseUidRouting:
     def test_multiagent_explanation_is_case_uid_keyed_and_no_raw_id(self, monkeypatch):
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
         monkeypatch.setenv("ALLOW_PATIENT_EXPLANATION_DEBUG_ROUTE", "true")
-        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["security-admins"])}
+        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["triage-nurses"])}
         cuid = client.get("/cases", headers=headers).json()["cases"][0]["case_uid"]
 
         async def _fake_team(case_uid, evidence, user_question=None):
@@ -122,7 +122,7 @@ class TestCaseUidRouting:
     def test_followup_single_agent_explanation_is_not_multiagent(self, monkeypatch):
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
         monkeypatch.setenv("ALLOW_PATIENT_EXPLANATION_DEBUG_ROUTE", "true")
-        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["security-admins"])}
+        headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["security-admins", "triage-nurses"])}
         cuid = client.get("/cases", headers=headers).json()["cases"][0]["case_uid"]
 
         def _fake_llm(evidence, clinician_question=None):
@@ -170,7 +170,8 @@ class TestCaseUidRouting:
         # security_admin holds can_ask_chatbot, so reaching the /explanations
         # route exercises the DISABLED check specifically (not a missing perm).
         admin_headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["security-admins"])}
-        cuid = client.get("/cases", headers=admin_headers).json()["cases"][0]["case_uid"]
+        doctor_headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-doctors"])}
+        cuid = client.get("/cases", headers=doctor_headers).json()["cases"][0]["case_uid"]
 
         # Free-text chatbot on a clinical screen: still disabled by design.
         r_chat = client.post(
@@ -185,7 +186,6 @@ class TestCaseUidRouting:
         monkeypatch.setattr(
             "app.agents.autogen_multi_agent_team.load_azure_config", lambda: None
         )
-        doctor_headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["ed-doctors"])}
         r_ma = client.post(
             f"/cases/{cuid}/multiagent-explanations", headers=doctor_headers,
             json={"question": "Why this acuity?"},
@@ -218,7 +218,8 @@ class TestRbacOnCaseRoutes:
     def test_researcher_cannot_submit_review(self, monkeypatch):
         cuid = client.get("/cases").json()["cases"][0]["case_uid"]
         r = client.post(f"/cases/{cuid}/reviews",
-                        json={"review_status": "ACCEPTED_AS_PRESENTED", "review_comment": "x"})
+                        json={"review_status": "ACCEPTED_AS_PRESENTED",
+            "assessment_exception_reason": "Test fixture: incomplete observations acknowledged", "review_comment": "x"})
         assert r.status_code == 403            # researcher lacks submit_review
 
     def test_override_requires_reason(self, monkeypatch):
@@ -261,6 +262,7 @@ class TestRbacOnCaseRoutes:
             headers=headers,
             json={
                 "review_status": "ACCEPTED_AS_PRESENTED",
+            "assessment_exception_reason": "Test fixture: incomplete observations acknowledged",
                 "workflow_run_id": run_id,
                 "review_comment": "Accepted for this individual case review.",
             },
@@ -441,6 +443,7 @@ class TestRbacOnCaseRoutes:
             f"/cases/{cuid}/reviews", headers=triage_headers,
             json={
                 "review_status": "ACCEPTED_AS_PRESENTED",
+            "assessment_exception_reason": "Test fixture: incomplete observations acknowledged",
                 "workflow_run_id": original_run,
                 "review_comment": "Accepted before repeat observations.",
             },

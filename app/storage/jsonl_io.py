@@ -13,7 +13,7 @@ import logging
 import threading
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Callable, Dict, List, TypeVar
+from typing import Any, Callable, Dict, Iterator, List, TypeVar
 
 import orjson
 
@@ -40,27 +40,38 @@ def append_jsonl(path: Path, record: Dict[str, Any]) -> None:
             f.flush()
 
 
-def read_jsonl_dicts(path: Path, *, limit: int | None = None) -> List[Dict[str, Any]]:
+class EvidenceIntegrityError(RuntimeError):
+    """Research evidence is unreadable; no partial metric may be reported."""
+
+
+def iter_jsonl_dicts(path: Path, *, strict: bool = False) -> Iterator[Dict[str, Any]]:
     if not path.exists():
-        return []
-    rows: List[Dict[str, Any]] = []
-    with path.open("rb") as f:
-        for line in f:
+        return
+    with _lock_for(path), path.open("rb") as f:
+        for number, line in enumerate(f, 1):
             if not line.strip():
                 continue
             try:
                 value = orjson.loads(line)
             except orjson.JSONDecodeError:
+                if strict:
+                    raise EvidenceIntegrityError(f"Invalid research evidence in {path.name}, line {number}") from None
                 continue
             if isinstance(value, dict):
-                rows.append(value)
+                yield value
+            elif strict:
+                raise EvidenceIntegrityError(f"Non-object research evidence in {path.name}, line {number}")
+
+
+def read_jsonl_dicts(path: Path, *, limit: int | None = None, strict: bool = False) -> List[Dict[str, Any]]:
+    rows = list(iter_jsonl_dicts(path, strict=strict))
     if limit is not None:
         count = max(0, int(limit))
         return rows[-count:] if count else []
     return rows
 
 
-def read_jsonl_models(path: Path, model: Callable[..., T]) -> List[T]:
+def read_jsonl_models(path: Path, model: Callable[..., T], *, strict: bool = False) -> List[T]:
     """Parse a JSONL file into models, skipping rows that fail validation.
 
     Skipping (rather than raising) is deliberate: one malformed line must not
@@ -74,10 +85,12 @@ def read_jsonl_models(path: Path, model: Callable[..., T]) -> List[T]:
     records: List[T] = []
     skipped = 0
     first_error: str = ""
-    for row in read_jsonl_dicts(path):
+    for row in read_jsonl_dicts(path, strict=strict):
         try:
             records.append(model(**row))
         except Exception as exc:
+            if strict:
+                raise EvidenceIntegrityError(f"Invalid evidence schema in {path.name}") from exc
             skipped += 1
             if not first_error:
                 first_error = f"{type(exc).__name__}"

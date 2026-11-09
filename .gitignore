@@ -53,6 +53,12 @@ local_credentialed_output/
 ai_triage_local_credentialed_output/
 data/processed/access_audit.jsonl
 data/processed/workflow_runs.jsonl
+data/processed/mts_references.jsonl
+data/processed/mts_explanations.jsonl
+data/processed/mts_guideline_reviews.jsonl
+data/processed/mts_explanation_reviews.jsonl
+.local-review-data/
+.venv-local-review/
 data/processed/workflow_reruns.jsonl
 data/processed/followup_comparisons.jsonl
 data/processed/human_reviews.jsonl

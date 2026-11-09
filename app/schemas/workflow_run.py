@@ -60,7 +60,10 @@ class WorkflowRunRecord(BaseModel):
     rules_classification_status: Optional[str] = None
     safety_flags: List[str] = Field(default_factory=list)
     discriminator_evidence: Dict[str, Any] = Field(default_factory=dict)
+    mts_assessment: Dict[str, Any] = Field(default_factory=dict)
     explanation_evidence: Dict[str, Any] = Field(default_factory=dict)
+    assessment_response: Dict[str, Any] = Field(default_factory=dict)
+    triage_input_sha256: Optional[str] = None
     workflow_action: Optional[str] = None
     llm_status: Optional[str] = None
     clinician_review_required: bool = True
@@ -71,6 +74,9 @@ class WorkflowRunRecord(BaseModel):
     package_checkpoint: Optional[str] = None
     model_version: Optional[str] = None
     model_sha256: Optional[str] = None
+    system_identity: Dict[str, Any] = Field(default_factory=dict)
+    ml_input_snapshot_available: bool = False
+    ml_safety_category: Optional[int] = None
     mapping_rule_version: Optional[str] = None
     override_rule_version: Optional[str] = None
     rules_version: Optional[str] = None
@@ -151,7 +157,7 @@ def build_workflow_run_record(result, run_id: str, timestamp_utc: str,
             )
         }
     safety_flags = list(getattr(result.safety_review, "data_quality_flags", []) or [])
-    from app.api.safe_dto import safe_multiagent_evidence
+    from app.api.safe_dto import safe_multiagent_evidence, safe_assessment_response
     case_uid = make_case_uid(ti.source_dataset, result.stay_id)
 
     return WorkflowRunRecord(
@@ -174,8 +180,12 @@ def build_workflow_run_record(result, run_id: str, timestamp_utc: str,
         rules_classification_status=getattr(dec, "classification_status", None),
         safety_flags=safety_flags,
         discriminator_evidence=getattr(result, "discriminator_evidence", {}),
+        mts_assessment=getattr(result, "mts_assessment", {}),
         explanation_evidence=safe_multiagent_evidence(
             case_uid, ti.source_dataset, result.model_dump(mode="json")),
+        assessment_response=safe_assessment_response(
+            case_uid, ti.source_dataset, result.model_dump(mode="json")),
+        triage_input_sha256=triage_input_fingerprint(ti),
         workflow_action=getattr(result, "workflow_action", None),
         llm_status=getattr(result.explanation, "explanation_status", None) if hasattr(result, "explanation") else None,
         clinician_review_required=getattr(dec, "requires_clinician_review", True),
@@ -183,7 +193,10 @@ def build_workflow_run_record(result, run_id: str, timestamp_utc: str,
         app_version=app_version,
         package_checkpoint=PACKAGE_CHECKPOINT,
         model_version=getattr(ml, "model_version", None),
-        model_sha256=MODEL_SHA256 if input_schema else None,
+        model_sha256=((getattr(result, "mts_assessment", {}) or {}).get("system_identity") or {}).get("model_sha256") if ti.source_dataset == DATASET_SOURCE else None,
+        system_identity=(getattr(result, "mts_assessment", {}) or {}).get("system_identity") or {},
+        ml_input_snapshot_available=bool(input_schema),
+        ml_safety_category=(getattr(result, "mts_assessment", {}) or {}).get("advisory_before_mts"),
         mapping_rule_version=getattr(fa, "mapping_rule_version", None) or getattr(ml, "mapping_rule_version", None),
         override_rule_version=getattr(fa, "override_rule_version", None),
         rules_version=getattr(dec, "ruleset_id", None),
@@ -198,3 +211,11 @@ def build_workflow_run_record(result, run_id: str, timestamp_utc: str,
         auth_source=getattr(ctx, "source", None),
         assessment_execution_mode=assessment_execution_mode,
     )
+
+
+def triage_input_fingerprint(triage_input) -> str:
+    """Bind saved display evidence to the exact leakage-filtered input."""
+    import hashlib
+    import json
+    return hashlib.sha256(json.dumps(triage_input.model_dump(mode="json"),
+        sort_keys=True, separators=(",", ":"), allow_nan=False).encode()).hexdigest()

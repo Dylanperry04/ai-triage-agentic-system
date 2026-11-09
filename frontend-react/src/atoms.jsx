@@ -10,12 +10,85 @@ export const GlobalStyle = () => (
     @keyframes fadeUp { from { opacity:0; transform:translateY(6px);} to { opacity:1; transform:translateY(0);} }
     @keyframes spin { to { transform: rotate(360deg); } }
     .fade-up { animation: fadeUp .28s ease both; }
-    .alter *:focus-visible { outline: 3px solid #73E6C2; outline-offset: 2px; border-radius: 6px; }
+    .alter *:focus-visible { outline: 3px solid #0B55B7; outline-offset: 2px; border-radius: 6px; }
+    .alter .app-sidebar *:focus-visible { outline-color: #F3FFFB; outline-offset: -4px; }
     .alter ::-webkit-scrollbar { width: 8px; height: 8px; }
     .alter ::-webkit-scrollbar-thumb { background: #C4CCD1; border-radius: 8px; }
     .alter ::-webkit-scrollbar-track { background: transparent; }
     .clickable { cursor: pointer; transition: transform .12s ease, box-shadow .12s ease, background .12s ease; }
     .clickable:hover { transform: translateY(-1px); }
+    .mts-savebar { position: sticky; top: -20px; z-index: 3; background: #fff; border-block: 1px solid #DDE3E7; padding: 8px 0; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+    .mts-savebar > div[role="status"] { font-size: 12px; color: #41665B; }
+    .mts-checklist-progress { background: #F4F7F8; border-radius: 6px; font-size: 12px; padding: 6px 8px; margin: 4px 0 6px; display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; }
+    .mts-observation-table td { padding: 5px 2px; }
+    .mts-observation-table input, .mts-observation-table select { min-height: 32px; }
+    .observations-workspace .triage-detail { max-width: 1100px; }
+    .triage-mobile-recommendation { display: none; }
+    @media (max-width: 1320px) {
+      .triage-workspace { display: grid !important; grid-template-columns: minmax(0, 1fr) minmax(260px, 320px); grid-template-rows: 125px minmax(0, 1fr); }
+      .triage-queue { grid-column: 1 / -1; width: 100% !important; flex: none !important; }
+      .triage-detail { grid-column: 1; min-height: 0; padding: 20px !important; }
+      .triage-advisory { grid-column: 2; width: auto !important; min-height: 0; padding-right: 0 !important; }
+      .observations-workspace { grid-template-columns: minmax(0, 1fr) !important; }
+      .observations-workspace .triage-detail { grid-column: 1 / -1; max-width: none; }
+    }
+    @media (max-width: 900px) {
+      .triage-workspace { display: flex !important; flex-direction: column; height: auto !important; }
+      .triage-queue { height: 125px; order: 0; }
+      .triage-advisory { overflow: visible !important; }
+      .triage-detail { flex: none !important; overflow: visible !important; }
+      .mts-savebar { top: 0; }
+      .app-shell { flex-direction: column; }
+      .app-sidebar { width: 100% !important; flex-direction: row !important; align-items: center; }
+      .sidebar-brand { padding: 8px 12px !important; }
+      .sidebar-brand-copy, .sidebar-group-title, .sidebar-collapse { display: none; }
+      .app-sidebar nav { display: flex; min-width: 0; padding: 6px !important; overflow-x: auto !important; }
+      .sidebar-group { display: flex; gap: 4px; margin-bottom: 0 !important; }
+      .app-sidebar nav button { width: auto !important; flex-shrink: 0; white-space: nowrap; padding: 9px !important; }
+      .app-header { height: auto !important; min-height: 62px; flex-wrap: wrap; gap: 8px !important; padding: 8px 12px !important; }
+      .header-search { flex: 1 1 100% !important; min-width: 0; max-width: none !important; }
+      .header-spacer { display: none; }
+      .app-header > div:last-child { margin-left: auto; }
+      .notification-anchor { position: static !important; }
+      .notification-popover { top: 100% !important; left: 10px; right: 10px !important; width: auto !important; }
+      .app-main { padding: 12px !important; }
+    }
+    @media (max-width: 760px) {
+      .triage-workspace { gap: 10px !important; }
+      .triage-queue { height: 96px; }
+      .triage-case-heading { gap: 6px !important; }
+      .triage-mobile-recommendation { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 44px; padding: 0 10px; border: 1px solid #CBEADF; border-radius: 8px; background: #ECFBF6; color: #00473E; font-size: 12px; font-weight: 700; text-align: right; }
+      .triage-mobile-recommendation > :first-child { text-align: left; }
+    }
+    @media (max-width: 600px) {
+      .triage-detail { padding: 14px !important; }
+      .mts-observation-table, .mts-observation-table tbody { display: block; }
+      .mts-observation-table thead { display: none; }
+      .mts-observation-table tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 4px 8px; padding: 8px 0; }
+      .mts-observation-table td { min-width: 0; }
+      .mts-observation-table td:first-child { grid-column: 1 / -1; font-weight: 700; }
+      .mts-observation-table th[scope="rowgroup"] { grid-column: 1 / -1; }
+      .mts-observation-table select { max-width: 100%; }
+    }
+    @media (max-width: 380px) {
+      .triage-queue { height: 84px; }
+      .triage-mobile-recommendation { min-height: 40px; }
+      .triage-detail { padding-block: 10px !important; }
+      .mts-savebar { padding-block: 5px; }
+    }
+    @media (min-width: 761px) and (max-width: 900px) {
+      .triage-workspace { display: grid !important; grid-template-columns: minmax(0, 1fr) minmax(260px, 300px); grid-template-rows: 125px minmax(0, 1fr); }
+      .triage-advisory { grid-column: 2; grid-row: 2; }
+      .triage-detail { grid-column: 1; grid-row: 2; }
+      .observations-workspace { grid-template-columns: minmax(0, 1fr) !important; }
+    }
+    @media (max-width: 1200px) {
+      .mts-observation-table, .mts-observation-table tbody { display: block; }
+      .mts-observation-table thead { display: none; }
+      .mts-observation-table tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 4px 8px; padding: 5px 0; }
+      .mts-observation-table td { min-width: 0; }
+      .mts-observation-table td:first-child { grid-column: 1 / -1; font-weight: 700; }
+    }
     @media (prefers-reduced-motion: reduce) { .alter * { animation: none !important; transition: none !important; } }
   `}</style>
 );
@@ -57,13 +130,27 @@ export const Pill = ({ children, colour = T.slate, bg = "#F1F4F5", border = T.bo
   <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.04em", color: colour, background: bg, border: `1px solid ${border}`, borderRadius: 999, padding: "3px 9px", whiteSpace: "nowrap", ...style }}>{children}</span>
 );
 export function Modal({ title, children, onClose, width = 500, maxHeight = "88vh" }) {
+  const dialogRef = React.useRef(null);
+  const closeRef = React.useRef(onClose);
+  closeRef.current = onClose;
   React.useEffect(() => {
-    const onKey = (e) => { if (e.key === "Escape") onClose?.(); };
+    const previous = document.activeElement;
+    const focusables = () => [...(dialogRef.current?.querySelectorAll('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]') || [])]
+      .filter(el => !el.closest('[hidden]') && el.getAttribute('type') !== 'hidden' && getComputedStyle(el).display !== 'none');
+    (focusables()[0] || dialogRef.current)?.focus();
+    const onKey = e => {
+      if (e.key === "Escape") { e.preventDefault(); closeRef.current?.(); }
+      if (e.key !== "Tab") return;
+      const elements = focusables(), first = elements[0], last = elements.at(-1);
+      if (!first) { e.preventDefault(); dialogRef.current?.focus(); }
+      else if (e.shiftKey && (document.activeElement === first || !dialogRef.current?.contains(document.activeElement))) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && (document.activeElement === last || !dialogRef.current?.contains(document.activeElement))) { e.preventDefault(); first.focus(); }
+    };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+    return () => { window.removeEventListener("keydown", onKey); if (previous?.isConnected) previous.focus(); };
+  }, []);
   return (
-    <div role="dialog" aria-modal="true" aria-label={typeof title === "string" ? title : "Dialog"} style={{ position: "fixed", inset: 0, background: "rgba(20,28,32,0.44)", zIndex: 70, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={onClose}>
+    <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={typeof title === "string" ? title : "Dialog"} style={{ position: "fixed", inset: 0, background: "rgba(20,28,32,0.44)", zIndex: 70, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={onClose}>
       <Card style={{ width, maxWidth: "calc(100vw - 32px)", padding: 20, maxHeight, overflowY: "auto" }} onClick={(e) => e.stopPropagation()} className="fade-up">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <div style={{ fontSize: 16.5, fontWeight: 700 }}>{title}</div>

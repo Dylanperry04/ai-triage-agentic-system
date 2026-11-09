@@ -59,6 +59,7 @@ of every other LLM-facing module in this project.
 """
 from __future__ import annotations
 
+import asyncio
 import re
 import re as _re_module
 
@@ -74,6 +75,7 @@ from app.agents.autogen_team import (
     load_azure_config,
 )
 from app.rules.llm_safety_filter import check_forbidden_phrases
+from app.agents.llm_explanation_agent import EXPLANATION_DEADLINE_SECONDS, _redact_evidence_for_prompt
 
 
 DEFAULT_CATEGORY_REASONING_REQUEST = (
@@ -251,6 +253,14 @@ is_safe_to_present, final_acuity_assessment.override_* fields, and
 category_reasoning.rules_summary. Mention normal vitals only to say they did
 not trigger a critical-vital override.
 
+The mts_assessment field is a separate source-versioned chart assessment.
+Only describe a chart finding as present when its executed-rule outcome is
+matched. Source-recorded, unavailable and not_assessed observations do not
+prove a nursing assessment or an absent finding. Explain an MTS-related change
+only when escalation_applied is true; use its recorded before/displayed values.
+Do not present a candidate priority from an incomplete chart as a completed MTS
+classification. Keep the legacy heuristic pathway separate from this trace.
+
 STRICT RULES:
 1. Only restate what the tool returned. Never decide a category, priority, or
    severity yourself.
@@ -272,6 +282,12 @@ clinician-facing answer to: "Why did the system show this exact acuity/category
 estimate?" Do not call the evidence tool yourself unless none of the previous
 agents did. Use category_reasoning.primary_drivers and
 category_reasoning.model_probability_summary when they are available.
+
+If mts_assessment.escalation_applied is true, use its matched finding and
+recorded advisory_before_mts/displayed_priority as the reason for that change.
+Otherwise do not claim the chart changed the recommendation. Unassessed or
+unavailable findings are unknown, and source-recorded values do not assert
+nursing assessment. Never call an incomplete chart a completed MTS category.
 
 STRICT RULES:
 1. Only synthesize verified evidence already returned by the read-only tool.
@@ -528,8 +544,9 @@ def build_case_uid_intake_validation_safety_explanation_team(
     from autogen_agentchat.teams import RoundRobinGroupChat
     from autogen_agentchat.conditions import TextMentionTermination, MaxMessageTermination
 
-    safe_evidence = dict(evidence or {})
-    expected_case_uid = str(safe_evidence.get("case_uid") or "")
+    expected_case_uid = str((evidence or {}).get("case_uid") or "")
+    safe_evidence = _redact_evidence_for_prompt(evidence or {})
+    safe_evidence["case_uid"] = expected_case_uid
 
     def get_verified_evidence_for_case(case_uid: str) -> dict:
         """Return already-computed, minimized evidence for one pseudonymous case."""
@@ -647,15 +664,15 @@ async def run_team_explanation(
         model_client = build_model_client(config)
     except AutoGenDependencyError:
         return _autogen_dependency_unavailable_result()
-    team = build_intake_validation_safety_explanation_team(model_client, cases_path)
     try:
+        team = build_intake_validation_safety_explanation_team(model_client, cases_path)
         task = (
             f"Explain stay_id={stay_id} to a clinician. Each agent should "
             f"call get_verified_evidence_for_stay({stay_id}) as needed and "
             f"speak once in turn."
         )
         try:
-            result = await team.run(task=task)
+            result = await asyncio.wait_for(team.run(task=task), timeout=EXPLANATION_DEADLINE_SECONDS)
         except Exception as exc:
             return {
                 "status": "ERROR",
@@ -731,8 +748,8 @@ async def run_case_uid_team_explanation(
         model_client = build_model_client(config)
     except AutoGenDependencyError:
         return _autogen_dependency_unavailable_result()
-    team = build_case_uid_intake_validation_safety_explanation_team(model_client, evidence)
     try:
+        team = build_case_uid_intake_validation_safety_explanation_team(model_client, evidence)
         task = (
             f"Explain case_uid={case_uid} to a clinician. Each agent should call "
             f"get_verified_evidence_for_case('{case_uid}') as needed and speak "
@@ -745,7 +762,7 @@ async def run_case_uid_team_explanation(
         )
         task += f"Clinician-requested focus: {requested_focus}"
         try:
-            result = await team.run(task=task)
+            result = await asyncio.wait_for(team.run(task=task), timeout=EXPLANATION_DEADLINE_SECONDS)
         except Exception as exc:
             return {
                 "status": "ERROR",

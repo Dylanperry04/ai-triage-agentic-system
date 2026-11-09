@@ -107,6 +107,7 @@ def test_two_competing_final_decisions_cannot_both_commit(monkeypatch, tmp_path)
 
 def test_same_action_id_is_idempotent_but_cannot_change_payload(monkeypatch):
     from app.api import case_routes
+    from app.security.identity import AuthContext
 
     body = case_routes.ReviewBody(
         action_id="same-action", review_status="ACCEPTED_AS_PRESENTED",
@@ -122,6 +123,7 @@ def test_same_action_id_is_idempotent_but_cannot_change_payload(monkeypatch):
         "case_uid": "case-idempotent", "latest_workflow_run_id": "run-1",
         "last_action_id": "same-action", "last_action_payload_hash": digest,
         "last_review_id": "review-existing",
+        "actor_user_id": "triage",
     }
     monkeypatch.setattr(
         case_routes, "_resolve_or_404",
@@ -132,7 +134,7 @@ def test_same_action_id_is_idempotent_but_cannot_change_payload(monkeypatch):
     monkeypatch.setattr(case_routes, "_latest_workflow_state", lambda _uid: dict(state))
     result = case_routes.submit_review(
         "case-idempotent", body,
-        SimpleNamespace(user_id="triage", display_name="Triage", roles=["triage_nurse"]),
+        AuthContext(authenticated=True, user_id="triage", display_name="Triage", roles=["triage_nurse"]),
     )
     assert result["status"] == "already_recorded"
     assert result["review_id"] == "review-existing"

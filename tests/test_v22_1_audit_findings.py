@@ -4,6 +4,7 @@ Each test pins one confirmed defect. Several of these were bugs in the v22.1
 fixes themselves, which is why they are pinned rather than trusted.
 """
 from __future__ import annotations
+from tests.applied_review_fixtures import applied_review_states, normalise_applied_review_fixtures
 
 import numpy as np
 import pytest
@@ -89,7 +90,7 @@ class TestLegacyReviewQueueColours:
 class TestOverrideDirectionAndSettledAcuity:
     def test_direction_fields_are_not_reversible(self):
         """The panel rendered clinician -> model under a model -> clinician label."""
-        recs = normalise_audit_records(human_reviews=[_review(
+        recs = normalise_applied_review_fixtures(human_reviews=[_review(
             review_status="OVERRIDDEN", system_prediction="Urgent (Yellow)",
             clinician_override="Very Urgent (Orange)")])
         rec = recs[0]
@@ -97,7 +98,7 @@ class TestOverrideDirectionAndSettledAcuity:
         assert rec["clinician_acuity"] == 2    # what the clinician chose
 
     def test_decided_acuity_follows_the_clinician_on_an_override(self):
-        recs = normalise_audit_records(human_reviews=[_review(
+        recs = normalise_applied_review_fixtures(human_reviews=[_review(
             review_status="OVERRIDDEN", system_prediction="Urgent (Yellow)",
             clinician_override="Very Urgent (Orange)")])
         assert recs[0]["decided_acuity"] == 2, "must not count the rejected acuity"
@@ -105,7 +106,7 @@ class TestOverrideDirectionAndSettledAcuity:
         assert [(r["label"], r["count"]) for r in agg["by_acuity"]] == [("Acuity 2", 1)]
 
     def test_decided_acuity_follows_the_system_on_an_accept(self):
-        recs = normalise_audit_records(human_reviews=[_review(
+        recs = normalise_applied_review_fixtures(human_reviews=[_review(
             review_status="ACCEPTED_AS_PRESENTED", system_prediction="Urgent (Yellow)")])
         assert recs[0]["decided_acuity"] == 3
 
@@ -116,14 +117,14 @@ class TestOnlyTerminalDecisionsSettleAnAcuity:
         "DISCHARGED", "REJECTED",
     ])
     def test_workflow_actions_are_excluded_from_the_acuity_chart(self, status):
-        recs = normalise_audit_records(human_reviews=[_review(
+        recs = normalise_applied_review_fixtures(human_reviews=[_review(
             review_status=status, system_prediction="Urgent (Yellow)")])
         agg = aggregate_audit_dashboard(recs)
         assert agg["by_acuity"] == [], f"{status} does not settle an acuity"
 
     @pytest.mark.parametrize("status", ["ACCEPTED_AS_PRESENTED", "OVERRIDDEN"])
     def test_terminal_decisions_are_included(self, status):
-        recs = normalise_audit_records(human_reviews=[_review(
+        recs = normalise_applied_review_fixtures(human_reviews=[_review(
             review_status=status, system_prediction="Urgent (Yellow)",
             clinician_override="Urgent (Yellow)")])
         assert aggregate_audit_dashboard(recs)["by_acuity"] == [
@@ -134,7 +135,7 @@ class TestOnlyTerminalDecisionsSettleAnAcuity:
 class TestPersonCountsReconcileWithRoleCounts:
     def test_one_submission_counts_once_per_person(self):
         """State rows multiply per decision; review rows do not."""
-        recs = normalise_audit_records(
+        recs = normalise_applied_review_fixtures(
             human_reviews=[_review(
                 rid="h1", review_status="ACCEPTED_AS_PRESENTED",
                 system_prediction="Urgent (Yellow)",
@@ -156,7 +157,7 @@ class TestPersonCountsReconcileWithRoleCounts:
         assert sum(people.values()) == sum(roles.values()), "person and role totals must reconcile"
 
     def test_demo_identity_is_marked_unverified(self):
-        recs = normalise_audit_records(human_reviews=[_review(
+        recs = normalise_applied_review_fixtures(human_reviews=[_review(
             review_status="OVERRIDDEN", system_prediction="Urgent (Yellow)",
             clinician_override="Very Urgent (Orange)",
             reviewer_user_id="demo-x", reviewer_display_name="Demo X",

@@ -108,7 +108,7 @@ def current_month_preview(
     )),
 ) -> dict[str, Any]:
     if not _demo_preview_enabled():
-        raise HTTPException(status_code=404, detail="demo retraining preview is not enabled")
+        raise HTTPException(status_code=404, detail="current-month retraining preview is not enabled")
     manifest, _content = build_current_month_demo_preview()
     return manifest
 
@@ -120,7 +120,7 @@ def download_current_month_preview(
     )),
 ):
     if not _demo_preview_enabled():
-        raise HTTPException(status_code=404, detail="demo retraining preview is not enabled")
+        raise HTTPException(status_code=404, detail="current-month retraining preview is not enabled")
     manifest, content = build_current_month_demo_preview()
     return Response(
         content=content,

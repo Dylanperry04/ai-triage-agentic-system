@@ -158,7 +158,7 @@ def test_safe_case_view_discloses_selection():
     row = get_case_repository(settings).list_cases(limit=1)["cases"][0]
     payload = safe_clinical_case_view(row["case_uid"], DATASET_SOURCE, row)
     assert payload["is_curated_demo"] is True
-    assert "not an evaluation cohort" in payload["demo_data_notice"]
+    assert "Not an evaluation cohort" in payload["demo_data_notice"]
     assert "synthetic vitals" in payload["demo_data_notice"]
 
 

@@ -2,3 +2,4 @@
 *.sh text eol=lf
 # Integrity-pinned serving data must have identical bytes on every checkout.
 data/uhl_demo_100.json -text
+data/uhl_demo_balanced_100.json -text

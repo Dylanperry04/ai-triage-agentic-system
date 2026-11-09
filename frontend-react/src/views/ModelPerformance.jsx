@@ -3,6 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContaine
 import { T, MTS, acuityLabel } from "../theme.js";
 import { Card, Eyebrow, EmptyState, ErrorNote, Spinner, Pill } from "../atoms.jsx";
 import { api } from "../api.js";
+import MTSEvaluation from "../MTSEvaluation.jsx";
 
 const pct = (v, dp = 1) => v == null || Number.isNaN(Number(v)) ? "—" : `${(Number(v) * 100).toFixed(dp)}%`;
 const Metric = ({ label, value, hint }) => (
@@ -66,6 +67,20 @@ export default function ModelPerformance() {
   return (
     <div>
       <div style={{ fontSize: 19, fontWeight: 700 }}>Model evidence</div>
+      <MTSEvaluation />
+      <Card style={{ padding: 16, margin: "14px 0" }}>
+        <h3 style={{ marginTop: 0 }}>Current ML and vital-safety policy replay</h3>
+        {a.serving_policy_replay ? <>
+          <p style={{ fontSize: 12.5 }}>{a.serving_policy_replay.scope}. {a.serving_policy_replay.evaluated_rows.toLocaleString()} original test rows. No MTS clinical findings were supplied for this replay.</p>
+          <table style={{ width: "100%", textAlign: "left", fontSize: 13 }}><thead><tr><th>Output</th><th>Accuracy</th><th>Undertriage</th><th>Overtriage</th></tr></thead>
+            <tbody>{[["ml_category", "ML selection"], ["ml_safety_category", "ML + vital safeguard"]].map(([key, label]) => {
+              const m = a.serving_policy_replay.by_presenting_complaint.all[key];
+              return <tr key={key}><td>{label}</td><td>{pct(m.classification_accuracy)}</td><td>{pct(m.undertriage_rate)}</td><td>{pct(m.overtriage_rate)}</td></tr>;
+            })}</tbody></table>
+          <p style={{ fontSize: 12 }}>These are comparisons against estimated synthetic labels. Hospital nurse references and temporal validation remain outstanding.</p>
+        </> : <p>Current-policy replay unavailable: {a.serving_policy_replay_status || "not supplied"}. Historical results below must not be attributed to the running policy.</p>}
+      </Card>
+      <h3>Historical training policy results</h3>
       <div style={{ fontSize: 13, color: T.slate, marginTop: 2, lineHeight: 1.5 }}>Packaged training reports for the selected acuity model, including the recorded test-split results.</div>
       {a.metric_scope_note && <div role="note" style={{ fontSize: 12.5, color: "#8A4B00", background: T.yellow50, padding: 12, borderRadius: 8, marginTop: 12, lineHeight: 1.5 }}>{a.metric_scope_note}</div>}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
@@ -138,7 +153,7 @@ export default function ModelPerformance() {
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <div style={{ fontSize: 11.5, color: T.grey500, marginTop: 8, lineHeight: 1.5 }}>The safety-first operating point buys near-total Acuity 1–2 recall at the cost of mid-acuity discrimination — Acuity 3 recall collapses because ambiguous cases are pushed up, not down. Specificity shows how each acuity avoids absorbing everyone else's patients.</div>
+          <div style={{ fontSize: 11.5, color: T.slate, marginTop: 8, lineHeight: 1.5 }}>Recall and specificity for the historical training policy, reported separately for each category. See the serving-policy replay above for the current decision policy.</div>
         </Card>
       )}
 
@@ -176,7 +191,7 @@ export default function ModelPerformance() {
                   </LineChart>
                 </ResponsiveContainer>
               </div>
-              <div style={{ fontSize: 11.5, color: T.grey500, marginTop: 6 }}>The deployed operating point sits at the far-right of this curve — recall first, precision the accepted cost.</div>
+              <div style={{ fontSize: 11.5, color: T.slate, marginTop: 6 }}>Historical held-out precision and recall across score thresholds. This chart does not identify an operating point for the current serving policy.</div>
             </Card>
           )}
         </div>

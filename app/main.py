@@ -449,6 +449,16 @@ app.include_router(session_router)
 app.include_router(notification_router)
 app.include_router(retraining_router)
 app.include_router(governance_router)
+from app.api.mts_routes import router as mts_router
+app.include_router(mts_router)
+
+from app.storage.jsonl_io import EvidenceIntegrityError
+
+
+@app.exception_handler(EvidenceIntegrityError)
+async def evidence_integrity_error(request, exc):
+    from fastapi.responses import JSONResponse
+    return JSONResponse(status_code=503, content={"detail": str(exc), "code": "research_evidence_integrity_error"})
 
 # ── Legacy raw-ID routers (triage/review/explanation/chat/followup) ──────────
 # These expose stay_id in URLs and are NOT part of the final public API. They are

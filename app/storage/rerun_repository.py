@@ -13,9 +13,9 @@ def append_rerun(path: Path, record: WorkflowRerunRecord) -> None:
     write_record(path, record.model_dump(mode="json"), record_kind="workflow_rerun")
 
 
-def read_reruns(path: Path) -> List[WorkflowRerunRecord]:
+def read_reruns(path: Path, *, strict: bool = False) -> List[WorkflowRerunRecord]:
     if not path.exists():
         return []
     from app.storage.jsonl_io import read_jsonl_models
 
-    return read_jsonl_models(path, WorkflowRerunRecord)
+    return read_jsonl_models(path, WorkflowRerunRecord, strict=strict)

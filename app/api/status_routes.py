@@ -696,7 +696,7 @@ def system_demo_reset(
             ctx,
             permission=authz.PERM_VIEW_SECURITY_STATUS,
             detail=(
-                f"Demo state archived to {manifest['archive_directory']} "
+                f"Workflow state archived to {manifest['archive_directory']} "
                 f"({manifest['records_archived']} records)."
             ),
         )
@@ -842,6 +842,7 @@ def audit_records(limit: int = 200) -> Dict[str, Any]:
     import os
 
     limit = max(1, min(limit, 1000))
+    from app.storage.review_outcome import reconcile_review_outcomes
     if os.environ.get("PATIENT_DATA_MODE", "").lower() == "true":
         workflow_runs = _read_patient_durable_records(
             record_kind="workflow_run", limit=limit
@@ -852,6 +853,9 @@ def audit_records(limit: int = 200) -> Dict[str, Any]:
         workflow_reruns = _read_patient_durable_records(
             record_kind="workflow_rerun", limit=limit
         )
+        human_reviews = reconcile_review_outcomes(human_reviews, _read_patient_durable_records(
+            record_kind="case_workflow_state", limit=100000,
+        ) + _read_patient_durable_records(record_kind="case_workflow_state_current", limit=100000))
         return {
             "source": "durable",
             "limit": limit,
@@ -883,6 +887,10 @@ def audit_records(limit: int = 200) -> Dict[str, Any]:
     )
     safe_runs = _safe_model_records(workflow_runs, limit=limit)
     safe_reviews = _safe_model_records(human_reviews, limit=limit)
+    from app.storage.case_state_repository import read_local_case_state_history
+    safe_reviews = reconcile_review_outcomes(safe_reviews, read_local_case_state_history(
+        path_for("case_workflow_state.jsonl", "review outcome audit read"), limit=100000, strict=True,
+    ))
     safe_reruns = _safe_model_records(workflow_reruns, limit=limit)
     return {
         "source": source,
@@ -921,12 +929,14 @@ def _normalised_audit_records(
     from app.security.access_audit import _audit_path
     from app.security.local_paths import credentialed_artifact_path
     from app.security.redaction import assert_no_raw_identifiers, redact_for_log
-    from app.storage.case_state_repository import read_case_states
+    from app.storage.case_state_repository import read_local_case_state_history
     from app.storage.human_review_repository import read_human_reviews
     from app.storage.rerun_repository import read_reruns
     from app.storage.workflow_run_repository import read_workflow_runs
     from app.storage.jsonl_io import read_jsonl_dicts
 
+    mts_records = []
+    mts_stream_sizes = {}
     if patient_mode:
         access_events = _read_patient_durable_records(record_kind="access_audit", limit=limit_per_stream)
         workflow_runs = _read_patient_durable_records(record_kind="workflow_run", limit=limit_per_stream)
@@ -935,43 +945,52 @@ def _normalised_audit_records(
         workflow_states = _read_patient_durable_records(
             record_kind="case_workflow_state", limit=limit_per_stream
         )
+        current_application_states = _read_patient_durable_records(
+            record_kind="case_workflow_state_current", limit=limit_per_stream
+        )
+        application_states = workflow_states + current_application_states
+        mts_stream_sizes["current_application_states"] = len(current_application_states)
     else:
         def path_for(filename: str, purpose: str) -> Path:
             return credentialed_artifact_path(settings.processed_dir / filename, purpose=purpose)
 
         access_events: List[Dict[str, Any]] = []
         access_path = _audit_path()
-        for row in read_jsonl_dicts(access_path):
+        for row in read_jsonl_dicts(access_path, strict=require_complete):
             access_events.append(redact_for_log(row))
 
         workflow_runs = _safe_model_records(
-            read_workflow_runs(path_for("workflow_runs.jsonl", "workflow-run dashboard read")),
+            read_workflow_runs(path_for("workflow_runs.jsonl", "workflow-run dashboard read"), strict=require_complete),
             limit=limit_per_stream,
         )
         human_reviews = _safe_model_records(
-            read_human_reviews(path_for("human_reviews.jsonl", "human-review dashboard read")),
+            read_human_reviews(path_for("human_reviews.jsonl", "human-review dashboard read"), strict=require_complete),
             limit=limit_per_stream,
         )
         workflow_reruns = _safe_model_records(
-            read_reruns(path_for("workflow_reruns.jsonl", "workflow-rerun dashboard read")),
+            read_reruns(path_for("workflow_reruns.jsonl", "workflow-rerun dashboard read"), strict=require_complete),
             limit=limit_per_stream,
         )
-        # Local persistence writes TWO rows per transition: a
-        # case_workflow_state_current snapshot (an operational read model) and a
-        # case_workflow_state history row (the audit event). read_case_states
-        # returns the file unfiltered outside patient-data mode, so normalising
-        # both counted every state change twice in the timeline, escalation
-        # totals and any state-derived breakdown. The history row is the audit
-        # event; the snapshot is not a second event.
         workflow_states = [
             redact_for_log(record)
-            for record in read_case_states(
+            for record in read_local_case_state_history(
                 path_for("case_workflow_state.jsonl", "workflow-state dashboard read"),
                 limit=limit_per_stream,
+                strict=require_complete,
             )
-            if str((record or {}).get("record_kind") or "case_workflow_state")
-            != "case_workflow_state_current"
-        ][-limit_per_stream:]
+        ]
+        # Resolve review outcomes against the full local transition stream,
+        # independently of the dashboard's event display window.
+        from app.storage.jsonl_io import iter_jsonl_dicts
+        application_states = iter_jsonl_dicts(
+            path_for("case_workflow_state.jsonl", "review application evidence"), strict=True,
+        )
+        if os.environ.get("LOCAL_CREDENTIALED_RESEARCH", "").lower() != "true":
+            from app.storage.mts_repository import FILES
+            for kind, filename in FILES.items():
+                evidence = read_jsonl_dicts(path_for(filename, "MTS complete-journey evidence"), strict=require_complete)
+                mts_stream_sizes[kind] = len(evidence)
+                mts_records.extend(redact_for_log(row) for row in evidence[-limit_per_stream:])
 
     if require_complete:
         stream_sizes = {
@@ -980,6 +999,7 @@ def _normalised_audit_records(
             "human_reviews": len(human_reviews),
             "workflow_reruns": len(workflow_reruns),
             "workflow_states": len(workflow_states),
+            **mts_stream_sizes,
         }
         capped = [name for name, size in stream_sizes.items() if size >= limit_per_stream]
         if capped:
@@ -998,6 +1018,8 @@ def _normalised_audit_records(
         human_reviews=human_reviews,
         workflow_reruns=workflow_reruns,
         workflow_states=workflow_states,
+        mts_records=mts_records,
+        review_application_states=application_states,
     )
     return records
 
@@ -1312,6 +1334,23 @@ def _uhl_model_performance_payload() -> Dict[str, Any]:
         "safety overrides. Patient-level split overlap is unverified unless "
         "explicitly recorded in the source report."
     )
+    from app.rules.decision_policy import system_identity
+    replay_path = report_dir.parent / "serving_policy_evaluation.json"
+    artifacts["serving_policy_replay_status"] = "not_available"
+    if replay_path.is_file():
+        try:
+            replay = json.loads(replay_path.read_text(encoding="utf-8"))
+            current_identity = system_identity()
+            matching = all(replay.get("system_identity", {}).get(key) == current_identity[key]
+                           for key in ("model_sha256", "serving_sha256", "safety_sha256"))
+            matching = matching and replay.get("dataset_sha256") == settings.expected_dataset_sha256
+            if matching:
+                artifacts["serving_policy_replay"] = replay
+                artifacts["serving_policy_replay_status"] = "available"
+            else:
+                artifacts["serving_policy_replay_status"] = "stale_policy_or_dataset"
+        except (ValueError, OSError, TypeError, AttributeError):
+            artifacts["serving_policy_replay_status"] = "invalid_report"
 
     issues: List[str] = []
     if not settings.serving_data_path.is_file():
@@ -1329,7 +1368,8 @@ def _uhl_model_performance_payload() -> Dict[str, Any]:
         if not issues:
             try:
                 import joblib
-                bundle = joblib.load(settings.uhl_model_path)
+                from app.ml.trusted_artifact import load_verified_model
+                bundle = load_verified_model(settings.uhl_model_path, settings.expected_model_sha256)
                 validate_uhl_serving_bundle(bundle, require_deployable=True)
                 if bundle.get("dataset_source") != DATASET_SOURCE:
                     issues.append("model dataset source mismatch")

@@ -37,6 +37,10 @@ RESETTABLE_FILENAMES = (
     "human_reviews.jsonl",
     "workflow_runs.jsonl",
     "workflow_reruns.jsonl",
+    "mts_references.jsonl",
+    "mts_explanations.jsonl",
+    "mts_guideline_reviews.jsonl",
+    "mts_explanation_reviews.jsonl",
     "access_audit.jsonl",
 )
 
@@ -51,6 +55,10 @@ _PROCESSED_DIR_FILENAMES = (
     "human_reviews.jsonl",
     "workflow_runs.jsonl",
     "workflow_reruns.jsonl",
+    "mts_references.jsonl",
+    "mts_explanations.jsonl",
+    "mts_guideline_reviews.jsonl",
+    "mts_explanation_reviews.jsonl",
 )
 
 
@@ -62,7 +70,7 @@ def resolve_audit_log_path() -> Path | None:
     except Exception:
         return None
 
-CONFIRMATION_PHRASE = "RESET DEMO DATA"
+CONFIRMATION_PHRASE = "RESET LOCAL WORKFLOW"
 
 
 class DemoResetRefused(RuntimeError):
@@ -83,7 +91,7 @@ def assert_reset_allowed() -> None:
         raise DemoResetRefused(
             "Reset is disabled in PATIENT_DATA_MODE: the durable audit sink is "
             "the system of record and is subject to retention requirements. "
-            "Clear a demo environment instead."
+            "Use an isolated synthetic-data environment instead."
         )
     if _real_patient_data():
         raise DemoResetRefused(
@@ -95,7 +103,7 @@ def assert_reset_allowed() -> None:
     ).lower() == "true":
         raise DemoResetRefused(
             "Reset is disabled while SMS sending/publication is enabled. Disable SMS, "
-            "allow any in-flight delivery to settle, and retry the demo reset."
+            "allow any in-flight delivery to settle, and retry the workflow reset."
         )
 
 

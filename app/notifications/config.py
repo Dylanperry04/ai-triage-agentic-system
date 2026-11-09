@@ -181,7 +181,7 @@ class NotificationSettings:
         if recipient_mode != "demo_allowlist":
             raise ValueError(
                 "Only SMS_RECIPIENT_MODE=demo_allowlist is implemented; production staff routing "
-                "must not silently fall back to the demonstration recipient"
+                "must not silently fall back to the configured test recipient"
             )
         raw_allowlist = os.environ.get("SMS_DEMO_CASE_UID_ALLOWLIST", "").strip()
         allowlist = tuple(

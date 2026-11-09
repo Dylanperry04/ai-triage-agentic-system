@@ -14,15 +14,15 @@ def append_workflow_run(path: Path, record: WorkflowRunRecord) -> None:
     write_record(path, record.model_dump(mode="json"), record_kind="workflow_run")
 
 
-def read_workflow_runs(path: Path) -> List[WorkflowRunRecord]:
+def read_workflow_runs(path: Path, *, strict: bool = False) -> List[WorkflowRunRecord]:
     if not path.exists():
         return []
     from app.storage.jsonl_io import read_jsonl_models
 
-    return read_jsonl_models(path, WorkflowRunRecord)
+    return read_jsonl_models(path, WorkflowRunRecord, strict=strict)
 
 
-def read_workflow_run(path: Path, run_id: str, case_uid: str) -> dict | None:
+def read_workflow_run(path: Path, run_id: str, case_uid: str, *, strict: bool = False) -> dict | None:
     """Read one exact assessment, using durable storage in patient-data mode.
 
     Absence from the bounded durable history is treated as unavailable; callers
@@ -37,7 +37,7 @@ def read_workflow_run(path: Path, run_id: str, case_uid: str) -> dict | None:
         from app.security.local_paths import credentialed_artifact_path
         from app.storage.jsonl_io import read_jsonl_dicts
         path = credentialed_artifact_path(path, purpose="workflow-run explanation read")
-        rows = read_jsonl_dicts(path)
+        rows = read_jsonl_dicts(path, strict=strict)
     matches = [row for row in rows if row.get("workflow_run_id") == run_id
                and row.get("case_uid") == case_uid]
     # Ambiguous duplicate IDs must not silently select a different assessment.

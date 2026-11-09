@@ -38,12 +38,16 @@ reverse the entire point of this design.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from pathlib import Path
 from typing import Any, Optional
 
 from dotenv import load_dotenv
+from app.agents.llm_explanation_agent import (
+    EXPLANATION_CALL_TIMEOUT_SECONDS, EXPLANATION_DEADLINE_SECONDS,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +64,7 @@ async def _safe_close_model_client(model_client: Any) -> None:
     if model_client is None:
         return
     try:
-        await model_client.close()
+        await asyncio.wait_for(model_client.close(), timeout=2)
     except Exception:  # noqa: BLE001 - cleanup must never mask a real result
         logger.exception("AutoGen model client cleanup failed after run")
 
@@ -213,8 +217,8 @@ def load_azure_config() -> Optional[dict]:
     box) unless ALLOW_CLOUD_LLM_IN_LOCAL_RESEARCH=true and
     APPROVED_CLOUD_LLM_DATA_PROCESSING=true are both set after documented
     zero-retention/no-training/no-human-review approval."""
-    from app.security.identity import cloud_egress_allowed
-    if not cloud_egress_allowed():
+    from app.security.identity import cloud_llm_egress_allowed
+    if not cloud_llm_egress_allowed():
         return None
     load_dotenv(dotenv_path=ENV_PATH)
     required = [
@@ -271,6 +275,8 @@ def build_model_client(config: dict):
         api_version=config["api_version"],
         api_key=config["api_key"],
         model_info=model_info,
+        timeout=EXPLANATION_CALL_TIMEOUT_SECONDS,
+        max_retries=0,
     )
 
 
@@ -325,7 +331,7 @@ async def run_chat_turn(
     catch agent-internal exceptions to get a usable result.
     """
     try:
-        result = await agent.run(task=question)
+        result = await asyncio.wait_for(agent.run(task=question), timeout=EXPLANATION_DEADLINE_SECONDS)
     except Exception as exc:
         return {
             "status": "ERROR",

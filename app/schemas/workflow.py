@@ -131,18 +131,16 @@ class ExplanationResult(BaseModel):
 
 class FinalAcuityAssessment(BaseModel):
     """
-    The headline assessment for a MIMIC case: the ML-predicted acuity AFTER the
-    deterministic escalate-only vital override, mapped to MTS-style display.
-
-    This is what the large coloured assessment card shows for MIMIC cases. It is
-    populated ONLY for full-MIMIC cases where a compatible acuity model runs; it
-    stays empty when no ML prediction is available.
+    The active UHL headline combines ML with escalation-only vital and assessed
+    MTS findings. A documented finding can establish an urgency floor even
+    when ML is unavailable. An unknown/incomplete assessment alone assigns no
+    category. Completed MTS comparison and the displayed hybrid remain distinct.
 
     Provisional and not clinically approved; clinician review required.
     """
     model_config = {"protected_namespaces": ()}
 
-    applicable: bool = False               # True only for MIMIC cases with a prediction
+    applicable: bool = False               # True when an ML estimate or documented urgency floor exists
     ml_predicted_acuity: Optional[int] = None
     final_acuity: Optional[int] = None     # after escalate-only override
     category: Optional[str] = None         # mapped MTS-style display category
@@ -173,6 +171,7 @@ class WorkflowResult(BaseModel):
     ml_prediction: MLPredictionResult = Field(default_factory=MLPredictionResult)
     final_acuity_assessment: FinalAcuityAssessment = Field(default_factory=FinalAcuityAssessment)
     discriminator_evidence: Dict[str, Any] = Field(default_factory=dict)
+    mts_assessment: Dict[str, Any] = Field(default_factory=dict)
     explanation: ExplanationResult = Field(default_factory=ExplanationResult)
     audit: Dict[str, Any] = Field(default_factory=dict)
 

@@ -1,3 +1,4 @@
+from tests.applied_review_fixtures import applied_review_states, normalise_applied_review_fixtures
 from app.analytics.audit_dashboard import (
     AuditFilters,
     aggregate_audit_dashboard,
@@ -8,7 +9,7 @@ from app.analytics.audit_dashboard import (
 
 
 def _records():
-    return normalise_audit_records(
+    return normalise_applied_review_fixtures(
         workflow_runs=[
             {
                 "timestamp_utc": "2026-07-01T10:00:00+00:00",
@@ -90,7 +91,7 @@ def test_aggregation_counts_match_filtered_entries():
 
 
 def test_workflow_summary_uses_latest_unique_case_state():
-    records = normalise_audit_records(
+    records = normalise_applied_review_fixtures(
         workflow_states=[
             {
                 "updated_at_utc": "2026-07-04T11:00:00+00:00",
@@ -117,7 +118,7 @@ def test_workflow_summary_uses_latest_unique_case_state():
 
 
 def test_accepted_case_summary_deduplicates_current_and_history_state():
-    records = normalise_audit_records(
+    records = normalise_applied_review_fixtures(
         human_reviews=[
             {
                 "created_at_utc": "2026-07-04T10:00:00+00:00",
@@ -149,7 +150,7 @@ def test_accepted_case_summary_deduplicates_current_and_history_state():
 
 
 def test_escalation_dashboard_tracks_actors_drivers_and_confirmation_time():
-    records = normalise_audit_records(
+    records = normalise_applied_review_fixtures(
         workflow_states=[
             {
                 "updated_at_utc": "2026-07-04T12:00:00+00:00",

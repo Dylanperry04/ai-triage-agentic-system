@@ -292,6 +292,7 @@ class TestAuditSinkHardening:
             read_current_case_state(tmp_path / "case_workflow_state.jsonl", "case-a")
 
     def test_append_case_state_writes_current_before_history(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("PATIENT_DATA_MODE", "true")
         from app.storage.case_state_repository import append_case_state
         import app.storage.guarded_writer as guarded_writer
 

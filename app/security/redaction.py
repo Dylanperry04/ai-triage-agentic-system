@@ -61,11 +61,19 @@ SAFE_METADATA_STRING_KEYS = {
 # address, or a raw numeric patient identifier merely by placing it under one of
 # these keys.
 SAFE_OPAQUE_IDENTIFIER_KEYS = {
+    "record_id", "reference_id", "supersedes_record_id", "explanation_id", "mts_checklist_revision", "checklist_revision", "expected_revision",
     "run_id", "workflow_run_id", "latest_workflow_run_id", "review_id",
     "last_review_id", "rerun_id", "training_run_id", "action_id",
     "last_action_id",
 }
 _SAFE_OPAQUE_IDENTIFIER_RE = re.compile(r"(?=.{1,200}\Z)(?=.*[A-Za-z])[A-Za-z0-9._:~-]+\Z")
+SAFE_DIGEST_KEYS = {"action_payload_sha256", "action_actor_sha256",
+                    "triage_input_sha256",
+                    "model_sha256", "catalog_sha256", "explanation_sha256", "system_policy_sha256",
+                    "serving_sha256", "safety_sha256", "mts_execution_sha256", "hybrid_sha256", "application_revision", "input_processing_sha256"}
+_SAFE_DIGEST_RE = re.compile(r"(?=.*[a-fA-F])[a-fA-F0-9]{64}\Z")
+SAFE_UUID4_KEYS = {"record_id", "reference_id", "supersedes_record_id", "explanation_id", "mts_checklist_revision", "checklist_revision", "expected_revision", "latest_model_version"}
+_SAFE_UUID4_RE = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\Z")
 
 # Workflow state is append-only evidence. Its timestamps drive overdue-vitals
 # alerts, escalation timing, dashboard chronology, and notification resets. They
@@ -249,6 +257,10 @@ def redact_for_log(data: Dict[str, Any], *, extra_keys: Optional[Iterable[str]] 
         if isinstance(obj, list):
             return [_clean(x, parent_key=parent_key) for x in obj]
         if isinstance(obj, str):
+            if parent_key in SAFE_UUID4_KEYS and _SAFE_UUID4_RE.fullmatch(obj):
+                return obj
+            if parent_key in SAFE_DIGEST_KEYS and _SAFE_DIGEST_RE.fullmatch(obj):
+                return obj
             if keep_case_uid and parent_key == "case_uid":
                 return obj
             if parent_key in SAFE_OPAQUE_IDENTIFIER_KEYS:

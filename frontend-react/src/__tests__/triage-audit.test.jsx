@@ -5,24 +5,41 @@ import Triage, { AdvisoryPanel, CaseDetail, MultiAgentExplanation } from "../vie
 import DiscriminatorEvidence from "../DiscriminatorEvidence.jsx";
 import { api, decisions } from "../api.js";
 import { T } from "../theme.js";
+import { checklistResponse } from "./mts-fixtures.js";
 
-vi.mock("../api.js", () => ({ api: { getCase: vi.fn(), previewAssessment: vi.fn(), runAssessment: vi.fn(), multiagentExplainCase: vi.fn() }, decisions: { accept: vi.fn() } }));
+vi.mock("../api.js", () => ({ api: { mtsChecklist: vi.fn(), getCase: vi.fn(), currentAssessment: vi.fn(), previewAssessment: vi.fn(), runAssessment: vi.fn(), multiagentExplainCase: vi.fn() }, decisions: { accept: vi.fn() } }));
 const deferred = () => { let resolve, reject; const promise = new Promise((res, rej) => { resolve = res; reject = rej; }); return { promise, resolve, reject }; };
 const rows = ["a", "b"].map((uid) => ({ case_uid: uid, patient_display_label: `Patient ${uid}`, triage: { chiefcomplaint: `Complaint ${uid}` }, workflow_state: { case_status: "new_unreviewed" } }));
-const assessment = (extra = {}) => ({ final_category: "Urgent (Yellow)", predicted_acuity: 3, ml_prediction_available: true, ...extra });
+const assessment = (extra = {}) => ({ final_category: "Urgent (Yellow)", predicted_acuity: 3, ml_prediction_available: true, mts_assessment: { assessment_complete: true }, ...extra });
 const permissions = ["can_run_triage_assessment", "can_accept_acuity"];
-function Harness() {
+function Harness({ access = permissions } = {}) {
   const [uid, setUid] = useState("a");
-  return <Triage cases={rows} selectedUid={uid} setSelectedUid={setUid} permissions={permissions} canExplainAcuity toast={() => {}} refresh={() => {}} />;
+  return <Triage cases={rows} selectedUid={uid} setSelectedUid={setUid} permissions={access} canExplainAcuity toast={() => {}} refresh={() => {}} />;
 }
 beforeEach(() => {
   vi.resetAllMocks();
+  api.mtsChecklist.mockImplementation(uid => Promise.resolve(checklistResponse(uid)));
   api.getCase.mockImplementation((uid) => Promise.resolve(rows.find((row) => row.case_uid === uid)));
+  api.currentAssessment.mockResolvedValue({ assessment: null });
   api.previewAssessment.mockResolvedValue(assessment({ preview: true }));
   api.runAssessment.mockResolvedValue(assessment({ workflow_run_id: "run-current" }));
   decisions.accept.mockResolvedValue({});
 });
 afterEach(cleanup);
+
+it("keeps a dirty patient's draft until the in-page discard dialog is confirmed", async () => {
+  render(<Harness access={[...permissions, "can_record_mts_checklist"]} />);
+  fireEvent.change(await screen.findByLabelText("Airway compromise"), { target: { value: "present" } });
+  fireEvent.click(screen.getByRole("button", { name: "Open Patient b" }));
+  expect(screen.getByRole("dialog", { name: "Discard unsaved checklist changes?" })).toBeTruthy();
+  expect(api.getCase).not.toHaveBeenCalledWith("b");
+  fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+  expect(screen.getByLabelText("Airway compromise").value).toBe("present");
+  fireEvent.click(screen.getByRole("button", { name: "Open Patient b" }));
+  fireEvent.click(screen.getByRole("button", { name: "Discard and switch patient" }));
+  await waitFor(() => expect(api.getCase).toHaveBeenCalledWith("b"));
+  await waitFor(() => expect(screen.getByLabelText("Airway compromise").value).toBe("not_assessed"));
+});
 
 describe("assessment evidence and probability", () => {
   it("shows an unavailable result as unassigned rather than Acuity 5", () => {
@@ -34,7 +51,7 @@ describe("assessment evidence and probability", () => {
   });
   it("shows the assigned class probability instead of modal confidence after a policy change", () => {
     render(<AdvisoryPanel c={rows[0]} assessment={assessment({ top_class_confidence: 0.42, argmax_acuity: 4, class_probabilities: { 3: 0.31, 4: 0.42 } })} />);
-    const selectedProbability = screen.getByText("Probability of Acuity 3").parentElement.parentElement;
+    const selectedProbability = screen.getByText("Probability of Acuity 3").parentElement;
     expect(within(selectedProbability).getByText("31.0%")).toBeTruthy();
     expect(within(selectedProbability).queryByText("42.0%")).toBeNull();
     expect(screen.getByText("Target to first physician contact: 60 min")).toBeTruthy();
@@ -66,11 +83,12 @@ describe("assessment evidence and probability", () => {
     expect(screen.getByText(/Threshold rule raised the model estimate from Acuity 4 to Acuity 3/)).toBeTruthy();
     expect(screen.queryByText(/not the official MTS discriminators/)).toBeNull();
   });
-  it("uses numeric SBP for warning colour while preserving the BP pair", () => {
+  it("keeps systolic and diastolic source measurements separate and does not assert a nursing assessment", async () => {
     render(<CaseDetail c={{ ...rows[0], triage: { sbp: 230, dbp: 110 } }} />);
-    const bp = screen.getByText("230/110");
-    const normalized = document.createElement("span"); normalized.style.color = T.red;
-    expect(bp.style.color).toBe(normalized.style.color);
+    expect(await screen.findByDisplayValue("230")).toHaveProperty("disabled", true);
+    expect(screen.getByDisplayValue("110")).toHaveProperty("disabled", true);
+    expect(screen.getByRole("combobox", { name: "Systolic blood pressure status" }).value).toBe("source_recorded");
+    expect(screen.getByRole("combobox", { name: "Airway compromise" }).value).toBe("not_assessed");
   });
   it("preserves a threshold-adjacent observation without rounding it across the criterion", () => {
     const rule = { code: "LOW", label: "Low oxygen saturation", observed_value: 84.999, unit: "%", criterion: "< 85 %", operator: "<", threshold: 85, status: "matched" };
@@ -85,11 +103,43 @@ describe("assessment evidence and probability", () => {
 });
 
 describe("asynchronous patient/run isolation", () => {
+  it("restores the exact saved assessment on initial landing without logging a new run", async () => {
+    api.currentAssessment.mockResolvedValue({ assessment: assessment({ workflow_run_id: "saved-initial" }) });
+    render(<Harness />);
+    const accept = await screen.findByRole("button", { name: "Accept & log Acuity 3" });
+    expect(accept.disabled).toBe(false);
+    expect(api.previewAssessment).not.toHaveBeenCalled();
+    expect(api.runAssessment).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Run a logged assessment before recording/)).toBeNull();
+    fireEvent.click(accept);
+    await waitFor(() => expect(decisions.accept).toHaveBeenCalledWith("a", { workflowRunId: "saved-initial", systemPrediction: "Urgent (Yellow)" }));
+  });
+  it("uses the same explicit assessment action after startup and switching patients", async () => {
+    render(<Harness />);
+    expect(await screen.findByRole("button", { name: "Run assessment" })).toBeTruthy();
+    await screen.findByRole("button", { name: "Accept & log Acuity 3" });
+    fireEvent.click(screen.getByRole("button", { name: "Open Patient b" }));
+    await waitFor(() => expect(api.currentAssessment).toHaveBeenCalledWith("b"));
+    await screen.findByRole("button", { name: "Accept & log Acuity 3" });
+    fireEvent.click(screen.getByRole("button", { name: "Open Patient a" }));
+    expect(api.runAssessment).not.toHaveBeenCalled();
+    const action = await screen.findByRole("button", { name: "Run assessment" });
+    fireEvent.click(action);
+    await waitFor(() => expect(api.runAssessment).toHaveBeenCalledTimes(1));
+    expect(api.runAssessment).toHaveBeenCalledWith("a");
+  });
+  it("surfaces current-assessment read failure instead of enabling stale acceptance", async () => {
+    api.currentAssessment.mockRejectedValueOnce(new Error("Evidence read failed"));
+    render(<Harness />);
+    expect(await screen.findByRole("button", { name: "Try assessment again" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Accept & log Acuity 3" })).toBeNull();
+    expect(api.runAssessment).not.toHaveBeenCalled();
+  });
   it("invalidates a logged estimate when another staff member records newer observations", async () => {
     const props = { cases: rows, selectedUid: "a", setSelectedUid: vi.fn(), permissions, toast: vi.fn(), refresh: vi.fn() };
     const { rerender } = render(<Triage {...props} />);
     await screen.findByRole("button", { name: "Accept & log Acuity 3" });
-    fireEvent.click(screen.getByRole("button", { name: "Open Patient a" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Run assessment" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Accept & log Acuity 3" }).disabled).toBe(false));
     api.previewAssessment.mockResolvedValueOnce(assessment({ final_category: "Immediate (Red)", predicted_acuity: 1, preview: true }));
     const updatedRows = rows.map((row) => row.case_uid === "a" ? { ...row, workflow_state: { ...row.workflow_state, updated_at_utc: "2026-10-26T19:00:00Z", latest_triage_updates_at: "2026-10-26T19:00:00Z" } } : row);
@@ -104,7 +154,7 @@ describe("asynchronous patient/run isolation", () => {
     api.previewAssessment.mockReturnValueOnce(preview.promise);
     render(<Harness />);
     await waitFor(() => expect(api.previewAssessment).toHaveBeenCalledWith("a"));
-    fireEvent.click(screen.getByRole("button", { name: "Open Patient a" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Run assessment" }));
     const accept = await screen.findByRole("button", { name: "Accept & log Acuity 3" });
     expect(accept.disabled).toBe(false);
     await act(async () => preview.resolve(assessment({ final_category: "Standard (Green)", predicted_acuity: 4, preview: true })));
@@ -117,8 +167,8 @@ describe("asynchronous patient/run isolation", () => {
     render(<Harness />);
     const accept = await screen.findByRole("button", { name: "Accept & log Acuity 3" });
     expect(accept.disabled).toBe(true);
-    expect(screen.getByRole("button", { name: "Run logged assessment" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Explain this estimate" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Run assessment" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Explain this decision" })).toBeNull();
   });
   it("ignores detail from a previously selected patient even when it finishes last", async () => {
     const old = deferred();
@@ -129,6 +179,7 @@ describe("asynchronous patient/run isolation", () => {
     await waitFor(() => expect(api.getCase).toHaveBeenCalledWith("b"));
     await act(async () => old.resolve({ ...rows[0], triage: { chiefcomplaint: "STALE DETAIL" } }));
     expect(screen.queryByText("STALE DETAIL")).toBeNull();
+    // Queue and selected case header; the advisory no longer duplicates the complaint.
     expect(screen.getAllByText("Complaint b").length).toBe(2);
   });
   it("ignores an old patient's explanation after selection changes", async () => {
@@ -136,12 +187,12 @@ describe("asynchronous patient/run isolation", () => {
     api.multiagentExplainCase.mockReturnValueOnce(old.promise).mockResolvedValueOnce({ status: "PASS", workflow_run_id: "run-b", final_explanation: "Current patient explanation" });
     const props = { caseUid: "a", assessmentKey: "run-a", canExplain: true, toast: vi.fn() };
     const { rerender } = render(<MultiAgentExplanation {...props} />);
-    fireEvent.click(screen.getByRole("button", { name: "Explain this estimate" }));
+    fireEvent.click(screen.getByRole("button", { name: "Explain this decision" }));
     expect(api.multiagentExplainCase).toHaveBeenCalledWith("a", undefined, "run-a");
     rerender(<MultiAgentExplanation {...props} caseUid="b" assessmentKey="run-b" />);
     await act(async () => old.resolve({ status: "PASS", final_explanation: "STALE EXPLANATION" }));
     expect(screen.queryByText("STALE EXPLANATION")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Explain this estimate" }));
+    fireEvent.click(screen.getByRole("button", { name: "Explain this decision" }));
     expect(await screen.findByText("Current patient explanation")).toBeTruthy();
   });
   it("invalidates an explanation when the same patient is reassessed", async () => {
@@ -149,24 +200,36 @@ describe("asynchronous patient/run isolation", () => {
     api.multiagentExplainCase.mockReturnValueOnce(old.promise);
     const props = { caseUid: "a", assessmentKey: "run-a", canExplain: true, toast: vi.fn() };
     const { rerender } = render(<MultiAgentExplanation {...props} />);
-    fireEvent.click(screen.getByRole("button", { name: "Explain this estimate" }));
+    fireEvent.click(screen.getByRole("button", { name: "Explain this decision" }));
     rerender(<MultiAgentExplanation {...props} assessmentKey="run-new" />);
     await act(async () => old.resolve({ status: "SAFETY_FAIL" }));
     expect(props.toast).not.toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: "Explain this estimate" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Explain this decision" })).toBeTruthy();
   });
   it("surfaces returned service errors and permits retry instead of leaving a blank result", async () => {
     api.multiagentExplainCase.mockResolvedValue({ status: "ERROR", reason: "Provider unavailable" });
     render(<MultiAgentExplanation caseUid="a" canExplain toast={() => {}} />);
-    fireEvent.click(screen.getByRole("button", { name: "Explain this estimate" }));
+    fireEvent.click(screen.getByRole("button", { name: "Explain this decision" }));
     expect(await screen.findByText("Explanation unavailable: Provider unavailable")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
   });
   it("withholds an explanation returned for a different assessment", async () => {
     api.multiagentExplainCase.mockResolvedValue({ status: "PASS", workflow_run_id: "different-run", final_explanation: "WRONG RUN" });
     render(<MultiAgentExplanation caseUid="a" assessmentKey="shown-run" canExplain toast={() => {}} />);
-    fireEvent.click(screen.getByRole("button", { name: "Explain this estimate" }));
+    fireEvent.click(screen.getByRole("button", { name: "Explain this decision" }));
     expect(await screen.findByText(/does not match the displayed assessment/)).toBeTruthy();
     expect(screen.queryByText("WRONG RUN")).toBeNull();
   });
+});
+
+it("blocks acceptance and override while checklist changes are unsaved", () => {
+  render(<AdvisoryPanel c={rows[0]} assessment={assessment()} workflowRunId="saved-run" canAccept canOverride checklistDirty />);
+  expect(screen.getByRole("button", { name: "Accept & log Acuity 3" }).disabled).toBe(true);
+  expect(screen.getByRole("button", { name: "Override…" }).disabled).toBe(true);
+});
+
+it("makes incomplete acceptance an explicit exception action", () => {
+  render(<AdvisoryPanel c={rows[0]} assessment={assessment({ mts_assessment: { assessment_complete: false } })} workflowRunId="saved-run" canAccept />);
+  expect(screen.queryByRole("button", { name: "Accept & log Acuity 3" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Record assessment exception…" }).disabled).toBe(false);
 });

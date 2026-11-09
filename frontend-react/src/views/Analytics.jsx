@@ -234,7 +234,7 @@ export default function Analytics() {
                           <div style={{ fontSize: 12.5, fontWeight: 600, color: T.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                             {a.label}
                             {a.actor_user_id && !a.identity_verified && (
-                              <span title="Role asserted by a client-supplied demo header, not proven by authentication"
+                              <span title="Locally selected role; staff identity has not been verified"
                                 style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: "#8A4B00", background: T.yellow50, border: "1px solid #EEDD9A", borderRadius: 4, padding: "1px 5px" }}>UNVERIFIED</span>
                             )}
                           </div>

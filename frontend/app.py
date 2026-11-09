@@ -256,6 +256,17 @@ def azure_openai_configured() -> bool:
         return False
 
 
+def _runtime_label(value: str | None) -> str:
+    """Use readable status labels without changing the backend profile IDs."""
+    return {
+        "secured_research": "Secured research",
+        "local_credentialed_research": "Local credentialed research",
+        "azure_role_switcher_demo": "Local role selection",
+        "public_demo": "Public review",
+        "demo": "Local identity selection",
+    }.get(value, value or "Unknown")
+
+
 def fmt_pct(value) -> str:
     return "N/A" if value is None else f"{value:.1%}"
 
@@ -1664,6 +1675,9 @@ def _render_triage_review_submission(
         review_comment = st.text_area(
             "Review notes", value="Clinician review required before any action.",
             key=f"comment_{key_prefix}_{case_uid}")
+        assessment_exception = st.text_area(
+            "Incomplete MTS assessment exception (only if deliberately accepting with missing/conflicting observations)",
+            value="", key=f"exception_{key_prefix}_{case_uid}")
         requested_fields_text = st.text_input(
             "Information needed",
             value="",
@@ -1685,6 +1699,7 @@ def _render_triage_review_submission(
                 payload = {
                     "review_status": review_status,
                     "review_comment": review_comment,
+                    "assessment_exception_reason": assessment_exception or None,
                     "requested_fields": requested_fields,
                     "escalation_target_role": target_role,
                 }
@@ -1950,7 +1965,7 @@ if tab_governance is not None:
                 h1.metric("Case source", "loadable" if _fm_health.get("loadable") else "not loadable")
                 h2.metric("Model artefact", _model_health.get("state", "unknown"))
                 h3.metric("Model reports", "configured" if _reports_health.get("env_present") else "not configured")
-                h4.metric("Auth mode", _runtime_health.get("current_mode") or _runtime_health.get("active_profile") or "unknown")
+                h4.metric("Auth mode", _runtime_label(_runtime_health.get("current_mode") or _runtime_health.get("active_profile")))
                 if _has_perm(PERM_VIEW_SECURITY_STATUS):
                     try:
                         _security_health = _governance_api_client.security_status()
@@ -2997,7 +3012,7 @@ with st.sidebar:
         if not presentation_ui_mode():
             _active_profile = _runtime.get("active_profile") or _fm.get("active_profile", "-")
             st.caption(
-                f"Active profile: `{_active_profile}`"
+                f"Active profile: {_runtime_label(_active_profile)}"
                 + ("" if _backend_status else " (backend unreachable)")
             )
 
@@ -3005,17 +3020,12 @@ with st.sidebar:
         with st.expander("Security status", expanded=False):
             try:
                 _ss = api_client.security_status()
-                _mode_label = {
-                    "secured_research": "Secured research",
-                    "local_credentialed_research": "Local credentialed research",
-                    "azure_role_switcher_demo": "Role-switcher demo",
-                    "public_demo": "Public review",
-                }.get(_ss.get("current_mode"), str(_ss.get("current_mode", "unknown")))
+                _mode_label = _runtime_label(_ss.get("current_mode"))
                 st.markdown(f"**Mode:** {_mode_label}")
                 _rows = {
                     "Patient-data mode": _ss["patient_data_mode"],
                     "Auth required": _ss["auth_required"],
-                    "Auth provider": _ss["auth_provider"],
+                    "Auth provider": _runtime_label(_ss["auth_provider"]),
                     "Trusted auth proxy": _ss["trusted_auth_proxy"],
                     "Secrets provider": _ss["secrets_provider"],
                     "Audit sink": _ss["audit_sink"],

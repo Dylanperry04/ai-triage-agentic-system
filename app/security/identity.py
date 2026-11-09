@@ -60,6 +60,26 @@ class AuthContext:
         return role in self.roles
 
 
+def clinical_attribution_role(ctx: AuthContext, permission: str | None = None) -> str | None:
+    """Attribute an action to an assigned role that actually authorises it.
+
+    Role order in an identity-provider claim must not turn a doctor's final
+    decision into a nursing action. Authorization remains a separate check.
+    """
+    roles = getattr(ctx, "roles", None) or []
+    if permission is not None:
+        from app.security.authz import ROLE_PERMISSIONS, is_demo_admin
+        priority = (ROLE_TRIAGE_NURSE, ROLE_ED_DOCTOR, ROLE_ED_NURSE,
+                    ROLE_RESEARCHER, ROLE_SECURITY_ADMIN, ROLE_GOVERNANCE_AUDITOR)
+        eligible = next((role for role in priority if role in roles
+                         and permission in ROLE_PERMISSIONS.get(role, set())), None)
+        if eligible is not None:
+            return eligible
+        return ROLE_SECURITY_ADMIN if is_demo_admin(ctx) else None
+    clinical = {ROLE_ED_NURSE, ROLE_TRIAGE_NURSE, ROLE_ED_DOCTOR}
+    return next((role for role in roles if role in clinical), roles[0] if roles else None)
+
+
 class AuthContextProvider(Protocol):
     """Pluggable identity source. Implementations resolve the current request's
     authenticated identity (or an unauthenticated context)."""
@@ -189,7 +209,7 @@ class LocalStubProvider:
         demo_roles: Optional[List[str]] = None,
         *,
         source: str = "local_stub",
-        display_name: str = "DEMO STUB USER (not real auth)",
+        display_name: str = "Local user (identity not verified)",
     ):
         # A demo user with a broad-but-explicit role set, loudly marked as a stub.
         self.demo_roles = demo_roles or [ROLE_RESEARCHER]
@@ -363,6 +383,16 @@ def cloud_egress_allowed() -> bool:
     return True
 
 
+def cloud_llm_egress_allowed() -> bool:
+    """Apply a separate opt-in before sending patient evidence to an LLM."""
+    return cloud_egress_allowed() and (
+        not patient_data_mode() or (
+            _env_true("ALLOW_CLOUD_LLM_IN_PATIENT_DATA")
+            and _env_true("APPROVED_CLOUD_LLM_DATA_PROCESSING")
+        )
+    )
+
+
 _LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost", "127.0.0.0/8"}
 
 
@@ -483,9 +513,9 @@ def resolve_auth_context(request_headers: Optional[dict] = None) -> AuthContext:
             demo_roles=roles,
             source="azure_supervisor_demo_stub",
             display_name=(
-                f"{demo_user} (demo persona - not real auth)"
+                f"{demo_user} (local identity, not verified)"
                 if demo_user
-                else "AZURE ROLE-SWITCHER DEMO USER (not real auth)"
+                else "Local role selector (identity not verified)"
             ),
         ).get_context(request_headers)
         if demo_user:
@@ -498,6 +528,6 @@ def resolve_auth_context(request_headers: Optional[dict] = None) -> AuthContext:
         ctx = replace(
             ctx,
             user_id=f"demo-{slug or 'persona'}",
-            display_name=f"{demo_user} (demo persona - not real auth)",
+            display_name=f"{demo_user} (local identity, not verified)",
         )
     return ctx

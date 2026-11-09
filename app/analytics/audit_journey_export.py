@@ -35,6 +35,7 @@ CORE_COLUMNS = [
     "previous_acuity", "new_acuity", "final_clinician_acuity",
     "system_prediction", "clinician_decision", "review_status",
     "review_comment", "override_reason", "reason",
+    "review_outcome", "applied_state_revision",
     *list(MODEL_INPUT_COLUMNS),
     *[
         column
@@ -56,6 +57,7 @@ _EVENT_PRIORITY = {
     "workflow_rerun": 10,
     "workflow_run": 20,
     "human_review": 30,
+    "human_review_attempt": 30,
     "workflow_state": 40,
     "access_event": 50,
 }
@@ -103,7 +105,7 @@ def _event_changes(record: Mapping[str, Any]) -> dict[str, tuple[Any, Any]]:
         if not isinstance(item, Mapping):
             continue
         field = _text(item.get("field"))
-        if field in VITAL_FIELDS:
+        if field in VITAL_FIELDS and "new" in item:
             changes[field] = (item.get("previous"), item.get("new"))
     return changes
 
@@ -151,15 +153,14 @@ def build_audit_journey_rows(
         snapshot = source.get("input_snapshot")
         if isinstance(snapshot, Mapping):
             for field in MODEL_INPUT_COLUMNS:
-                if field in snapshot and snapshot[field] not in (None, ""):
+                if field in snapshot:
                     state[field] = snapshot[field]
 
         # A rerun is the observation event. Apply each explicit previous/new
         # pair so non-changing vitals can still be carried forward on later rows.
         changes = _event_changes(record)
         for field, (_previous, new) in changes.items():
-            if new not in (None, ""):
-                state[field] = new
+            state[field] = new
 
         new_complaint = source.get("new_chiefcomplaint")
         if new_complaint not in (None, ""):
@@ -212,6 +213,8 @@ def build_audit_journey_rows(
             "system_prediction": source.get("system_prediction") or source.get("final_acuity"),
             "clinician_decision": source.get("clinician_decision"),
             "review_status": source.get("review_status"),
+            "review_outcome": record.get("review_outcome"),
+            "applied_state_revision": record.get("applied_state_revision"),
             "review_comment": record.get("review_comment") or source.get("review_comment"),
             "override_reason": record.get("override_reason") or source.get("override_reason"),
             "reason": source.get("reason") or source.get("escalation_reason"),

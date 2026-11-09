@@ -28,7 +28,8 @@ def prepare(monkeypatch, tmp_path, rows):
     monkeypatch.setattr(case_routes, "run_workflow", lambda *a, **kw: pytest.fail("must not recompute the displayed run"))
 
 
-def test_recorded_evidence_is_used_even_when_current_case_would_differ(monkeypatch, tmp_path):
+@pytest.mark.parametrize("question", [None, "Which recorded acuity was displayed?"])
+def test_recorded_evidence_is_used_even_when_current_case_would_differ(monkeypatch, tmp_path, question):
     evidence = {"case_uid": "case-a", "source_dataset": "test-source",
                 "final_acuity_assessment": {"final_acuity": 3},
                 "discriminator_evidence": {"status": "EVALUATED"}}
@@ -42,9 +43,29 @@ def test_recorded_evidence_is_used_even_when_current_case_would_differ(monkeypat
 
     monkeypatch.setattr("app.agents.autogen_multi_agent_team.run_case_uid_team_explanation", explain)
     result = asyncio.run(case_routes.multiagent_explain_case("case-a",
-        case_routes.ExplanationRequest(workflow_run_id="old-run"), AuthContext()))
-    assert seen == [evidence]
+        case_routes.ExplanationRequest(workflow_run_id="old-run", question=question), AuthContext()))
+    if question:
+        assert seen == [evidence]
+        assert result["explanation_source"] == "model_generated_review_required"
+    else:
+        assert seen == []
+        assert result["explanation_source"] == "recorded_evidence"
+        assert "Acuity 3" in result["final_explanation"]
+        assert "has no model availability status" in result["final_explanation"]
+        assert all(link["claim"] != "model_estimate" for link in result["evidence_links"])
     assert result["workflow_run_id"] == "old-run"
+
+
+def test_recorded_explanation_refuses_a_conflicting_model_selection():
+    from app.agents.recorded_explanation import explain_recorded_decision
+
+    evidence = {
+        "final_acuity_assessment": {"final_acuity": 2},
+        "ml_research_estimate": {"available": True, "predicted_mimic_acuity": 2},
+        "discriminator_evidence": {"model_policy": {"ml_acuity": 4}},
+    }
+    with pytest.raises(ValueError, match="selection policy disagrees"):
+        explain_recorded_decision(evidence)
 
 
 @pytest.mark.parametrize("rows", [[],

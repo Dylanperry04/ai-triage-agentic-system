@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useImperativeHandle, useMemo, useRef } from "react";
 import { CheckCircle2, ArrowUpRight, Ambulance, Footprints, Activity, Sparkles, UploadCloud, FileText, Trash2, Undo2 } from "lucide-react";
-import { T, MTS, catOf, priorityFromCategory, toC, vitalState, patientLabel, encounterLabel, patientWithEncounter, acuityLabel } from "../theme.js";
+import { T, MTS, catOf, priorityFromCategory, toC, patientLabel, encounterLabel, patientWithEncounter, acuityLabel } from "../theme.js";
 import { Card, Btn, Eyebrow, ConfBar, Modal, Pill, Spinner, EmptyState, ErrorNote } from "../atoms.jsx";
 import { api, decisions } from "../api.js";
 import DiscriminatorEvidence from "../DiscriminatorEvidence.jsx";
+import MTSChecklist from "../MTSChecklist.jsx";
 
 const QUEUE_STATES = new Set(["new_unreviewed", "request_more_info"]);
 const DECIDED_REVIEW = new Set(["accepted_as_presented", "overridden", "uncertain"]);
@@ -40,12 +41,12 @@ function QueueCard({ c, selected, onClick, prio }) {
   return (
     <div onClick={onClick} role="button" tabIndex={0} aria-label={`Open ${patientWithEncounter(c)}`}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } }}
-      className="clickable" style={{ background: selected ? T.green50 : T.surface, borderTop: `1px solid ${selected ? T.green500 : T.borderSoft}`, borderRight: `1px solid ${selected ? T.green500 : T.borderSoft}`, borderBottom: `1px solid ${selected ? T.green500 : T.borderSoft}`, borderLeft: `5px solid ${cat.colour}`, borderRadius: 12, padding: "13px 14px", marginBottom: 10, boxShadow: selected ? "0 4px 14px rgba(2,89,76,0.14)" : "0 1px 5px rgba(33,43,50,0.08)" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+      className="clickable" style={{ background: selected ? T.green50 : T.surface, borderTop: `1px solid ${selected ? T.green500 : T.borderSoft}`, borderRight: `1px solid ${selected ? T.green500 : T.borderSoft}`, borderBottom: `1px solid ${selected ? T.green500 : T.borderSoft}`, borderLeft: `5px solid ${cat.colour}`, borderRadius: 12, padding: "9px 11px", marginBottom: 7, boxShadow: selected ? "0 4px 14px rgba(2,89,76,0.14)" : "0 1px 5px rgba(33,43,50,0.08)" }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2 }}>
         <span style={{ fontSize: 13.5, fontWeight: 800, color: T.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{patient}</span>
         {encounter && encounter !== patient && <span style={{ fontFamily: T.mono, fontSize: 12, fontWeight: 700, color: T.slate, whiteSpace: "nowrap" }}>{encounter}</span>}
       </div>
-      <div style={{ fontSize: 16, fontWeight: 800, marginTop: 7, lineHeight: 1.35, textTransform: "capitalize", color: T.ink }}>{c.triage?.chiefcomplaint || "Chief complaint withheld for this role"}</div>
+      <div style={{ fontSize: 14, fontWeight: 700, marginTop: 5, lineHeight: 1.35, textTransform: "capitalize", color: T.ink }}>{c.triage?.chiefcomplaint || "Chief complaint withheld for this role"}</div>
       <div style={{ display: "flex", gap: 8, marginTop: 8, fontSize: 12.5, color: T.slate, alignItems: "center", flexWrap: "wrap" }}>
         {c.demographics?.gender && <span>{c.demographics.gender}</span>}
         {c.demographics?.arrival_transport && <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>{String(c.demographics.arrival_transport).includes("AMB") ? <Ambulance size={12} /> : <Footprints size={12} />}{String(c.demographics.arrival_transport).toLowerCase()}</span>}
@@ -57,36 +58,19 @@ function QueueCard({ c, selected, onClick, prio }) {
   );
 }
 
-function VitalTile({ label, k, v, severityValue = v, unit, note }) {
-  const st = vitalState(k, severityValue);
-  const c = st === "crit" ? T.red : st === "warn" ? "#B25E00" : T.ink;
-  const edge = st === "crit" ? T.red : st === "warn" ? "#E86C00" : T.borderSoft;
-  return (
-    <div style={{ border: `1px solid ${T.borderSoft}`, borderLeft: `5px solid ${edge}`, borderRadius: 12, padding: "17px 18px", background: T.surface, minHeight: 108, boxShadow: "0 1px 5px rgba(33,43,50,0.06)" }}>
-      <Eyebrow>{label}</Eyebrow>
-      <div style={{ marginTop: 7, display: "flex", alignItems: "baseline", gap: 6 }}>
-        <span style={{ fontFamily: T.mono, fontSize: 34, fontWeight: 800, color: c, lineHeight: 1 }}>{v ?? "—"}</span>
-        <span style={{ fontSize: 13, color: T.grey500, fontWeight: 600 }}>{unit}</span>
-      </div>
-      {note && <div style={{ fontSize: 12, color: T.grey500, marginTop: 5 }}>{note}</div>}
-    </div>
-  );
-}
-
-export function CaseDetail({ c, presentation, canReviewAi = true }) {
+export function CaseDetail({ c, presentation, canReviewAi = true, permissions, onChecklistStateChange, onGeneralObservations, onChecklistSaved, assessment, checklistActions }) {
   if (!c) return <EmptyState>Select a patient from the queue to begin triage.</EmptyState>;
   const t = c.triage || {}; const d = c.demographics || {};
   const ws = c.workflow_state || {};
   const tempC = toC(t.temperature, t.temperature_unit);
-  const converted = (t.temperature_unit || "").toUpperCase() === "F";
   const info = infoState(c);
   const encounter = encounterLabel(c);
   return (
     <div className="fade-up" key={c.case_uid} style={{ padding: "4px 2px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
+      <div className="triage-case-heading" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
         <div>
-          <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1.2 }}>{patientLabel(c)}</div>
-          <div style={{ fontSize: 17, color: T.ink, marginTop: 8, lineHeight: 1.35, textTransform: "capitalize", fontWeight: 700 }}>{t.chiefcomplaint || "Clinical presentation"}</div>
+          <div style={{ fontSize: 21, fontWeight: 800, lineHeight: 1.2 }}>{patientLabel(c)}</div>
+          <div style={{ fontSize: 16, color: T.ink, marginTop: 5, lineHeight: 1.35, textTransform: "capitalize", fontWeight: 700 }}>{t.chiefcomplaint || "Clinical presentation"}</div>
           {encounter && <div style={{ fontSize: 13.5, color: T.slate, marginTop: 6, fontFamily: T.mono, fontWeight: 700 }}>{encounter}</div>}
         </div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -98,15 +82,9 @@ export function CaseDetail({ c, presentation, canReviewAi = true }) {
           {info === "reassessed" && <Pill colour={T.green900} bg={T.green50} border="#CBEADF">REASSESSED — DECISION NEEDED</Pill>}
         </div>
       </div>
-      {c.is_curated_demo && <div style={{ marginTop: 12, fontSize: 12, color: T.slate }}>{c.demo_data_notice}</div>}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 14, marginTop: 22 }}>
-        <VitalTile label="Heart rate" k="heartrate" v={t.heartrate != null ? Math.round(t.heartrate) : null} unit="bpm" />
-        <VitalTile label="BP" k="sbp" severityValue={t.sbp} v={t.sbp != null ? `${Math.round(t.sbp)}/${t.dbp != null ? Math.round(t.dbp) : "—"}` : null} unit="mmHg" />
-        <VitalTile label="SpO₂" k="o2sat" v={t.o2sat != null ? Math.round(t.o2sat) : null} unit="%" />
-        <VitalTile label="Resp rate" k="resprate" v={t.resprate != null ? Math.round(t.resprate) : null} unit="/min" />
-        <VitalTile label="Temp" k="tempC" v={tempC} unit="°C" note={converted ? "converted from °F" : null} />
-        <VitalTile label="Pain" k="pain" v={t.pain ?? null} unit="/10" />
-      </div>
+      {c.is_curated_demo && <details style={{ marginTop: 6, fontSize: 12, color: T.slate }}><summary>Data provenance</summary>{c.demo_data_notice}</details>}
+      <MTSChecklist key={c.case_uid} c={c} permissions={permissions} onSaved={onChecklistSaved} assessment={assessment} onStateChange={onChecklistStateChange} onGeneralObservations={onGeneralObservations} checklistActions={checklistActions} />
+      {!permissions?.includes("can_record_mts_checklist") && permissions?.includes("can_update_vitals") && <ObservationActions c={c} onRecord={onGeneralObservations} />}
       {ws.latest_triage_updates_at && (
         <div style={{ fontSize: 12, color: T.green900, background: T.green50, border: "1px solid #CBEADF", borderRadius: 9, padding: "8px 11px", marginTop: 10 }}>
           Observations updated {String(ws.latest_triage_updates_at).replace("T", " ").slice(0, 16)} UTC{ws.information_response_by_role ? ` by ${String(ws.information_response_by_role).replace(/_/g, " ")}` : ""} — the values above reflect the latest recorded observations.{canReviewAi ? " Check the model estimate against these observations before recording a decision." : ""}
@@ -117,8 +95,9 @@ export function CaseDetail({ c, presentation, canReviewAi = true }) {
 }
 
 const probability = (value) => typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1 ? value : null;
+const findingLabel = (trace, id) => trace?.executed_rules?.find(rule => rule.id === id)?.label || id?.replaceAll("_", " ");
 
-export function AdvisoryPanel({ c, assessment, loading, loadingLabel, error, onAccept, onOverride, onEscalate, onRequestInfo, onRetry, canRunAssessment, canAccept, canOverride, canEscalate, canRequestInfo, workflowRunId }) {
+export function AdvisoryPanel({ c, assessment, loading, loadingLabel, canStartAssessment, error, onAccept, onOverride, onEscalate, onRequestInfo, onRetry, canRunAssessment, canAccept, canOverride, canEscalate, canRequestInfo, workflowRunId, checklistDirty = false }) {
   if (!c) return null;
   if (loading) return (
     <Card style={{ padding: 16 }}>
@@ -127,6 +106,7 @@ export function AdvisoryPanel({ c, assessment, loading, loadingLabel, error, onA
         <Spinner />
         <div style={{ fontSize: 13.5, color: T.slate, lineHeight: 1.45 }}>{loadingLabel || "Preparing the acuity estimate..."}</div>
       </div>
+      {canStartAssessment && !checklistDirty && <Btn kind="quiet" onClick={onRetry} style={{ marginTop: 12 }}>Run assessment</Btn>}
     </Card>
   );
   if (error) return (
@@ -153,6 +133,11 @@ export function AdvisoryPanel({ c, assessment, loading, loadingLabel, error, onA
     ?? (assessment.argmax_acuity === prio ? probability(assessment.top_class_confidence ?? assessment.confidence) : null);
   const mlDown = !assessment.ml_prediction_available;
   const anyDecision = canAccept || canOverride || canEscalate || canRequestInfo;
+  const trace = assessment.mts_assessment;
+  const pathway = assessment.discriminator_evidence?.pathway;
+  const mtsRaised = pathway?.kind === "structured_mts" ? pathway.affects_displayed_acuity : trace?.escalation_applied;
+  const beforeMts = pathway?.kind === "structured_mts" ? pathway.advisory_before : trace?.advisory_before_mts;
+  const unresolved = trace?.unresolved_earlier_discriminators || trace?.unresolved_discriminators;
   return (
     <div className="fade-up" key={c.case_uid}>
       <Card style={{ overflow: "hidden" }}>
@@ -166,18 +151,22 @@ export function AdvisoryPanel({ c, assessment, loading, loadingLabel, error, onA
               <div style={{ fontSize: 12.5, color: T.slate }}>{prio ? `Target to first physician contact: ${MTS[prio].target}` : "No acuity assigned"}</div>
             </div>
           </div>
-          {conf != null && (
-            <div style={{ marginTop: 14 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                <Eyebrow>Probability of {acuityLabel(prio, "this acuity")}</Eyebrow>
-              </div>
-              <ConfBar v={Number(conf)} colour={cat.colour} />
-            </div>
-          )}
+          <div role="status" style={{ fontSize: 12.5, marginTop: 10 }}>
+            <b>{trace?.selected_flowchart?.label || "MTS flowchart not confirmed"}</b><br />
+            {trace?.assessment_complete ? "MTS category assessed" : "MTS assessment incomplete"}
+            {trace?.conflicting_observations?.length > 0 && " · conflicting observations"}
+            {unresolved?.length > 0 && ` · ${unresolved.length} earlier findings unresolved`}
+            {trace?.determining_discriminator && <div>Determining finding: {findingLabel(trace, trace.determining_discriminator)}</div>}
+            {!trace?.assessment_complete && trace?.earliest_known_match && <div>Earliest known match: {findingLabel(trace, trace.earliest_known_match)}</div>}
+            {checklistDirty && <b style={{ display: "block", color: T.red }}>Unsaved checklist changes. Save and reassess before accepting.</b>}
+          </div>
           {mlDown && <div style={{ marginTop: 12, fontSize: 12.5, color: "#8A4B00", background: T.yellow50, border: "1px solid #EEDD9A", borderRadius: 8, padding: "8px 11px", lineHeight: 1.45 }}>{assessment.model_note || assessment.ml_prediction_error || "ML prediction unavailable in this profile."}</div>}
+          {mtsRaised && <div style={{ marginTop: 8, fontSize: 12.5 }}>MTS findings {beforeMts == null ? `set the advisory to ${acuityLabel(prio)}` : `raised the advisory from ${acuityLabel(beforeMts)} to ${acuityLabel(prio)}`}.</div>}
           {probs && (
-            <div style={{ marginTop: 14 }}>
-              <Eyebrow>Acuity probabilities</Eyebrow>
+            <details style={{ marginTop: 14 }}>
+              <summary style={{ cursor: "pointer", fontWeight: 700, fontSize: 12.5 }}>Model details</summary>
+              {conf != null && <div><Eyebrow>Probability of {acuityLabel(prio)}</Eyebrow><span>{(conf * 100).toFixed(1)}%</span></div>}
+              <Eyebrow>Model-estimated probabilities</Eyebrow>
               <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 7 }}>
                 {Object.entries(probs).filter(([k, p]) => /^[1-5]$/.test(k) && probability(p) != null).sort((a, b) => Number(a[0]) - Number(b[0])).map(([k, p]) => {
                   const kp = priorityFromCategory(k); const km = catOf(kp);
@@ -192,27 +181,22 @@ export function AdvisoryPanel({ c, assessment, loading, loadingLabel, error, onA
                   );
                 })}
               </div>
-            </div>
+            </details>
           )}
-          <DiscriminatorEvidence evidence={assessment.discriminator_evidence} />
         </div>
       </Card>
       {anyDecision && (
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
-          {!workflowRunId && canRunAssessment && (
-            <div style={{ fontSize: 12, color: "#8A4B00", background: T.yellow50, border: "1px solid #EEDD9A", borderRadius: 8, padding: "8px 10px", lineHeight: 1.45 }}>
-              Run a logged assessment before recording a decision so the decision is linked to the exact model run.
-            </div>
-          )}
-          {canAccept && <Btn kind="dark" onClick={onAccept} style={{ padding: "8px 10px", fontSize: 12.5 }} disabled={!prio || !workflowRunId}><CheckCircle2 size={13} style={{ verticalAlign: -3, marginRight: 6 }} />Accept & log {acuityLabel(prio, "Acuity —")}</Btn>}
+          {!workflowRunId && canRunAssessment && <Btn kind="dark" disabled={checklistDirty} onClick={onRetry}>Run assessment</Btn>}
+          {canAccept && <Btn kind="dark" onClick={onAccept} style={{ padding: "8px 10px", fontSize: 12.5 }} disabled={!prio || !workflowRunId || checklistDirty}><CheckCircle2 size={13} style={{ verticalAlign: -3, marginRight: 6 }} />{assessment.mts_assessment?.assessment_complete ? `Accept & log ${acuityLabel(prio, "Acuity —")}` : "Record assessment exception…"}</Btn>}
           {(canOverride || canEscalate) && <div style={{ display: "grid", gridTemplateColumns: canOverride && canEscalate ? "1fr 1fr" : "1fr", gap: 8 }}>
-            {canOverride && <Btn kind="quiet" disabled={!workflowRunId} onClick={onOverride} style={{ padding: "7px 9px", fontSize: 12.5 }}>Override…</Btn>}
+            {canOverride && <Btn kind="quiet" disabled={!workflowRunId || checklistDirty} onClick={onOverride} style={{ padding: "7px 9px", fontSize: 12.5 }}>Override…</Btn>}
             {canEscalate && <Btn kind="quiet" disabled={!workflowRunId} onClick={onEscalate} style={{ padding: "7px 9px", fontSize: 12.5 }}><ArrowUpRight size={13} style={{ verticalAlign: -2, marginRight: 5 }} />Escalate…</Btn>}
           </div>}
           {canRequestInfo && <Btn kind="quiet" disabled={!workflowRunId} onClick={onRequestInfo} style={{ padding: "7px 9px", fontSize: 12.5 }}><Undo2 size={13} style={{ verticalAlign: -2, marginRight: 6 }} />Request more information…</Btn>}
-          {!workflowRunId && canRunAssessment && <Btn kind="quiet" onClick={onRetry}>Run logged assessment</Btn>}
         </div>
       )}
+      <DiscriminatorEvidence evidence={assessment.discriminator_evidence} />
     </div>
   );
 }
@@ -234,11 +218,12 @@ const REASSESS_FIELDS = [
   { key: "pain", label: "Pain", unit: "/10", min: 0, max: 10 },
 ];
 
-export function ReassessModal({ c, onClose, onDone, toast }) {
+export function ReassessModal({ c, onClose, onDone, toast, allowVitals = true }) {
   const [vals, setVals] = useState({});
   const [complaint, setComplaint] = useState("");
   const [context, setContext] = useState("");
   const [scanFiles, setScanFiles] = useState([]);
+  const supportingInput = useRef(null);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const ws = c.workflow_state || {};
@@ -317,7 +302,7 @@ export function ReassessModal({ c, onClose, onDone, toast }) {
             <Eyebrow>Changed observations</Eyebrow>
             <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 7 }}>
               {result.changed_vitals.map((v, i) => (
-                <div key={i} style={{ fontSize: 12.5, fontFamily: T.mono, color: T.slate }}>{v.vital || v.field || v.key}: {v.previous ?? v.from ?? "—"} → {v.updated ?? v.new ?? v.to ?? "—"}</div>
+                <div key={i} style={{ fontSize: 12.5, fontFamily: T.mono, color: T.slate }}>{v.vital || v.field || v.key}: {v.previous ?? v.from ?? "—"} → {v.updated ?? v.new ?? v.to ?? "—"} {v.unit || ""}</div>
               ))}
             </div>
           </div>
@@ -337,9 +322,9 @@ export function ReassessModal({ c, onClose, onDone, toast }) {
           Further information was requested for this case{ws.updated_at_utc ? ` (${String(ws.updated_at_utc).replace("T", " ").slice(0, 16)} UTC)` : ""}. Enter what has come back — the case is reassessed against the updated picture.
         </div>
       )}
-      <Eyebrow style={{ marginBottom: 8 }}>Updated vital signs (leave blank if unchanged)</Eyebrow>
+      {allowVitals ? <Eyebrow style={{ marginBottom: 8 }}>Updated vital signs (leave blank if unchanged)</Eyebrow> : <p style={{ fontSize: 12 }}>Record measurements in the flowchart checklist. This form updates the complaint or supporting information.</p>}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 10, marginBottom: 8 }}>
-        {REASSESS_FIELDS.map((f) => (
+        {(allowVitals ? REASSESS_FIELDS : []).map((f) => (
           <label key={f.key} style={{ fontSize: 11, fontWeight: 700, color: T.slate, display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
             {f.label} <span style={{ fontWeight: 500, color: T.grey500 }}>({f.unit})</span>
             <input inputMode="decimal" value={vals[f.key] ?? ""} onChange={(e) => setVals((v) => ({ ...v, [f.key]: e.target.value }))}
@@ -349,15 +334,15 @@ export function ReassessModal({ c, onClose, onDone, toast }) {
       </div>
       {problems.length > 0 && <div style={{ fontSize: 12, color: T.red, marginBottom: 8 }}>{problems.map((p) => `${p.label} must be ${p.min}–${p.max} ${p.unit}`).join(" · ")}</div>}
       <Eyebrow style={{ margin: "8px 0" }}>Updated complaint (optional)</Eyebrow>
-      <input value={complaint} maxLength={240} onChange={(e) => setComplaint(e.target.value)} placeholder="Only if the presenting complaint has changed" style={{ width: "100%", boxSizing: "border-box", fontFamily: T.font, fontSize: 13.5, padding: "9px 11px", borderRadius: 9, border: `1px solid ${T.border}`, marginBottom: 10 }} />
+      <input aria-label="Updated complaint" value={complaint} maxLength={240} onChange={(e) => setComplaint(e.target.value)} placeholder="Only if the presenting complaint has changed" style={{ width: "100%", boxSizing: "border-box", fontFamily: T.font, fontSize: 13.5, padding: "9px 11px", borderRadius: 9, border: `1px solid ${T.border}`, marginBottom: 10 }} />
       <Eyebrow style={{ marginBottom: 8 }}>Clinical context / requested information (optional)</Eyebrow>
-      <textarea value={context} maxLength={1000} onChange={(e) => setContext(e.target.value)} rows={2} placeholder="e.g. Collateral history from family; ECG shows sinus tachycardia." style={{ width: "100%", boxSizing: "border-box", fontFamily: T.font, fontSize: 13.5, padding: 10, borderRadius: 9, border: `1px solid ${T.border}`, resize: "vertical", marginBottom: 10 }} />
+      <textarea aria-label="Clinical context or requested information" value={context} maxLength={1000} onChange={(e) => setContext(e.target.value)} rows={2} placeholder="e.g. Collateral history from family; ECG shows sinus tachycardia." style={{ width: "100%", boxSizing: "border-box", fontFamily: T.font, fontSize: 13.5, padding: 10, borderRadius: 9, border: `1px solid ${T.border}`, resize: "vertical", marginBottom: 10 }} />
       <Eyebrow style={{ marginBottom: 8 }}>Supporting MRI / X-ray / document</Eyebrow>
       <div style={{ border: `1px dashed ${T.border}`, borderRadius: 10, padding: 12, marginBottom: 12, background: "#FAFBFB" }}>
-        <input id={`supporting-upload-${c.case_uid}`} type="file" multiple accept="image/*,.dcm,.dicom,application/dicom,application/pdf" onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} style={{ display: "none" }} />
-        <label htmlFor={`supporting-upload-${c.case_uid}`} className="clickable" style={{ display: "inline-flex", alignItems: "center", gap: 8, fontFamily: T.font, fontSize: 13.5, fontWeight: 700, color: T.green700, background: T.surface, border: `1px solid ${T.border}`, borderRadius: 9, padding: "9px 13px" }}>
+        <input ref={supportingInput} id={`supporting-upload-${c.case_uid}`} type="file" multiple accept="image/*,.dcm,.dicom,application/dicom,application/pdf" onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} style={{ display: "none" }} />
+        <button type="button" onClick={() => supportingInput.current?.click()} className="clickable" style={{ display: "inline-flex", alignItems: "center", gap: 8, fontFamily: T.font, fontSize: 13.5, fontWeight: 700, color: T.green700, background: T.surface, border: `1px solid ${T.border}`, borderRadius: 9, padding: "9px 13px" }}>
           <UploadCloud size={16} /> Upload scan or document
-        </label>
+        </button>
         {scanFiles.length > 0 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>
             {scanFiles.map((file, i) => (
@@ -381,8 +366,7 @@ export function ReassessModal({ c, onClose, onDone, toast }) {
   );
 }
 
-/* The backend may use several bounded internal checks, but the clinical UI
-   deliberately exposes only the ExplanationAgent's concise final summary. */
+/* Explain the exact displayed run. Older responses may contain generated text. */
 export function MultiAgentExplanation({ caseUid, assessmentKey, canExplain, toast }) {
   const [state, setState] = useState("idle");   // idle | loading | done | error
   const [result, setResult] = useState(null);
@@ -426,24 +410,22 @@ export function MultiAgentExplanation({ caseUid, assessmentKey, canExplain, toas
 
   const notConfigured = result && result.status === "NOT_CONFIGURED";
   const passed = result && result.status === "PASS";
+  const recordedEvidence = result?.explanation_source === "recorded_evidence";
 
   return (
-    <Card style={{ marginTop: 12, padding: 16 }}>
+    <Card style={{ marginTop: 12, padding: 12 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
         <Sparkles size={15} style={{ color: T.green700 }} />
-        <div style={{ fontSize: 13.5, fontWeight: 700 }}>Concise acuity explanation</div>
-      </div>
-      <div style={{ fontSize: 11.5, color: T.grey500, lineHeight: 1.45, marginBottom: 12 }}>
-        The Explanation Agent summarises the main drivers in 3–5 easy-to-read sentences. It explains the estimate — it does not decide it.
+        <div style={{ fontSize: 13.5, fontWeight: 700 }}>Decision explanation</div>
       </div>
 
       {state === "idle" && (
-        <Btn kind="quiet" style={{ width: "100%" }} onClick={run}><Sparkles size={14} style={{ verticalAlign: -2, marginRight: 6 }} />Explain this estimate</Btn>
+        <Btn kind="quiet" style={{ width: "100%" }} onClick={run}>Explain this decision</Btn>
       )}
 
       {state === "loading" && (
         <div style={{ display: "flex", alignItems: "center", gap: 10, color: T.slate, fontSize: 12.5, padding: "6px 0" }}>
-          <Spinner /> Preparing a concise summary from verified evidence…
+          <Spinner /> Loading the explanation…
         </div>
       )}
 
@@ -461,7 +443,12 @@ export function MultiAgentExplanation({ caseUid, assessmentKey, canExplain, toas
       )}
 
       {passed && <>
+        <p style={{ fontSize: 12, color: T.slate }}>{recordedEvidence ? "Based on the saved assessment" : "Generated explanation · review against the recorded findings"}</p>
         <div style={{ fontSize: 13, color: T.ink, lineHeight: 1.6, background: T.green50, border: "1px solid #CBEADF", borderRadius: 9, padding: "11px 13px" }}>{result.final_explanation}</div>
+        {recordedEvidence && result.evidence_links?.length > 0 && <details style={{ marginTop: 8, fontSize: 12 }}>
+          <summary>Evidence references</summary>
+          <ul>{result.evidence_links.map(({ claim, path }) => <li key={`${claim}:${path}`}>{claim} <code style={{ overflowWrap: "anywhere" }}>{path}</code></li>)}</ul>
+        </details>}
         <Btn kind="ghost" style={{ width: "100%", marginTop: 10, fontSize: 12 }} onClick={() => { setState("idle"); setResult(null); }}>Run again</Btn>
       </>}
 
@@ -490,17 +477,19 @@ function ObservationActions({ c, onRecord }) {
   );
 }
 
-export default function Triage({ cases, casesError, casesLoading = false, refresh, selectedUid, setSelectedUid, query, searchActive, searchBusy, toast, onDecision, permissions = [], canExplainAcuity, presentation, serverTotal, hasMore, onLoadMore, loadingMore }) {
+export default function Triage({ cases, casesError, casesLoading = false, refresh, selectedUid, setSelectedUid, query, searchActive, searchBusy, toast, onDecision, permissions = [], canExplainAcuity, presentation, serverTotal, hasMore, onLoadMore, loadingMore, navigationGuard }) {
   const [assessments, setAssessments] = useState({});
+  const [checklistState, setChecklistState] = useState({ dirty: false, hasChart: false });
   const [assessState, setAssessState] = useState({});
   const [detail, setDetail] = useState(null);
   const [modal, setModal] = useState(null);
+  const [pendingNavigation, setPendingNavigation] = useState(null);
+  const checklistActions = useRef(null);
   const [ovCat, setOvCat] = useState(3);
   const [reason, setReason] = useState("");
   const [infoFields, setInfoFields] = useState([]);
   const [visibleCount, setVisibleCount] = useState(30);
   const busyRef = useRef(false);
-  const explicitSelectRef = useRef(false);
   const assessmentRequests = useRef({});
   const observedRevisions = useRef({});
   const detailRequest = useRef(0);
@@ -519,10 +508,31 @@ export default function Triage({ cases, casesError, casesLoading = false, refres
   const canEscalate = permissionSet.has("can_escalate_case");
   const canUpdateVitals = permissionSet.has("can_update_vitals") || permissionSet.has("can_record_vitals") || permissionSet.has("can_provide_requested_information");
   const isObservationOnlyView = canUpdateVitals && !canRunAssessment;
-  const selectExplicit = (uid) => {
-    // Clicking the already auto-selected row is still an explicit consultation.
-    if (uid === selectedUid) { runAssess(uid); return; }
-    explicitSelectRef.current = true; setSelectedUid(uid);
+  const requestNavigation = (navigate, discardLabel = "Discard and leave", sameViewCaseUid = null) => {
+    if ((checklistState.dirty || checklistState.busy) && (!sameViewCaseUid || sameViewCaseUid !== selectedUid)) {
+      setPendingNavigation({ navigate, discardLabel });
+    } else {
+      navigate();
+    }
+  };
+  useImperativeHandle(navigationGuard, () => requestNavigation);
+  const saveThenNavigate = async () => {
+    const pending = pendingNavigation;
+    if (await checklistActions.current?.save(false)) {
+      setPendingNavigation(null);
+      pending.navigate();
+    } else {
+      setPendingNavigation({ ...pending, failed: true });
+    }
+  };
+  const openPatient = uid => {
+    setChecklistState({ dirty: false, hasChart: false });
+    if (uid === selectedUid) return;
+    setSelectedUid(uid);
+  };
+  const selectExplicit = uid => {
+    if (uid === selectedUid && checklistState.dirty) { toast("Unsaved checklist", "Save and reassess before running another estimate."); return; }
+    requestNavigation(() => openPatient(uid), "Discard and switch patient");
   };
 
   const queue = useMemo(() => {
@@ -540,7 +550,10 @@ export default function Triage({ cases, casesError, casesLoading = false, refres
       .map((row) => row.c);
   }, [cases, isObservationOnlyView]);
   const visible = queue.slice(0, visibleCount);
-  const sel = useMemo(() => queue.find((c) => c.case_uid === selectedUid) || null, [queue, selectedUid]);
+  // Queue searches, remote workflow updates and refresh errors can hide a row.
+  // Keep its editor mounted until the draft is saved or deliberately discarded.
+  const sel = queue.find(c => c.case_uid === selectedUid)
+    || ((checklistState.dirty || checklistState.busy) && detail?.case_uid === selectedUid ? detail : null);
 
   useEffect(() => { setVisibleCount(30); }, [searchActive, query]);
 
@@ -552,14 +565,21 @@ export default function Triage({ cases, casesError, casesLoading = false, refres
     return api.getCase(uid).then((d) => { if (current()) setDetail(d); }).catch(() => { if (current()) setDetail(fallback); });
   };
   const requestAssessment = (uid, preview = false, force = false) => {
-    // Opening a case runs the REAL (audited) assessment: this is the clinician
-    // consulting the model on the selected patient, which is recorded.
-    if (!canRunAssessment || (!force && assessmentRequests.current[uid]?.state === "loading")) return;
+    // Page selection reads saved evidence or computes a non-auditing estimate.
+    // Only the explicit assessment action creates a new recorded run.
+    if (!canRunAssessment || (!force && ["loading", "previewing"].includes(assessmentRequests.current[uid]?.state))) return;
+    if (!preview && assessmentRequests.current[uid]?.state === "loading") return;
     const request = { state: preview ? "previewing" : "loading" };
     assessmentRequests.current[uid] = request;
     const current = () => mounted.current && assessmentRequests.current[uid] === request;
     setAssessState((s) => ({ ...s, [uid]: request.state }));
-    (preview ? api.previewAssessment(uid) : api.runAssessment(uid))
+    const pending = preview
+      ? api.currentAssessment(uid).then(saved => {
+        if (!current()) return null;
+        return saved.assessment || api.previewAssessment(uid);
+      })
+      : api.runAssessment(uid);
+    pending
       .then((result) => {
         if (!current()) return;
         request.state = "done";
@@ -575,11 +595,9 @@ export default function Triage({ cases, casesError, casesLoading = false, refres
   const runAssess = (uid, force = false) => requestAssessment(uid, false, force);
 
   useEffect(() => {
-    setDetail(null);
+    setDetail(current => current?.case_uid === sel?.case_uid ? current : null);
     detailRequest.current += 1;
     if (!sel) return;
-    const wasExplicit = explicitSelectRef.current;
-    explicitSelectRef.current = false;
     loadDetail(sel.case_uid, sel);
     const observedAt = sel.workflow_state?.latest_triage_updates_at || "";
     const previousObservedAt = observedRevisions.current[sel.case_uid];
@@ -595,17 +613,13 @@ export default function Triage({ cases, casesError, casesLoading = false, refres
       requestAssessment(sel.case_uid, true, true);
       return () => { detailRequest.current += 1; };
     }
-    if (canRunAssessment && wasExplicit) {
-      // The clinician explicitly opened this patient — run the real, audited
-      // assessment (recording that the model was consulted on this case).
-      runAssess(sel.case_uid);
-    } else if (canRunAssessment && !assessments[sel.case_uid] && assessState[sel.case_uid] === undefined) {
-      // Auto-landing / auto-advance: use the non-auditing preview so no
-      // workflow-run record is created for a case the clinician did not pick.
+    const savedId = sel.workflow_state?.latest_workflow_run_id;
+    if (canRunAssessment && (!assessments[sel.case_uid]
+        || (savedId && savedId !== assessments[sel.case_uid]?.workflow_run_id))) {
       requestAssessment(sel.case_uid, true);
     }
     return () => { detailRequest.current += 1; };
-  }, [sel?.case_uid, sel?.workflow_state?.updated_at_utc, sel?.workflow_state?.latest_triage_updates_at, canRunAssessment]);
+  }, [sel?.case_uid, sel?.workflow_state?.updated_at_utc, sel?.workflow_state?.latest_triage_updates_at, sel?.workflow_state?.latest_workflow_run_id, canRunAssessment]);
 
   const a = sel ? assessments[sel.case_uid] : null;
   const selectedAssessState = sel ? assessState[sel.case_uid] : null;
@@ -632,7 +646,10 @@ export default function Triage({ cases, casesError, casesLoading = false, refres
       await fn();
       toast(okTitle, okBody);
       if (uid && decidedAcuity != null) onDecision?.(uid, decidedAcuity);
-      setModal(null); setReason(""); advance(); refresh();
+      setModal(null); setReason("");
+      // Urgent escalation remains available during a draft and does not discard it.
+      if (!checklistState.dirty && !checklistState.busy && selectedUidRef.current === uid) advance();
+      refresh();
     }
     catch (e) { toast("Action failed", e.detail || e.message, "err"); }
     finally { busyRef.current = false; }
@@ -650,8 +667,8 @@ export default function Triage({ cases, casesError, casesLoading = false, refres
   };
 
   return (
-    <div style={{ display: "flex", gap: 16, height: "100%", minHeight: 0 }}>
-      <div style={{ width: 296, flexShrink: 0, display: "flex", flexDirection: "column", minHeight: 0 }}>
+    <div className={`triage-workspace${isObservationOnlyView ? " observations-workspace" : ""}`} style={{ display: "flex", gap: 16, height: "100%", minHeight: 0 }}>
+      <div className="triage-queue" style={{ width: 252, flexShrink: 0, display: "flex", flexDirection: "column", minHeight: 0 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "2px 2px 10px" }}>
           <div style={{ fontSize: 17, fontWeight: 800 }}>{searchActive ? "Search results" : isObservationOnlyView ? "Observations queue" : "Unreviewed queue"}</div>
           {searchBusy && <span style={{ fontFamily: T.mono, fontSize: 12, color: T.slate }}>searching…</span>}
@@ -669,21 +686,48 @@ export default function Triage({ cases, casesError, casesLoading = false, refres
           {!casesError && !casesLoading && queue.length === 0 && !searchBusy && <EmptyState>{searchActive ? "No patients match that search." : "Queue clear. New arrivals appear here automatically."}</EmptyState>}
         </div>
       </div>
-      <Card style={{ flex: 1, minWidth: 0, padding: 32, overflowY: "auto" }}>
-        <CaseDetail c={detail?.case_uid === sel?.case_uid ? detail : null} presentation={presentation} canReviewAi={!isObservationOnlyView} />
+      {!isObservationOnlyView && canRunAssessment && sel && <a className="triage-mobile-recommendation" href="#triage-recommendation">
+        <span>{priorityFromCategory(sysPred) ? `${acuityLabel(sysPred)} · ${catOf(priorityFromCategory(sysPred)).name}` : selectedAssessLoading ? "Assessment loading" : "Assessment pending"}</span>
+        <span>{checklistState.dirty ? "Unsaved checklist" : "View recommendation"}</span>
+      </a>}
+      <Card className="triage-detail" style={{ flex: 1, minWidth: 0, padding: 20, overflowY: "auto" }}>
+        <CaseDetail c={detail?.case_uid === sel?.case_uid ? detail : null} presentation={presentation} canReviewAi={!isObservationOnlyView}
+          permissions={permissions} assessment={a} checklistActions={checklistActions} onChecklistStateChange={setChecklistState} onGeneralObservations={() => setModal("reassess")} onChecklistSaved={(uid, result, reassess) => {
+            if (selectedUidRef.current !== uid) return;
+            observedRevisions.current[uid] = result.checklist.expected_observations_at;
+            setAssessments(m => ({ ...m, [uid]: null }));
+            loadDetail(uid); refresh?.();
+            if (canRunAssessment && reassess) runAssess(uid, true);
+          }} />
       </Card>
-      <div style={{ width: 330, flexShrink: 0, overflowY: "auto", paddingRight: 2 }}>
-        {canUpdateVitals && <ObservationActions c={sel} onRecord={() => setModal("reassess")} />}
-        {canRunAssessment && <AdvisoryPanel c={sel} assessment={a} loading={selectedAssessLoading} loadingLabel={selectedLoadingLabel} error={selectedAssessError}
-          canRunAssessment={canRunAssessment} canAccept={canAccept} canOverride={canOverride} canEscalate={canEscalate} canRequestInfo={canRequestInfo} workflowRunId={workflowRunId}
-          onAccept={() => doDecision(() => decisions.accept(sel.case_uid, { workflowRunId, systemPrediction: sysPred }), `${acuityLabel(priorityFromCategory(sysPred), "Acuity —")} logged`, `${patientWithEncounter(sel)} moved to the review queue.`, priorityFromCategory(sysPred))}
+      {!isObservationOnlyView && <div id="triage-recommendation" className="triage-advisory" tabIndex={-1} style={{ width: 330, flexShrink: 0, overflowY: "auto", paddingRight: 2 }}>
+        {canRunAssessment && <AdvisoryPanel c={sel} assessment={a} loading={selectedAssessLoading} loadingLabel={selectedLoadingLabel} canStartAssessment={selectedAssessState === "previewing"} error={selectedAssessError}
+          checklistDirty={checklistState.dirty} canRunAssessment={canRunAssessment} canAccept={canAccept} canOverride={canOverride} canEscalate={canEscalate} canRequestInfo={canRequestInfo} workflowRunId={workflowRunId}
+          onAccept={() => !a?.mts_assessment?.assessment_complete ? (setReason(""), setModal("assessment_exception")) : doDecision(() => decisions.accept(sel.case_uid, { workflowRunId, systemPrediction: sysPred }), `${acuityLabel(priorityFromCategory(sysPred), "Acuity —")} logged`, `${patientWithEncounter(sel)} moved to the review queue.`, priorityFromCategory(sysPred))}
           onOverride={() => { setOvCat(priorityFromCategory(sysPred) || 3); setModal("override"); }}
           onEscalate={() => setModal("escalate")}
           onRequestInfo={() => { setInfoFields([]); setModal("info"); }}
           onRetry={() => runAssess(sel.case_uid, true)} />}
         {canRunAssessment && sel && !selectedAssessLoading && workflowRunId && <MultiAgentExplanation key={`${sel.case_uid}:${workflowRunId}`} caseUid={sel.case_uid} assessmentKey={workflowRunId} canExplain={canExplainAcuity} toast={toast} />}
-      </div>
+      </div>}
 
+      {pendingNavigation && <Modal title="Discard unsaved checklist changes?" onClose={() => { if (!checklistState.busy) setPendingNavigation(null); }}>
+        <p>Save your observations, discard this draft, or stay on this case.</p>
+        {pendingNavigation.failed && <ErrorNote>Could not save the draft. Keep editing to see the checklist error.</ErrorNote>}
+        {!checklistState.canSave && <p>Confirm the flowchart and provide a reason if it differs from the proposed chart before saving.</p>}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+          <Btn kind="quiet" disabled={checklistState.busy} onClick={() => setPendingNavigation(null)}>Keep editing</Btn>
+          <Btn kind="quiet" disabled={checklistState.busy} onClick={() => { setPendingNavigation(null); pendingNavigation.navigate(); }}>{pendingNavigation.discardLabel}</Btn>
+          <Btn disabled={checklistState.busy || !checklistState.canSave} onClick={saveThenNavigate}>{checklistState.busy ? "Saving observations…" : "Save and continue"}</Btn>
+        </div>
+      </Modal>}
+      {modal === "assessment_exception" && sel && (
+        <Modal title="Deliberate incomplete-assessment exception" onClose={() => setModal(null)}>
+          <p>The checklist is incomplete, conflicting or outside the supported charts. This records acceptance of the hybrid advisory with an explicit exception; it does not mark MTS complete.</p>
+          <label>Reason for accepting before MTS completion<textarea aria-label="Assessment exception reason" value={reason} maxLength={1000} rows={3} onChange={e => setReason(e.target.value)} style={{ width: "100%", boxSizing: "border-box" }} /></label>
+          <Btn disabled={reason.trim().length < 5 || checklistState.dirty || !workflowRunId} onClick={() => doDecision(() => decisions.accept(sel.case_uid, { workflowRunId, systemPrediction: sysPred, exceptionReason: reason.trim() }), "Assessment exception recorded", patientWithEncounter(sel), priorityFromCategory(sysPred))}>Record exception and accept advisory</Btn>
+        </Modal>
+      )}
       {modal === "override" && sel && (
         <Modal title={`Override advisory — ${patientWithEncounter(sel)}`} onClose={() => setModal(null)}>
           <Eyebrow style={{ marginBottom: 8 }}>Set acuity</Eyebrow>
@@ -729,7 +773,7 @@ export default function Triage({ cases, casesError, casesLoading = false, refres
           </div>
         </Modal>
       )}
-      {modal === "reassess" && sel && <ReassessModal key={sel.case_uid} c={detail?.case_uid === sel.case_uid ? detail : sel} onClose={() => setModal(null)} onDone={onReassessDone} toast={toast} />}
+      {modal === "reassess" && sel && <ReassessModal key={sel.case_uid} c={detail?.case_uid === sel.case_uid ? detail : sel} allowVitals={!checklistState.hasChart || !permissions.includes("can_record_mts_checklist")} onClose={() => setModal(null)} onDone={onReassessDone} toast={toast} />}
     </div>
   );
 }

@@ -56,8 +56,8 @@ export default function Health({ session }) {
       <Eyebrow style={{ marginTop: 18, marginBottom: 9 }}>Services</Eyebrow>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 11 }}>
         <Light ok={!!health} label="FastAPI backend" detail={health ? `Healthy · v${meta?.version || health.version || ""}` : "Health probe failed"} />
-        <Light ok={meta?.active_case_source && meta.active_case_source !== "not_configured"} warn={meta?.active_case_source === "not_configured"} label="Case source" detail={meta?.active_case_source_mode ? `Configured (${String(meta.active_case_source_mode).replace(/_/g, " ")})` : "Not configured — the app fails closed with no cases"} />
-        <Light ok={uhl?.model_ready || meta?.uhl_model_configured} warn={!uhl?.model_ready} label="Prediction model artefact" detail={(uhl?.model_ready || meta?.uhl_model_configured) ? "Pinned UHL CatBoost model verified" : "Missing or invalid — assessments fall back to the rules engine"} />
+        <Light ok={meta?.active_case_source && meta.active_case_source !== "not_configured"} warn={meta?.active_case_source === "not_configured"} label="Case source" detail={meta?.active_case_source_mode ? `Configured (${{ curated_demo_100: "curated 100-case cohort", balanced_demo_100: "balanced 100-case cohort", packaged_uhl: "UHL dataset" }[meta.active_case_source_mode] || "configured dataset"})` : "Not configured — the app fails closed with no cases"} />
+        <Light ok={uhl?.model_ready || meta?.uhl_model_configured} warn={!uhl?.model_ready} label="Prediction model artefact" detail={(uhl?.model_ready || meta?.uhl_model_configured) ? "Pinned UHL CatBoost model verified" : "Missing or invalid — documented positive safety/MTS findings can still establish urgency"} />
         <Light ok={llm?.configured || llm?.status === "configured"} warn={!(llm?.configured || llm?.status === "configured")} label="LLM explanation layer" detail={(llm?.configured || llm?.status === "configured") ? "Azure OpenAI configured — explains only, never decides" : "Not configured — predictions unaffected; explanations disabled"} />
         <Light ok={runtime?.overdue_vitals_sweeper_enabled ?? runtime?.sweeper_enabled} warn={!(runtime?.overdue_vitals_sweeper_enabled ?? runtime?.sweeper_enabled)} label="Overdue-vitals sweeper" detail={(runtime?.overdue_vitals_sweeper_enabled ?? runtime?.sweeper_enabled) ? "Server-side recheck notifications active" : "Off in this profile — enable ENABLE_OVERDUE_VITALS_SWEEPER for live recheck alerts"} />
         {notifications && <Light
@@ -70,7 +70,7 @@ export default function Health({ session }) {
               : "Durable in-app notifications active; SMS worker not required in this profile"
           }
         />}
-        <Light ok={String(meta?.rules_status || "").includes("ACTIVE")} label="Rules engine" detail={String(meta?.rules_status || "").includes("ACTIVE") ? "Provisional MTS ruleset active — clinician review required" : "No automated categorisation configured"} />
+        <Light ok={health?.structured_mts?.available} label="Structured MTS checklist" detail={health?.structured_mts?.available ? `${health.structured_mts.flowcharts} charts · age ${health.structured_mts.minimum_age}+ · clinical validation pending` : "Checklist catalog unavailable"} />
       </div>
       <Eyebrow style={{ marginTop: 20, marginBottom: 9 }}>Governance gates</Eyebrow>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 11 }}>
@@ -78,7 +78,7 @@ export default function Health({ session }) {
         <Light ok label="Leakage guard" detail="Triage-time fields only — recorded acuity and retrospective outcomes are never shown to the model or this UI." />
         <Light ok label="Patient/stay display labels" detail="Clinical screens show patient names when present, otherwise patient or stay numbers." />
         {Array.isArray(govChecks) && govChecks.slice(0, 4).map((c, i) => (
-          <Light key={i} ok={c.passed ?? c.ok ?? c.status === "pass"} warn={!(c.passed ?? c.ok ?? c.status === "pass")} label={c.name || c.check || `Policy check ${i + 1}`} detail={c.detail || c.description || c.status || ""} />
+          <Light key={i} ok={c.passed ?? c.ok ?? String(c.status).toUpperCase() === "PASS"} warn={!(c.passed ?? c.ok ?? String(c.status).toUpperCase() === "PASS")} label={c.name || c.check || `Policy check ${i + 1}`} detail={c.detail || c.description || c.status || ""} />
         ))}
       </div>
       <Eyebrow style={{ marginTop: 20, marginBottom: 9 }}>Model evidence {card ? "" : "(configure the model report directory to populate)"}</Eyebrow>
@@ -101,7 +101,7 @@ export default function Health({ session }) {
               </div>
             ))}
           </div>
-          <div style={{ fontSize: 12, color: T.slate, marginTop: 11, lineHeight: 1.5 }}>Figures from the supplied UHL training and untouched-test reports. Full artefacts (calibration, confusion matrix and model comparisons) live under Model Evidence.</div>
+          <div style={{ fontSize: 12, color: T.slate, marginTop: 11, lineHeight: 1.5 }}>Historical training-policy figures on estimated synthetic labels; these do not measure the current hybrid policy or clinical accuracy. Full artefacts (calibration, confusion matrix and model comparisons) live under Model Evidence.</div>
         </Card>
       ) : <EmptyState>Model report artefacts not available to this role or not configured in this profile.</EmptyState>}
     </div>

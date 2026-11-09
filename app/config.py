@@ -176,27 +176,36 @@ class Settings(BaseModel):
 
     # The web demo serves a small immutable cohort; the full training cohort is
     # an optional offline asset and its hash still binds the trained model.
-    uhl_case_cohort: Literal["demo_100", "full"] = os.environ.get("UHL_CASE_COHORT", "demo_100")
+    uhl_case_cohort: Literal["demo_100", "demo_balanced_100", "full"] = os.environ.get("UHL_CASE_COHORT", "demo_100")
     uhl_demo_data_path: Path = Path(os.environ.get("UHL_DEMO_DATA_PATH", str(project_root / "data/uhl_demo_100.json"))).expanduser()
+    uhl_balanced_demo_data_path: Path = Path(os.environ.get("UHL_BALANCED_DEMO_DATA_PATH", str(project_root / "data/uhl_demo_balanced_100.json"))).expanduser()
+
+    @property
+    def uses_demo_cohort(self) -> bool:
+        return self.uhl_case_cohort != "full"
 
     @property
     def serving_data_path(self) -> Path:
+        if self.uhl_case_cohort == "demo_balanced_100":
+            return self.uhl_balanced_demo_data_path
         return self.uhl_demo_data_path if self.uhl_case_cohort == "demo_100" else self.uhl_data_path
 
     @property
     def expected_serving_data_sha256(self) -> str:
-        from app.constants import DEMO_COHORT_SHA256
+        from app.constants import BALANCED_DEMO_COHORT_SHA256, DEMO_COHORT_SHA256
+        if self.uhl_case_cohort == "demo_balanced_100":
+            return BALANCED_DEMO_COHORT_SHA256
         return DEMO_COHORT_SHA256 if self.uhl_case_cohort == "demo_100" else self.expected_dataset_sha256
 
     @property
     def expected_case_rows(self) -> int:
         from app.constants import DEMO_COHORT_ROWS, EXPECTED_SOURCE_ROWS
-        return DEMO_COHORT_ROWS if self.uhl_case_cohort == "demo_100" else EXPECTED_SOURCE_ROWS
+        return DEMO_COHORT_ROWS if self.uses_demo_cohort else EXPECTED_SOURCE_ROWS
 
     @property
     def expected_model_scope_rows(self) -> int:
         from app.constants import DEMO_COHORT_ROWS, EXPECTED_MODEL_ROWS
-        return DEMO_COHORT_ROWS if self.uhl_case_cohort == "demo_100" else EXPECTED_MODEL_ROWS
+        return DEMO_COHORT_ROWS if self.uses_demo_cohort else EXPECTED_MODEL_ROWS
 
     # Compatibility aliases used by the transplanted, narrowly scoped UHL
     # repository.  Keeping these as properties avoids replacing the 22.4

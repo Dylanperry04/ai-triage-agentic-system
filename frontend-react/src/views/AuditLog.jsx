@@ -3,6 +3,7 @@ import { Download } from "lucide-react";
 import { T, patientWithEncounter, acuityLabel } from "../theme.js";
 import { Card, Eyebrow, Btn, EmptyState, ErrorNote, Spinner, Pill } from "../atoms.jsx";
 import { api } from "../api.js";
+import MTSTrace from "../MTSTrace.jsx";
 
 const toneFor = (a) => /DENIED/i.test(a) ? { c: T.red, bg: T.red50, b: "#EFC5D1" } : /overrid/i.test(a) ? { c: "#8A4B00", bg: T.yellow50, b: "#EEDD9A" } : /escalat/i.test(a) ? { c: T.red, bg: T.red50, b: "#EFC5D1" } : { c: T.slate, bg: "#F1F4F5", b: T.borderSoft };
 const fmtAt = (x) => String(x || "").replace("T", " ").slice(0, 16);
@@ -97,14 +98,16 @@ function DecisionsView() {
               const action = e.decision_type || e.action_type || e.record_kind || "record";
               const tone = toneFor(String(action));
               return (
-                <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start", padding: "10px 14px", borderTop: i ? `1px solid ${T.borderSoft}` : "none", fontSize: 12.5 }}>
+                <div key={i} style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "flex-start", padding: "10px 14px", borderTop: i ? `1px solid ${T.borderSoft}` : "none", fontSize: 12.5 }}>
                   <span style={{ fontFamily: T.mono, color: T.grey500, whiteSpace: "nowrap" }}>{fmtAt(e.timestamp_utc)}</span>
                   <Pill colour={tone.c} bg={tone.bg} border={tone.b}>{String(action).replace(/_/g, " ").toLowerCase()}</Pill>
+                  {e.review_outcome && e.review_outcome !== "applied" && <Pill colour="#8A4B00" bg={T.yellow50} border="#EEDD9A">Attempt · {e.review_outcome} · not counted as a decision</Pill>}
                   <span style={{ fontWeight: 700, color: T.slate, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 240 }}>{patientWithEncounter(e)}</span>
                   <span style={{ color: T.slate, whiteSpace: "nowrap" }}>{String(e.reviewer_role || (e.reviewer_roles || [])[0] || "").replace(/_/g, " ")}</span>
                   {e.escalation_status && <Pill colour={T.red} bg={T.red50} border="#EFC5D1">esc: {e.escalation_status}</Pill>}
                   {e.override_status === "yes" && <Pill colour="#8A4B00" bg={T.yellow50} border="#EEDD9A">override</Pill>}
                   <span style={{ color: T.ink, flex: 1, minWidth: 120, lineHeight: 1.45 }}>{e.review_comment || e.override_reason || ""}</span>
+                  {e.mts_assessment?.catalog_version && <div style={{ flexBasis: "100%", minWidth: 0 }}><MTSTrace trace={e.mts_assessment} /></div>}
                 </div>
               );
             })}
@@ -168,7 +171,7 @@ export default function AuditLog() {
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
         <div>
           <div style={{ fontSize: 19, fontWeight: 700 }}>Audit log</div>
-          <div style={{ fontSize: 13, color: T.slate, marginTop: 2 }}>Every clinical decision and access decision, recorded against an authenticated identity. Redacted evidence only — no raw identifiers.</div>
+          <div style={{ fontSize: 13, color: T.slate, marginTop: 2 }}>Recorded decisions and access events, with the actor’s role and identity verification status.</div>
         </div>
         <div style={{ display: "flex", gap: 6 }}>
           {[["decisions", "Decisions & workflow"], ["access", "Access events"]].map(([k, label]) => (

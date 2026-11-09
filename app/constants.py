@@ -15,7 +15,11 @@ DEMO_COHORT_SHA256 = "1fb5aad5fec098da3335065f7932da6e832104988b579d4c991209e5e5
 DEMO_COHORT_ROWS = 100
 DEMO_COHORT_CATEGORY_COUNTS = {1: 1, 2: 59, 3: 27, 4: 8, 5: 5}
 DEMO_COHORT_MATCHED_ROWS = 60
-DEMO_COHORT_NOTICE = "UHL demo: unchanged source CSV (includes synthetic vitals); 60 matched cases, not an evaluation cohort."
+DEMO_COHORT_NOTICE = "Unchanged source CSV with synthetic vitals; 60 matched cases. Not an evaluation cohort."
+BALANCED_DEMO_COHORT_ID = "uhl_balanced_demo_100_train_v1"
+BALANCED_DEMO_COHORT_SHA256 = "d98aba58c658662e0c6c5975c99ecd3c8340e5f630adf882eb31af37b144a2c0"
+BALANCED_DEMO_CORRECTED_CSV_SHA256 = "5b380ea03a7154aefa30f1af706da85618d9856c2ea52264a10128d0521fc66b"
+BALANCED_DEMO_COHORT_NOTICE = "UHL research cohort with synthetic vitals. Includes supported and unsupported complaints; no independent clinical reference is available."
 
 SOURCE_COLUMNS = (
     "AttendanceID",

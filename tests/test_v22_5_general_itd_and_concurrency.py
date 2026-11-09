@@ -1,5 +1,6 @@
 """Regression coverage for the fifth independent review's concrete claims."""
 from __future__ import annotations
+from tests.applied_review_fixtures import applied_review_states, normalise_applied_review_fixtures
 
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
@@ -101,7 +102,7 @@ def _audit_records():
             "overdue_vitals_alert_active": True,
         },
     ]
-    return normalise_audit_records(
+    return normalise_applied_review_fixtures(
         access_events=access,
         workflow_runs=runs,
         human_reviews=reviews,
@@ -352,7 +353,7 @@ def test_role_permission_questions_come_from_active_matrix():
     who = _system_information_answer("Who can resolve escalation?", {})
     assert doctor.startswith("No.") and "ED Doctor" in doctor
     assert nurse.startswith("Yes.") and "ED Nurse" in nurse
-    assert "ED Doctor" in who and "ITD" in who
+    assert "ED Doctor" in who and "ITD" not in who
 
 
 def test_wal_transition_is_not_per_request_and_concurrent_writes_retry(tmp_path):
@@ -417,13 +418,13 @@ def test_scheduled_reconciliation_revisits_an_older_existing_month(monkeypatch, 
     first = monthly_export.generate_monthly_export(
         "2026-08", now=datetime(2026, 9, 1, 1, tzinfo=timezone.utc),
         workflow_runs=[august], human_reviews=[unresolved], directory=tmp_path,
-    )
+     workflow_states=applied_review_states([unresolved]))
     assert first["eligible_cases"] == 0
 
     resolved = _review(august, "ESCALATION_RESOLVED", final=2)
     monkeypatch.setattr(
         monthly_export, "_load_source_records",
-        lambda _month: ([august], [unresolved, resolved]),
+        lambda _month: ([august], [unresolved, resolved], applied_review_states([unresolved, resolved])),
     )
     result = monthly_export.reconcile_completed_month_exports(
         datetime(2026, 10, 1, 1, tzinfo=timezone.utc), directory=tmp_path,

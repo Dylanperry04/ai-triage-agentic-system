@@ -91,6 +91,10 @@ class HumanReviewRecord(BaseModel):
 
     review_id: str
     action_id: Optional[str] = None
+    action_payload_sha256: Optional[str] = None
+    action_actor_sha256: Optional[str] = None
+    base_state_revision: Optional[int] = None
+    workflow_state_update: Optional[dict] = None
     workflow_run_id: Optional[str] = None
     # stay_id is accepted for internal use but redacted before persistence.
     stay_id: Optional[int] = None
@@ -114,6 +118,8 @@ class HumanReviewRecord(BaseModel):
     clinician_override: Optional[str] = None
     override_reason: Optional[str] = None
     previous_acuity: Optional[int] = None
+    assessment_exception_reason: Optional[str] = None
+    assessment_completion_status: Optional[str] = None
     final_clinician_acuity: Optional[int] = None
     action_type: Optional[str] = None
     created_at_utc: str

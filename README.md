@@ -1,6 +1,10 @@
-# AI Triage Agentic System 22.4 — UHL model with durable ACS notifications
+# AI Triage Agentic System 22.5 — local independent-audit review
 
-> **Research prototype — not for clinical use.** Every assessment requires
+The 31 October local revision resolves the second independent audit and simplifies
+the nursing workspace. See [the complete resolution report](docs/INDEPENDENT_AUDIT_RESOLUTION_R2_2026-10-30.md)
+and [local run instructions](LOCAL_REVIEW.md). The source data and model are unchanged.
+
+> **Research application — clinical validation pending; not for clinical use.** Every assessment requires
 > clinician review. The project does not implement an official or clinically
 > validated Manchester Triage System ruleset.
 
@@ -8,6 +12,15 @@ The October 2026 code audit adds assessment-linked discriminator evidence and
 regression fixes. See [the audit report](CODE_AUDIT_2026-10-26.md),
 [specification and Irish applicability review](MTS_REQUIREMENTS_REVIEW.md), and
 [discriminator-based ML migration](DISCRIMINATOR_PIPELINE.md).
+
+The 29 October supervisor-feedback revision is available for **local review
+only**, without a GitHub push or Azure deployment. See
+[local run instructions](LOCAL_REVIEW.md) and the
+[requirement-by-requirement implementation report](SUPERVISOR_IMPLEMENTATION_2026-10-29.md).
+It adds eight source-versioned MTS nursing checklists, a frozen decision trace,
+clinical reference capture and evaluation across four complaint groups. The ML
+model and selected 100 source records are unchanged. Clinical metrics remain
+unevaluated until independent reference annotations exist.
 
 This release deliberately keeps the working 22.4.0 application as the base. It
 switches only the active dataset, model-serving contract, model evidence, and
@@ -23,7 +36,7 @@ See `UHL_SWAP_NOTES.md` for the detailed boundary.
 
 | Asset | Packaged path | SHA-256 |
 |---|---|---|
-| Curated runtime demo (100 cases) | `data/uhl_demo_100.json` | `1fb5aad5fec098da3335065f7932da6e832104988b579d4c991209e5e561f691` |
+| Curated runtime cohort (100 cases) | `data/uhl_demo_100.json` | `1fb5aad5fec098da3335065f7932da6e832104988b579d4c991209e5e561f691` |
 | Selected UHL CatBoost bundle | `artifacts/model/uhl_synthetic_acuity_selected.joblib` | `7dddf3cc673f5598d73d7e6d56546cad49639edcae77b44b17b677f0b0d1395b` |
 | Single-seed evidence | `artifacts/reports/single_seed/` | See its manifest/provenance files |
 | Five-seed stability evidence | `artifacts/reports/five_seed/` | See `SHA256_MANIFEST.txt` |
@@ -53,7 +66,7 @@ python scripts/verify_demo_source.py --source /path/to/uhl_dataset_final.csv.gz 
 
 The supplied dataset card identifies synthetic vitals and estimated labels;
 these cases are **not verified real patient observations**. This is a curated
-demonstration selected using labels, **not an evaluation cohort or approved MTS validation**. The
+curated cohort selected using labels, **not an evaluation cohort or approved MTS validation**. The
 interface discloses the synthetic vitals and selection.
 
 The full training source remains an optional offline asset with SHA-256
@@ -163,7 +176,7 @@ acuity. Requests for information, unresolved escalations, missing exact-run
 links, incomplete UHL inputs, and invalid provenance are excluded and counted.
 An unchanged check is idempotent. If an excluded assessment later receives a
 final label, the month is atomically revised and ITD is notified of the new
-revision, so late resolutions are not lost. In the non-patient Azure demo, a
+revision, so late resolutions are not lost. In the non-patient Azure role-selection profile, a
 clearly labelled current-month preview makes same-day walkthrough evidence
 downloadable without changing or persisting the official calendar-month export.
 
@@ -214,7 +227,7 @@ triage, diagnosis and treatment advice remains refused.
 On Azure, the default 100-case mode reads the immutable JSON in memory.
 Durable workflow state lives under `/home/data`. Only explicit full-cohort mode
 restores or builds the large SQLite case index at
-`/tmp/alter-uhl-cache/uhl_cases.sqlite3`. Keep the synthetic demo at one App
+`/tmp/alter-uhl-cache/uhl_cases.sqlite3`. Keep the synthetic-data application at one App
 Service instance and one Uvicorn worker because clinical transition locks are
 process-local.
 
@@ -224,8 +237,9 @@ process-local.
 python scripts\azure_preflight_check.py
 python -m pytest tests -q
 cd frontend-react
-pnpm test
-pnpm build
+npm ci
+npm test
+npm run build
 ```
 
 The deployment manifest contains only the active FastAPI/UHL/notification
@@ -261,3 +275,5 @@ Historic MIMIC loaders, training utilities, fixtures, and tests remain in the
 repository as inactive 22.4 compatibility/reference code. The case resolver,
 health surface, model evidence endpoint, and prediction dispatcher expose UHL
 as the only active source in this release.
+
+Latest local correction record: [Audit resolution, 30 October 2026](docs/AUDIT_RESOLUTION_2026-10-30.md). Run the local application using [Local review](LOCAL_REVIEW.md); future hospital integration is documented in [Hospital data handoff](docs/HOSPITAL_DATA_HANDOFF.md).

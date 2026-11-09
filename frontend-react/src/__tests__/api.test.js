@@ -3,11 +3,14 @@ import { api, decisions, setDemoIdentity, asciiFold } from "../api.js";
 
 /* Capture every fetch and answer with an empty JSON body. */
 let calls;
+const reviewResponse = (url) => url.endsWith("/reviews")
+  ? { review_id: "review-1", case_uid: decodeURIComponent(url.split("/")[2]), status: "recorded" }
+  : {};
 beforeEach(() => {
   calls = [];
   global.fetch = vi.fn(async (url, opts) => {
     calls.push({ url, opts });
-    return { ok: true, status: 200, headers: { get: () => "application/json" }, json: async () => ({}) };
+    return { ok: true, status: 200, headers: { get: () => "application/json" }, json: async () => reviewResponse(url) };
   });
   setDemoIdentity(null, null);
 });
@@ -29,6 +32,37 @@ describe("decision payloads match the backend review contract", () => {
     const first = lastBody().action_id;
     await decisions.accept("case-1", { workflowRunId: "run-1", systemPrediction: "2" });
     expect(lastBody().action_id).not.toBe(first);
+  });
+
+  it("reuses a review action ID after an uncertain response and coalesces a concurrent retry", async () => {
+    global.fetch.mockImplementationOnce(async (url, opts) => {
+      calls.push({ url, opts });
+      throw new TypeError("Network connection lost");
+    });
+    const options = { workflowRunId: "run-1", systemPrediction: "2" };
+    await expect(decisions.accept("case-1", options)).rejects.toThrow("Network connection lost");
+    const first = lastBody().action_id;
+    const retry = decisions.accept("case-1", options);
+    expect(decisions.accept("case-1", options)).toBe(retry);
+    await retry;
+    expect(calls).toHaveLength(2);
+    expect(lastBody().action_id).toBe(first);
+    await decisions.accept("case-1", options);
+    expect(lastBody().action_id).not.toBe(first);
+  });
+
+  it("retains the action ID for a server error and isolates changed payloads", async () => {
+    global.fetch.mockImplementationOnce(async (url, opts) => {
+      calls.push({ url, opts });
+      return { ok: false, status: 503, headers: { get: () => "application/json" }, json: async () => ({ detail: "Unavailable" }) };
+    });
+    const options = { workflowRunId: "run-1", reason: "Senior review requested" };
+    await expect(decisions.escalate("case-1", options)).rejects.toThrow("Unavailable");
+    const first = lastBody().action_id;
+    await decisions.escalate("case-1", { ...options, reason: "New clinical reason" });
+    expect(lastBody().action_id).not.toBe(first);
+    await decisions.escalate("case-1", options);
+    expect(lastBody().action_id).toBe(first);
   });
 
   it("override carries clinician_override and the mandatory reason", async () => {

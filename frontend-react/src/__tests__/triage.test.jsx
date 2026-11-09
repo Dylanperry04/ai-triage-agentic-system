@@ -1,9 +1,12 @@
 import React, { useState } from "react";
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, waitFor, cleanup } from "@testing-library/react";
+import { render, screen, waitFor, cleanup, fireEvent } from "@testing-library/react";
+import { checklistResponse } from "./mts-fixtures.js";
 
 vi.mock("../api.js", () => ({
   api: {
+    mtsChecklist: vi.fn(uid => Promise.resolve(checklistResponse(uid))),
+    currentAssessment: vi.fn(() => Promise.resolve({ assessment: null })),
     previewAssessment: vi.fn(() => new Promise(() => {})),
     runAssessment: vi.fn(() => Promise.resolve({ final_category: "Urgent (Yellow)" })),
     getCase: vi.fn((uid) => Promise.resolve({
@@ -83,7 +86,7 @@ describe("Triage model estimate loading", () => {
     expect(screen.queryByText("Unreviewed queue")).toBeNull();
   });
 
-  it("keeps accepted, overridden, and escalated patients actionable for ED Nurse observations", () => {
+  it("keeps accepted, overridden, and escalated patients actionable for ED Nurse observations", async () => {
     const observationRows = [
       { ...cases[0], case_uid: "accepted", patient_display_label: "Patient Accepted", workflow_state: { case_status: "accepted", overdue_vitals_alert_active: true } },
       { ...cases[1], case_uid: "overridden", patient_display_label: "Patient Overridden", workflow_state: { case_status: "overridden" } },
@@ -96,7 +99,8 @@ describe("Triage model estimate loading", () => {
     expect(screen.getByText("Patient Overridden")).toBeTruthy();
     expect(screen.getByText("Patient Escalated")).toBeTruthy();
     expect(screen.queryByText("Patient Closed")).toBeNull();
-    expect(screen.getByText("Record / update vitals")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Open Patient Accepted/ }));
+    expect(await screen.findByText("Record / update vitals")).toBeTruthy();
     expect(api.previewAssessment).not.toHaveBeenCalled();
   });
 
@@ -158,7 +162,7 @@ describe("Triage model estimate loading", () => {
 
   it("shows the selected acuity without the hidden decision-rule explanation", async () => {
     api.previewAssessment.mockResolvedValueOnce({
-      final_category: "Urgent (Yellow)",
+      final_category: "Urgent (Yellow)", mts_assessment: { assessment_complete: true },
       predicted_acuity: 3,
       ml_prediction_available: true,
       assigned_acuity_probability: 0.31,

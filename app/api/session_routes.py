@@ -57,14 +57,14 @@ def auth_session(ctx: AuthContext = Depends(get_auth_context)) -> Dict[str, Any]
     demo_role_switcher_available = demo_role_switcher_allowed()
     if demo_role_switcher_available and azure_demo:
         demo_role_switcher_label = (
-            "Demo role selector - not real authentication (Azure role-switcher demo)"
+            "Local role selector - identity not verified"
         )
     elif demo_role_switcher_available:
-        demo_role_switcher_label = "Demo role selector - not real authentication"
+        demo_role_switcher_label = "Local role selector - identity not verified"
     elif local_research:
         demo_role_switcher_label = "Role selector disabled - local credentialed research"
     else:
-        demo_role_switcher_label = "Demo role selector disabled"
+        demo_role_switcher_label = "Local role selector disabled"
     if patient:
         demo_role_switcher_reason = "disabled in PATIENT_DATA_MODE"
     elif local_research:
@@ -75,7 +75,7 @@ def auth_session(ctx: AuthContext = Depends(get_auth_context)) -> Dict[str, Any]
     elif os.environ.get("TRUSTED_AUTH_PROXY", "").lower() == "true":
         demo_role_switcher_reason = "disabled behind trusted authentication proxy"
     elif demo_role_switcher_available:
-        demo_role_switcher_reason = "enabled for the public role-switcher demo only"
+        demo_role_switcher_reason = "enabled for the local role-selection profile only"
     else:
         demo_role_switcher_reason = "disabled by configuration"
     return {
@@ -97,6 +97,8 @@ def auth_session(ctx: AuthContext = Depends(get_auth_context)) -> Dict[str, Any]
         ),
         "azure_supervisor_demo_mode": azure_demo,
         "real_authentication": not bool(ctx.is_demo_stub),
+        "logout_url": "/.auth/logout?post_logout_redirect_uri=%2F" if (
+            ctx.authenticated and ctx.source == "azure_trusted_header" and not ctx.is_demo_stub) else None,
         "current_mode": (
             "patient_data"
             if patient

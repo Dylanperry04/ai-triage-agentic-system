@@ -16,12 +16,15 @@ from typing import Dict, Set
 from app.security.identity import (
     AuthContext, ROLE_ED_NURSE, ROLE_TRIAGE_NURSE, ROLE_ED_DOCTOR,
     ROLE_RESEARCHER, ROLE_SECURITY_ADMIN, ROLE_GOVERNANCE_AUDITOR,
+    demo_role_switcher_allowed, real_mimic_azure_demo_mode,
 )
 
 # ── Permissions ─────────────────────────────────────────────────────────────
 PERM_VIEW_CASE = "can_view_case"                      # view a clinical case (patient content)
 PERM_RECORD_VITALS = "can_record_vitals"
 PERM_UPDATE_VITALS = "can_update_vitals"
+PERM_RECORD_MTS_CHECKLIST = "can_record_mts_checklist"
+PERM_RECORD_MTS_REFERENCE = "can_record_mts_reference"
 PERM_PROVIDE_REQUESTED_INFORMATION = "can_provide_requested_information"
 PERM_RUN_TRIAGE_ASSESSMENT = "can_run_triage_assessment"
 PERM_REVIEW_AI_PREDICTION = "can_review_ai_prediction"
@@ -54,6 +57,7 @@ PERM_GENERATE_RETRAINING_EXPORTS = "can_generate_retraining_exports"
 PERM_EXPORT_DATA = PERM_EXPORT_DEIDENTIFIED
 
 ALL_PERMISSIONS = {
+    PERM_RECORD_MTS_CHECKLIST, PERM_RECORD_MTS_REFERENCE,
     PERM_VIEW_CASE, PERM_RECORD_VITALS, PERM_UPDATE_VITALS,
     PERM_PROVIDE_REQUESTED_INFORMATION, PERM_RUN_TRIAGE_ASSESSMENT,
     PERM_REVIEW_AI_PREDICTION, PERM_ACCEPT_ACUITY, PERM_OVERRIDE_ACUITY,
@@ -77,17 +81,19 @@ ALL_PERMISSIONS = {
 #    review, and de-identified export. No individual case-level assessment/chat
 #    unless a separate governance-approved role grants clinical content and
 #    action permissions.
-#  - security_admin: displayed as ITD in the UI; full controlled-system access
-#    for this research/demo environment.
+#  - security_admin: system/security oversight. A synthetic demo persona can
+#    demonstrate all workspaces without granting those capabilities to ITD staff.
 #  - governance_auditor: read-only oversight — audit logs, governance evidence,
 #    review history, model performance. No clinical actions, no settings changes.
 ROLE_PERMISSIONS: Dict[str, Set[str]] = {
     ROLE_ED_NURSE: {
+        PERM_RECORD_MTS_CHECKLIST,
         PERM_VIEW_CASE, PERM_VIEW_CLINICAL_CONTENT, PERM_VIEW_WORKFLOW_QUEUE,
         PERM_RECORD_VITALS, PERM_UPDATE_VITALS,
         PERM_PROVIDE_REQUESTED_INFORMATION, PERM_ACKNOWLEDGE_OVERDUE_VITALS,
     },
     ROLE_TRIAGE_NURSE: {
+        PERM_RECORD_MTS_CHECKLIST, PERM_RECORD_MTS_REFERENCE,
         PERM_VIEW_CASE, PERM_VIEW_CLINICAL_CONTENT, PERM_VIEW_WORKFLOW_QUEUE,
         PERM_RUN_TRIAGE_ASSESSMENT, PERM_REVIEW_AI_PREDICTION,
         PERM_ACCEPT_ACUITY, PERM_OVERRIDE_ACUITY, PERM_REQUEST_INFORMATION,
@@ -95,6 +101,7 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
         PERM_EXPLAIN_CASE_ACUITY,
     },
     ROLE_ED_DOCTOR: {
+        PERM_RECORD_MTS_REFERENCE,
         PERM_VIEW_CASE, PERM_VIEW_CLINICAL_CONTENT, PERM_VIEW_WORKFLOW_QUEUE,
         PERM_REVIEW_AI_PREDICTION, PERM_REQUEST_INFORMATION, PERM_REVIEW_ESCALATION,
         PERM_RESOLVE_ESCALATION, PERM_CLOSE_CASE, PERM_VIEW_MODEL_PERFORMANCE,
@@ -103,7 +110,7 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
     ROLE_RESEARCHER: {
         PERM_VIEW_CASE, PERM_VIEW_MODEL_PERFORMANCE, PERM_EXPORT_DEIDENTIFIED,
     },
-    ROLE_SECURITY_ADMIN: set(ALL_PERMISSIONS),
+    ROLE_SECURITY_ADMIN: {PERM_VIEW_SECURITY_STATUS, PERM_VIEW_AUDIT_LOG, PERM_ASK_CHATBOT},
     ROLE_GOVERNANCE_AUDITOR: {
         PERM_VIEW_AUDIT_LOG, PERM_VIEW_WORKFLOW_QUEUE,
         PERM_VIEW_MODEL_PERFORMANCE,
@@ -175,7 +182,7 @@ ROLE_VISIBLE_TABS: Dict[str, Set[str]] = {
         TAB_MODEL_PERFORMANCE,
         TAB_MAINTAINABILITY,
     },
-    ROLE_SECURITY_ADMIN: set(ALL_TABS),
+    ROLE_SECURITY_ADMIN: {TAB_AUDIT_DASHBOARD, TAB_GOVERNANCE, TAB_MAINTAINABILITY, TAB_ITD_ASK},
     ROLE_GOVERNANCE_AUDITOR: {
         TAB_AUDIT_DASHBOARD,
         TAB_GOVERNANCE,
@@ -190,10 +197,21 @@ def permissions_for(ctx: AuthContext) -> Set[str]:
     users get the empty set."""
     if not ctx or not ctx.authenticated:
         return set()
+    if is_demo_admin(ctx):
+        return set(ALL_PERMISSIONS)
     perms: Set[str] = set()
     for role in ctx.roles:
         perms |= ROLE_PERMISSIONS.get(role, set())
     return perms
+
+
+def is_demo_admin(ctx: AuthContext) -> bool:
+    return (
+        ctx.is_demo_stub
+        and ROLE_SECURITY_ADMIN in ctx.roles
+        and demo_role_switcher_allowed()
+        and not real_mimic_azure_demo_mode()
+    )
 
 
 def role_display_name(role: str) -> str:
@@ -209,6 +227,8 @@ def display_roles_for(ctx: AuthContext) -> list[str]:
 def visible_tabs_for(ctx: AuthContext) -> list[str]:
     if not ctx or not ctx.authenticated:
         return []
+    if is_demo_admin(ctx):
+        return sorted(ALL_TABS)
     tabs: Set[str] = set()
     for role in ctx.roles or []:
         tabs |= ROLE_VISIBLE_TABS.get(role, set())

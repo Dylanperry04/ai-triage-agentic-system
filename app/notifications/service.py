@@ -416,19 +416,14 @@ def _reconcile_current_workflow_states_locked(*, limit: int = 50000) -> dict[str
     """
     from app.api import case_resolver
     from app.config import settings as app_settings
-    from app.storage.case_state_repository import read_case_states
+    from app.storage.case_state_repository import read_latest_case_states
 
     config = NotificationSettings.from_env()
     repository = get_notification_repository(config)
-    states = read_case_states(
+    latest = read_latest_case_states(
         app_settings.processed_dir / "case_workflow_state.jsonl",
         limit=max(1, min(int(limit), 50000)),
     )
-    latest: dict[str, dict[str, Any]] = {}
-    for state in states:
-        case_uid = str(state.get("case_uid") or "").strip()
-        if case_uid:
-            latest[case_uid] = state
     created = changed = failures = 0
     for case_uid, state in latest.items():
         try:

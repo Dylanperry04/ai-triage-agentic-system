@@ -13,14 +13,14 @@ def normalise_irish_mobile(value: str) -> str:
         raise RuntimeError("phonenumbers is required for SMS recipient validation") from exc
     parsed = phonenumbers.parse(str(value or "").strip(), "IE")
     if not phonenumbers.is_valid_number(parsed):
-        raise ValueError("the configured demo recipient is not a valid phone number")
+        raise ValueError("the configured test recipient is not a valid phone number")
     if phonenumbers.region_code_for_number(parsed) != "IE":
-        raise ValueError("demo SMS routing permits only an Irish recipient")
+        raise ValueError("test SMS routing permits only an Irish recipient")
     if phonenumbers.number_type(parsed) not in {
         phonenumbers.PhoneNumberType.MOBILE,
         phonenumbers.PhoneNumberType.FIXED_LINE_OR_MOBILE,
     }:
-        raise ValueError("the configured demo recipient must be an Irish mobile number")
+        raise ValueError("the configured test recipient must be an Irish mobile number")
     return phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)
 
 

@@ -18,7 +18,8 @@ PUBLIC_ENDPOINTS = ("/", "/health", "/status/uhl", "/runtime/status", "/ready")
 NOTIFICATION_ENDPOINTS = ("/notifications", "/notifications/system/health")
 EXPECTED_SOURCE_ROWS = 100
 EXPECTED_MODEL_SCOPE_ROWS = 100
-COHORT_COUNTS = {"demo_100": (100, 100), "full": (777176, 777174)}
+COHORT_COUNTS = {"demo_100": (100, 100), "demo_balanced_100": (100, 100), "full": (777176, 777174)}
+EXPECTED_BALANCED_COHORT_SHA256 = "d98aba58c658662e0c6c5975c99ecd3c8340e5f630adf882eb31af37b144a2c0"
 EXPECTED_DEMO_COHORT_SHA256 = "1fb5aad5fec098da3335065f7932da6e832104988b579d4c991209e5e561f691"
 EXPECTED_DEMO_ACUITY_COUNTS = {"1": 1, "2": 59, "3": 27, "4": 8, "5": 5}
 
@@ -71,6 +72,7 @@ def _attempt(
     check_notifications: bool,
     require_notification_worker: bool,
     check_assistant: bool = False,
+    check_mts: bool = False,
     case_cohort: str = "demo_100",
 ) -> dict[str, Any]:
     expected_source_rows, expected_model_rows = COHORT_COUNTS[case_cohort]
@@ -106,6 +108,8 @@ def _attempt(
         or uhl.get("expected_acuity_counts") != EXPECTED_DEMO_ACUITY_COUNTS
     ):
         raise RuntimeError("Deployed demo cohort does not match the reviewed 60-match release")
+    if case_cohort == "demo_balanced_100" and uhl.get("serving_data_sha256") != EXPECTED_BALANCED_COHORT_SHA256:
+        raise RuntimeError("Deployed balanced cohort does not match the reviewed release")
     readiness = payloads.get("/ready")
     if not isinstance(readiness, dict) or readiness.get("ready") is not True:
         raise RuntimeError("deep readiness endpoint did not report ready=true")
@@ -179,12 +183,31 @@ def _attempt(
         ):
             raise RuntimeError("ITD assistant did not answer the escalation audit question")
 
+    if check_mts:
+        from app.rules.mts_catalog import VERSION, catalog_hash
+        for path in ("/mts/catalog", "/research/mts/evaluation"):
+            status, payload = _request(session, base_url, path, timeout=timeout)
+            checks[path] = status
+            payloads[path] = payload
+            if status != 200 or not isinstance(payload, dict):
+                raise RuntimeError(f"MTS research endpoint {path} failed")
+        catalog, report = payloads["/mts/catalog"], payloads["/research/mts/evaluation"]
+        if catalog.get("version") != VERSION or catalog.get("sha256") != catalog_hash():
+            raise RuntimeError("MTS catalog does not match this release")
+        if report.get("catalog_sha256") != catalog_hash():
+            raise RuntimeError("MTS evaluation is using a different catalog")
+        if set(report.get("by_presenting_complaint", {})) != {"chest_pain", "abdominal_pain", "trauma", "respiratory_symptoms", "all"}:
+            raise RuntimeError("MTS complaint evaluation groups are incomplete")
+        if report.get("reference_cases") == 0 and report.get("flowchart_selection", {}).get("accuracy") is not None:
+            raise RuntimeError("MTS evaluation reports accuracy without reference cases")
+
     return {
         "status": "PASS",
         "checks": checks,
         "notification_source": check_notifications,
         "worker_required": require_notification_worker,
         "assistant_checked": check_assistant,
+        "mts_checked": check_mts,
     }
 
 
@@ -198,6 +221,7 @@ def main(argv=None) -> int:
     parser.add_argument("--check-notifications", action="store_true")
     parser.add_argument("--require-notification-worker", action="store_true")
     parser.add_argument("--check-assistant", action="store_true")
+    parser.add_argument("--check-mts", action="store_true")
     parser.add_argument("--cohort", choices=tuple(COHORT_COUNTS), default="demo_100")
     parser.add_argument("--timeout", type=float, default=30.0)
     parser.add_argument("--attempts", type=int, default=30)
@@ -222,6 +246,7 @@ def main(argv=None) -> int:
                 check_notifications=args.check_notifications,
                 require_notification_worker=args.require_notification_worker,
                 check_assistant=args.check_assistant,
+                check_mts=args.check_mts,
                 case_cohort=args.cohort,
             )
             result["attempt"] = attempt

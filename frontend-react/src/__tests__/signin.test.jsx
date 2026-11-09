@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import SignIn from "../views/SignIn.jsx";
 
 describe("SignIn", () => {
-  it("does not display the demo role-selector authentication disclaimer", () => {
+  it("uses a local workspace without unused credentials", () => {
     render(
       <SignIn
         session={{
@@ -16,8 +16,9 @@ describe("SignIn", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "Sign in" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Open workspace" })).toBeTruthy();
     expect(screen.queryByText(/demo role selector/i)).toBeNull();
-    expect(screen.queryByText(/not real authentication/i)).toBeNull();
+    expect(document.querySelector("input[type=password]")).toBeNull();
+    expect(document.querySelector("input[type=email]")).toBeNull();
   });
 });

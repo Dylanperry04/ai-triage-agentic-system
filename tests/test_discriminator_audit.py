@@ -109,13 +109,13 @@ def test_decisive_matches_all_matches_and_missing_are_distinct(monkeypatch):
 
 
 @pytest.mark.parametrize("acuity", [1, None])
-def test_flags_do_not_claim_to_change_an_already_urgent_or_unavailable_model(monkeypatch, acuity):
+def test_flags_preserve_urgent_ml_and_establish_floor_when_ml_unavailable(monkeypatch, acuity):
     result = workflow(monkeypatch, acuity=acuity, o2sat=80)
     evidence = result.discriminator_evidence
-    assert evidence["matched"] and not evidence["decisive"]
-    assert evidence["override_applied"] is False
-    if acuity is None:
-        assert result.final_acuity_assessment.final_acuity is None
+    assert evidence["matched"]
+    assert bool(evidence["decisive"]) is (acuity is None)
+    assert evidence["override_applied"] is (acuity is None)
+    assert result.final_acuity_assessment.final_acuity == 1
 
 
 def test_normal_rules_dont_invent_model_discriminators(monkeypatch):
@@ -215,4 +215,4 @@ def test_unavailable_model_does_not_display_separate_pathway_as_final(monkeypatc
     assert response["predicted_acuity"] is None
     assert response["final_category"] is None
     assert response["predicted_category"] is None
-    assert response["rules_category"] is not None
+    assert response["rules_category"] is None  # retired heuristic cannot invent an active UHL category

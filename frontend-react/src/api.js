@@ -5,10 +5,14 @@
 
 let demoRole = null;
 let demoUser = null;
+const pendingReviewActions = new Map();
 /* HTTP header values must be ASCII: fold diacritics (Sinéad -> Sinead) for the
    header/audit identity; the UI keeps the accented display name. */
 export const asciiFold = (s) => s ? s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\x20-\x7E]/g, "").trim() : null;
-export function setDemoIdentity(role, user) { demoRole = role || null; demoUser = asciiFold(user); }
+export function setDemoIdentity(role, user) {
+  pendingReviewActions.clear();
+  demoRole = role || null; demoUser = asciiFold(user);
+}
 
 export class ApiError extends Error {
   constructor(status, detail) { super(detail || `HTTP ${status}`); this.status = status; this.detail = detail; }
@@ -93,7 +97,45 @@ const qs = (params) => {
   const s = u.toString(); return s ? `?${s}` : "";
 };
 
+function submitReview(uid, body = {}) {
+  const path = `/cases/${encodeURIComponent(uid)}/reviews`;
+  if (body.action_id) return post(path, body);
+  // Keep an unresolved action's identity only in this browser session. A
+  // confirmed response closes the action so a later deliberate repeat is new.
+  const key = JSON.stringify([uid, Object.fromEntries(Object.entries(body).sort(([a], [b]) => a.localeCompare(b)))]);
+  let action = pendingReviewActions.get(key);
+  if (action?.request) return action.request;
+  if (!action) {
+    action = { id: globalThis.crypto?.randomUUID?.() || `review-${Date.now()}-${Math.random().toString(16).slice(2)}` };
+    pendingReviewActions.set(key, action);
+  }
+  const forget = () => { if (pendingReviewActions.get(key) === action) pendingReviewActions.delete(key); };
+  action.request = post(path, { ...body, action_id: action.id }).then(result => {
+    if (result?.case_uid !== uid || typeof result?.review_id !== "string"
+      || !["recorded", "already_recorded"].includes(result?.status)) {
+      throw new Error("The review response was unreadable. Retry the same action to check its outcome.");
+    }
+    forget();
+    return result;
+  }).catch(error => {
+    if (error.status >= 400 && error.status < 500 && error.status !== 408) forget();
+    throw error;
+  }).finally(() => { action.request = null; });
+  return action.request;
+}
+
 export const api = {
+  mtsChecklist: (uid) => get(`/cases/${encodeURIComponent(uid)}/mts-checklist`),
+  mtsCatalog: () => get("/mts/catalog"),
+  saveMtsChecklist: (uid, body) => post(`/cases/${encodeURIComponent(uid)}/mts-checklist`, body),
+  mtsEvaluation: () => get("/research/mts/evaluation"),
+  recordMtsReference: (body) => post("/research/mts/references", body),
+  mtsAssessment: (uid, runId) => get(`/cases/${encodeURIComponent(uid)}/mts-assessment${qs({ workflow_run_id: runId })}`),
+  mtsReviewableAssessments: (params) => get(`/research/mts/assessments${qs(params)}`),
+  mtsReferenceHistory: (uid) => get(`/research/mts/references${qs({ case_uid: uid })}`),
+  recordMtsGuidelineReview: (body) => post("/research/mts/guideline-reviews", body),
+  recordMtsExplanationReview: (body) => post("/research/mts/explanation-reviews", body),
+  mtsExplanations: (uid, runId) => get(`/cases/${encodeURIComponent(uid)}/mts-explanations${qs({ workflow_run_id: runId })}`),
   authSession: () => get("/auth/session"),
   uiAccess: (b) => post("/auth/ui-access", b),
   systemMeta: () => get("/system/meta"),
@@ -104,6 +146,7 @@ export const api = {
   securityStatus: () => get("/security/status"),
   listCases: (params) => get(`/cases${qs(params)}`),
   getCase: (uid) => get(`/cases/${encodeURIComponent(uid)}`),
+  currentAssessment: (uid) => get(`/cases/${encodeURIComponent(uid)}/assessments/current`),
   workflowQueue: (params) => get(`/workflow/queue${qs(params)}`),
   notifications: (limit = 200, offset = 0) =>
     get(`/notifications${qs({ limit, offset: offset > 0 ? offset : undefined })}`),
@@ -131,11 +174,7 @@ export const api = {
      status may be PASS, NOT_CONFIGURED
      (no Azure OpenAI), SAFETY_FAIL, or ERROR. */
   multiagentExplainCase: (uid, question, workflowRunId) => post(`/cases/${encodeURIComponent(uid)}/multiagent-explanations`, { ...(question ? { question } : {}), ...(workflowRunId ? { workflow_run_id: workflowRunId } : {}) }),
-  submitReview: (uid, body) => post(`/cases/${encodeURIComponent(uid)}/reviews`, {
-    ...body,
-    action_id: body?.action_id || globalThis.crypto?.randomUUID?.()
-      || `review-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-  }),
+  submitReview,
   sweepOverdueVitals: () => post("/workflow/overdue-vitals/sweep?limit=50000"),
   acknowledgeOverdue: (uid) => post(`/cases/${encodeURIComponent(uid)}/vitals/acknowledge-overdue`),
   auditEvents: (limit = 300) => get(`/audit/events${qs({ limit })}`),
@@ -158,12 +197,13 @@ export const api = {
 
 /* Decision helpers — exact review_status vocabulary from app/schemas/review.py. */
 export const decisions = {
-  accept: (uid, { workflowRunId, systemPrediction, comment }) => api.submitReview(uid, {
+  accept: (uid, { workflowRunId, systemPrediction, comment, exceptionReason }) => api.submitReview(uid, {
     review_status: "ACCEPTED_AS_PRESENTED",
     workflow_run_id: workflowRunId,
     review_comment: comment || "Advisory accepted at triage.",
     system_prediction: systemPrediction ?? null,
     clinician_decision: systemPrediction ?? null,
+    assessment_exception_reason: exceptionReason || null,
   }),
   override: (uid, { workflowRunId, systemPrediction, decision, finalAcuity, reason }) => api.submitReview(uid, {
     review_status: "OVERRIDDEN",

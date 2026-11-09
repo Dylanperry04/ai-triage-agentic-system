@@ -88,14 +88,16 @@ class _FakeTableClient:
     def __init__(self, entities):
         self.entities = list(entities)
         self.upserted = []
+        self.upsert_modes = []
         self.last_filter = None
 
     def query_entities(self, query_filter, results_per_page=None):
         self.last_filter = query_filter
         return list(self.entities)
 
-    def upsert_entity(self, entity):
+    def upsert_entity(self, entity, mode="merge"):
         self.upserted.append(dict(entity))
+        self.upsert_modes.append(mode)
 
 
 class TestDurableSinkTimestampCompatibility:
@@ -134,6 +136,7 @@ class TestDurableSinkTimestampCompatibility:
         })
         assert ok is True
         assert len(fake.upserted) == 1
+        assert fake.upsert_modes == ["replace"]
         # The entity now carries the canonical query field, taken from the
         # record's own clock.
         assert fake.upserted[0]["timestamp_utc"] == "2026-07-21T11:22:33+00:00"
@@ -254,6 +257,7 @@ class TestTerminalReviewClearsContradictoryState:
         assert escalated.status_code == 200
         accepted = client.post(f"/cases/{cuid}/reviews", headers=headers, json={
             "review_status": "ACCEPTED_AS_PRESENTED",
+            "assessment_exception_reason": "Test fixture: incomplete observations acknowledged",
             "workflow_run_id": run_id,
             "review_comment": "Accepting as presented.",
         })
@@ -275,6 +279,7 @@ class TestTerminalReviewClearsContradictoryState:
         })
         client.post(f"/cases/{cuid}/reviews", headers=headers, json={
             "review_status": "ACCEPTED_AS_PRESENTED",
+            "assessment_exception_reason": "Test fixture: incomplete observations acknowledged",
             "workflow_run_id": run_id,
             "review_comment": "Info no longer needed; accepting.",
         })
@@ -394,6 +399,7 @@ class TestEscalationAfterAcceptanceSupersedes:
         run_id = _assessment(cuid)["workflow_run_id"]
         client.post(f"/cases/{cuid}/reviews", headers=headers, json={
             "review_status": "ACCEPTED_AS_PRESENTED",
+            "assessment_exception_reason": "Test fixture: incomplete observations acknowledged",
             "workflow_run_id": run_id,
             "review_comment": "Accepting as presented.",
         })
@@ -510,7 +516,7 @@ class TestMultiAgentAcuityExplanationForClinicians:
         monkeypatch.setenv("TRUSTED_AUTH_PROXY", "true")
         monkeypatch.delenv("ALLOW_PATIENT_EXPLANATION_DEBUG_ROUTE", raising=False)
         headers = {"X-MS-CLIENT-PRINCIPAL": _principal(["security-admins"])}
-        cuid = self._uid(headers)
+        cuid = self._uid({"X-MS-CLIENT-PRINCIPAL": _principal(["ed-doctors"])})
         r = client.post(f"/cases/{cuid}/explanations", headers=headers, json={"question": "hi"})
         assert r.status_code == 403
 

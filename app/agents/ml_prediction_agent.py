@@ -210,7 +210,8 @@ def _bundle_model_identity(bundle) -> tuple[str | None, str | None]:
     return (str(kind) if kind else None), (str(version) if version else None)
 
 
-UHL_URGENT_CLASS_PROBABILITY_THRESHOLD = 0.25
+from app.rules.decision_policy import SERVING_POLICY
+UHL_URGENT_CLASS_PROBABILITY_THRESHOLD = SERVING_POLICY["threshold"]
 
 
 def _select_uhl_serving_acuity(
@@ -351,7 +352,8 @@ def _run_uhl_prediction(triage_input: TriageTimeInput) -> MLPredictionResult:
         if actual_sha != settings.expected_model_sha256:
             raise ValueError("model SHA-256 does not match the pinned UHL release")
 
-        bundle = joblib.load(model_path)
+        from app.ml.trusted_artifact import load_verified_model
+        bundle = load_verified_model(model_path, settings.expected_model_sha256)
         validate_uhl_serving_bundle(bundle, require_deployable=True)
         if bundle.get("dataset_source") != DATASET_SOURCE:
             raise ValueError("model dataset source does not match the UHL application")

@@ -99,6 +99,27 @@ def test_complete_journey_export_carries_vitals_and_preserves_every_safe_field()
     assert parsed[2]["source.another_new_safe_field.nested"] == "also kept"
 
 
+def test_export_distinguishes_cleared_values_from_absent_values():
+    from app.analytics.audit_journey_export import audit_journey_csv_bytes
+
+    second_run = _run_record()
+    second_run["timestamp_epoch"] = 2
+    second_run["source_record"]["input_snapshot"] = {"o2sat": None}
+    followup = _rerun_record()
+    followup["timestamp_epoch"] = 3
+    followup["source_record"]["changed_vitals"] = [
+        {"field": "heartrate", "previous": 90, "new": None},
+        {"field": "sbp", "previous": 125},
+    ]
+    decoded = audit_journey_csv_bytes([_run_record(), second_run, followup]).decode("utf-8-sig")
+    rows = list(csv.DictReader(io.StringIO(decoded)))
+    assert rows[1]["o2sat"] == ""
+    assert rows[1]["heartrate"] == "90"
+    assert rows[2]["o2sat"] == rows[2]["heartrate"] == ""
+    assert rows[2]["heartrate_changed"] == "True"
+    assert rows[2]["sbp"] == "125"
+
+
 def test_audit_journey_route_is_not_dashboard_page_limited(monkeypatch):
     from app.api import case_resolver, status_routes
 
@@ -121,6 +142,22 @@ def test_audit_journey_route_is_not_dashboard_page_limited(monkeypatch):
     assert observed == {"limit_per_stream": 100000, "require_complete": True}
     assert "heartrate_previous" in body
     assert "source.input_snapshot.temperature" in body
+
+
+def test_journey_csv_preserves_reconstructable_mts_trace():
+    import json
+    from app.analytics.audit_journey_export import audit_journey_csv_bytes
+    record = _run_record()
+    trace = {"selected_flowchart": {"id": "chest_pain", "label": "Chest pain"},
+             "catalog_version": "test-version", "notes": "Test symptom observation",
+             "observations": {"shock": {"state": "assessed", "value": True}},
+             "executed_rules": [{"id": "shock", "outcome": "matched", "priority": 1}],
+             "evidence": [{"discriminator_id": "shock", "source_page": 94}]}
+    record["source_record"]["mts_assessment"] = trace
+    parsed = list(csv.DictReader(io.StringIO(audit_journey_csv_bytes([record]).decode("utf-8-sig"))))
+    assert parsed[0]["source.mts_assessment.selected_flowchart.id"] == "chest_pain"
+    assert parsed[0]["source.mts_assessment.observations.shock.state"] == "assessed"
+    assert json.loads(parsed[0]["source.mts_assessment.executed_rules"])[0]["outcome"] == "matched"
 
 
 def test_persisted_action_id_retry_is_idempotent(monkeypatch, tmp_path):

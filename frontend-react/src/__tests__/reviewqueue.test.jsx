@@ -5,6 +5,7 @@ import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 /* Mock the API layer so the component renders without a backend. */
 vi.mock("../api.js", () => ({
   api: {
+    mtsAssessment: vi.fn(() => Promise.resolve({ mts_assessment: { status: "awaiting_nurse_checklist" } })),
     runAssessment: vi.fn(() => Promise.resolve({ final_category: "Urgent (Yellow)" })),
     previewAssessment: vi.fn(() => Promise.resolve({ final_category: "Urgent (Yellow)" })),
     getCase: vi.fn(() => Promise.resolve({})),

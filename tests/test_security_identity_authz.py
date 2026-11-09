@@ -92,16 +92,20 @@ class TestAzureHeaderProvider:
 
 # ── RBAC matrix ─────────────────────────────────────────────────────────────
 class TestRBAC:
-    def test_frontend_role_fixture_matches_backend_contract(self):
+    def test_frontend_role_fixture_matches_backend_demo_contract(self, monkeypatch):
         fixture_path = (
             Path(__file__).parents[1]
             / "frontend-react" / "src" / "__tests__" / "fixtures" / "roles.json"
         )
         fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
         assert set(fixture) == set(authz.ROLE_PERMISSIONS)
-        for role, permissions in authz.ROLE_PERMISSIONS.items():
-            assert set(fixture[role]["permissions"]) == permissions
-            ctx = AuthContext(authenticated=True, user_id="fixture-check", roles=[role])
+        for name in ("PATIENT_DATA_MODE", "LOCAL_CREDENTIALED_RESEARCH", "AUTH_REQUIRED",
+                     "TRUSTED_AUTH_PROXY", "REAL_PATIENT_DATA", "AZURE_SUPERVISOR_DEMO_MODE"):
+            monkeypatch.setenv(name, "false")
+        monkeypatch.setenv("AUTH_PROVIDER", "demo")
+        for role in authz.ROLE_PERMISSIONS:
+            ctx = resolve_auth_context({"X-Demo-Role": role})
+            assert set(fixture[role]["permissions"]) == authz.permissions_for(ctx)
             assert set(fixture[role]["visible_tabs"]) == set(authz.visible_tabs_for(ctx))
         assert "clinical_supervisor" not in fixture
 
@@ -152,22 +156,29 @@ class TestRBAC:
         assert "cost_runtime" not in authz.visible_tabs_for(ctx)
         assert "followup_comparison" not in authz.visible_tabs_for(ctx)
 
-    def test_security_admin_itd_full_access(self):
-        ctx = AuthContext(authenticated=True, user_id="s", roles=[ROLE_SECURITY_ADMIN])
+    def test_trusted_security_admin_requires_a_separate_clinical_role(self):
+        ctx = AuthContext(
+            authenticated=True, user_id="s", roles=[ROLE_SECURITY_ADMIN], source="azure_trusted_header",
+        )
         assert authz.can_view_security_status(ctx)
         assert authz.can_view_audit_log(ctx)
-        assert authz.can_view_clinical_content(ctx)
-        assert authz.can_run_assessment(ctx)
-        assert authz.can_accept_acuity(ctx)
-        assert authz.can_update_vitals(ctx)
-        assert authz.can_resolve_escalation(ctx)
-        assert authz.can_view_workflow_queue(ctx)
+        assert not authz.can_view_clinical_content(ctx)
+        assert not authz.can_run_assessment(ctx)
+        assert not authz.can_accept_acuity(ctx)
+        assert not authz.can_update_vitals(ctx)
+        assert not authz.can_resolve_escalation(ctx)
+        assert not authz.can_view_workflow_queue(ctx)
+        assert not authz.can_export_identifiable(ctx)
         assert authz.can_ask_chatbot(ctx)
         assert authz.role_display_name(ROLE_SECURITY_ADMIN) == "ITD"
         assert "itd_ask_tools" in authz.visible_tabs_for(ctx)
         assert "cost_runtime" not in authz.visible_tabs_for(ctx)
         assert "followup_comparison" not in authz.visible_tabs_for(ctx)
         assert "system_status" not in authz.visible_tabs_for(ctx)
+        ctx.roles.append(ROLE_ED_DOCTOR)
+        assert authz.can_view_clinical_content(ctx)
+        assert authz.can_resolve_escalation(ctx)
+        assert not authz.can_accept_acuity(ctx)
 
     def test_governance_auditor_is_read_only(self):
         ctx = AuthContext(authenticated=True, user_id="g", roles=[ROLE_GOVERNANCE_AUDITOR])

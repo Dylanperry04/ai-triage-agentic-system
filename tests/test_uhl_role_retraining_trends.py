@@ -1,5 +1,6 @@
 """Acceptance tests for the UHL workflow/monitoring changes."""
 from __future__ import annotations
+from tests.applied_review_fixtures import applied_review_states, normalise_applied_review_fixtures
 
 import csv
 from datetime import datetime, timezone
@@ -129,7 +130,7 @@ def test_monthly_dataset_uses_exact_runs_labels_and_dublin_boundaries():
         _review(bad_schema, "ACCEPTED_AS_PRESENTED", "triage_nurse"),
     ]
 
-    rows, metadata = monthly_export.build_export_dataset("2026-08", runs, reviews)
+    rows, metadata = monthly_export.build_export_dataset("2026-08", runs, reviews, workflow_states=applied_review_states(reviews))
 
     assert [row["workflow_run_id"] for row in rows] == ["accepted", "override"]
     assert rows[0]["final_clinician_acuity"] == rows[0]["system_prediction"] == 3
@@ -150,7 +151,7 @@ def test_monthly_dataset_uses_exact_runs_labels_and_dublin_boundaries():
 def test_ed_doctor_final_escalation_is_eligible_only_after_resolution():
     run = _run("doctor-final", "2026-08-10T09:00:00+00:00")
     requested = _review(run, "ESCALATION_REQUIRED", "triage_nurse")
-    rows, metadata = monthly_export.build_export_dataset("2026-08", [run], [requested])
+    rows, metadata = monthly_export.build_export_dataset("2026-08", [run], [requested], workflow_states=applied_review_states([requested]))
     assert rows == []
     assert metadata["excluded_unresolved_cases"] == 1
 
@@ -163,7 +164,7 @@ def test_ed_doctor_final_escalation_is_eligible_only_after_resolution():
     )
     rows, metadata = monthly_export.build_export_dataset(
         "2026-08", [run], [requested, resolved]
-    )
+    , workflow_states=applied_review_states([requested, resolved]))
     assert rows[0]["final_clinician_acuity"] == 2
     assert rows[0]["label_source"] == "ed_doctor_final_escalation_override"
     assert metadata["doctor_final_escalations"] == 1
@@ -192,7 +193,7 @@ def test_monthly_generation_is_atomic_idempotent_and_retries_itd_notice(
         workflow_runs=[run],
         human_reviews=[review],
         directory=tmp_path,
-    )
+     workflow_states=applied_review_states([review]))
     assert first["notification_status"] == "retry_pending"
     csv_path = monthly_export.csv_path_for("2026-08", tmp_path)
     original = csv_path.read_bytes()
@@ -208,7 +209,7 @@ def test_monthly_generation_is_atomic_idempotent_and_retries_itd_notice(
         workflow_runs=[run],
         human_reviews=[review],
         directory=tmp_path,
-    )
+     workflow_states=applied_review_states([review]))
     assert second["notification_status"] == "created"
     assert second["notification_id"] == "ntf-monthly"
     assert csv_path.read_bytes() == original
@@ -220,7 +221,7 @@ def test_monthly_generation_is_atomic_idempotent_and_retries_itd_notice(
     with pytest.raises(monthly_export.MonthlyExportError, match="has not completed"):
         monthly_export.generate_monthly_export(
             "2026-09", now=now, workflow_runs=[], human_reviews=[], directory=tmp_path
-        )
+        , workflow_states=applied_review_states([]))
 
 
 def test_monthly_durable_source_read_uses_exact_dublin_start_and_fails_at_cap(
@@ -238,10 +239,12 @@ def test_monthly_durable_source_read_uses_exact_dublin_start_and_fails_at_cap(
         return []
 
     monkeypatch.setattr(status_routes, "_read_patient_durable_records", bounded_reader)
-    assert monthly_export._load_source_records("2026-08") == ([], [])
+    assert monthly_export._load_source_records("2026-08") == ([], [], [])
     assert calls == [
         ("workflow_run", 1000, "2026-07-31T23:00:00+00:00"),
         ("human_review", 1000, "2026-07-31T23:00:00+00:00"),
+        ("case_workflow_state", 1000, "2026-07-31T23:00:00+00:00"),
+        ("case_workflow_state_current", 1000, "2026-07-31T23:00:00+00:00"),
     ]
 
     def capped_reader(*, record_kind, limit, since_utc=None):
@@ -262,7 +265,7 @@ def test_download_integrity_validation_detects_tampering(monkeypatch, tmp_path):
         workflow_runs=[run],
         human_reviews=[review],
         directory=tmp_path,
-    )
+     workflow_states=applied_review_states([review]))
     path = monthly_export.csv_path_for("2026-08", tmp_path)
     path.write_bytes(path.read_bytes() + b"tampered")
     with pytest.raises(monthly_export.MonthlyExportError, match="checksum"):
@@ -270,7 +273,7 @@ def test_download_integrity_validation_detects_tampering(monkeypatch, tmp_path):
 
 
 def test_patient_trends_show_vitals_and_advisory_direction_without_claiming_outcome():
-    records = normalise_audit_records(
+    records = normalise_applied_review_fixtures(
         workflow_reruns=[
             {
                 "rerun_id": "r1",
@@ -319,7 +322,7 @@ def test_patient_trends_show_vitals_and_advisory_direction_without_claiming_outc
 
 
 def test_itd_evidence_answers_escalation_count_and_top_staff():
-    records = normalise_audit_records(
+    records = normalise_applied_review_fixtures(
         human_reviews=[
             {
                 "workflow_run_id": "a",
@@ -395,7 +398,7 @@ def test_itd_general_audit_queries_and_unique_patient_semantics(monkeypatch):
 
 
 def test_itd_current_state_uses_all_retained_rows_not_activity_window():
-    records = normalise_audit_records(workflow_states=[{
+    records = normalise_applied_review_fixtures(workflow_states=[{
         "case_uid": "uhl~old-open",
         "updated_at_utc": "2020-01-01T00:00:00+00:00",
         "case_status": "escalation_requested",
@@ -434,7 +437,7 @@ def test_monthly_export_revises_when_a_late_final_label_arrives(monkeypatch, tmp
     first = monthly_export.generate_monthly_export(
         "2026-08", now=datetime(2026, 9, 1, 0, 1, tzinfo=timezone.utc),
         workflow_runs=[run], human_reviews=[requested], directory=tmp_path,
-    )
+     workflow_states=applied_review_states([requested]))
     assert first["eligible_cases"] == 0
     assert first["revision"] == 1
 
@@ -445,7 +448,7 @@ def test_monthly_export_revises_when_a_late_final_label_arrives(monkeypatch, tmp
     revised = monthly_export.generate_monthly_export(
         "2026-08", now=datetime(2026, 9, 1, 0, 11, tzinfo=timezone.utc),
         workflow_runs=[run], human_reviews=[requested, resolved], directory=tmp_path,
-    )
+     workflow_states=applied_review_states([requested, resolved]))
     assert revised["eligible_cases"] == 1
     assert revised["revision"] == 2
     assert revised["supersedes_sha256"] == first["sha256"]
@@ -461,7 +464,7 @@ def test_retraining_csv_neutralises_spreadsheet_formulas():
     review = _review(run, "OVERRIDDEN", "triage_nurse", final=2)
     review["override_reason"] = "+1+1"
     review["review_comment"] = "@SUM(1,1)"
-    rows, _ = monthly_export.build_export_dataset("2026-08", [run], [review])
+    rows, _ = monthly_export.build_export_dataset("2026-08", [run], [review], workflow_states=applied_review_states([review]))
     content = monthly_export._csv_bytes(rows).decode("utf-8-sig")
     parsed = next(csv.DictReader(content.splitlines()))
     assert parsed["presenting_complaint"].startswith("'=")
@@ -476,7 +479,7 @@ def test_current_month_demo_preview_is_not_persisted_or_notified(monkeypatch):
     manifest, content = monthly_export.build_current_month_demo_preview(
         now=datetime(2026, 8, 24, 12, tzinfo=timezone.utc),
         workflow_runs=[run], human_reviews=[review],
-    )
+     workflow_states=applied_review_states([review]))
     assert manifest["demo_preview"] is True
     assert manifest["official_monthly_artifact"] is False
     assert manifest["persisted"] is False

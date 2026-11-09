@@ -1,0 +1,1239 @@
+{
+  "generated_at_utc": "2026-10-31T01:47:10.112776+00:00",
+  "scope": "Post-hoc replay of previously accessed synthetic TEST rows; estimated labels; not independent clinical validation",
+  "model_sha256": "7dddf3cc673f5598d73d7e6d56546cad49639edcae77b44b17b677f0b0d1395b",
+  "dataset_sha256": "f3a6b4b8c7ee081fc02c924978ee1c5ecb5d7ebffbd32a2058d10cbd1bf1cd5c",
+  "split_assignment_sha256": "498990bd6b0246b4842ccbc4c014d4b021de94c56ddd077c65b457d8c5a079d5",
+  "split_seed": 42,
+  "system_identity": {
+    "model_sha256": "7dddf3cc673f5598d73d7e6d56546cad49639edcae77b44b17b677f0b0d1395b",
+    "catalog_sha256": "687b08b62146488b1b2ccb664907b085a67c35af1d334f7e6494f1b234d5ff27",
+    "serving_policy": {
+      "id": "modal_with_individual_urgent_threshold_v1",
+      "threshold": 0.25,
+      "description": "Modal class; choose the most urgent higher class with individual probability >= 0.25"
+    },
+    "input_processing_sha256": "a420483fbc94a79ed33cd81cb891bfacffa948871c288466c1a3326395bc2437",
+    "serving_sha256": "aedf4a04f0152eb422a13d9bdf373806cf317d369ac6805bb8aefae10e93d75b",
+    "safety_sha256": "503011cf866cec0b896e1cecc1fd5187e0276367f99c37272ba8b9665656e30d",
+    "mts_execution_sha256": "f85897be493e0fa055ee4dbda23bd8098c77bb2f2098dff27dbb593e3799ff2a",
+    "hybrid_sha256": "f6ea696968e6e7791ccc844989ef14aa92192e425cc4063b41a798c83d073013",
+    "system_policy_sha256": "8dd7f7acaf2ffd5a0e9a8832c8fb340439d6d6a065fc88e1134468b5ca1a8d3c",
+    "application_revision": "01f488e6b1d7f2d39ae29f84867e847d23f2bc66fd5c7f77f6d5b6740cdd2f30"
+  },
+  "evaluated_rows": 116576,
+  "fitted_serving_domain_verified": true,
+  "mts_assessment_evaluated": false,
+  "mts_reason": "No clinical discriminator reference observations are supplied by these rows",
+  "policy_difference_before_safety": 73517,
+  "vital_safety_escalations": 14361,
+  "prediction_sha256": "9829d0a85f0cc62b516c27214bdf02a611a3b546b32b4bd626212a894ee37b08",
+  "by_presenting_complaint": {
+    "all": {
+      "ml_category": {
+        "reference_cases": 116576,
+        "evaluated_cases": 116576,
+        "prediction_coverage": 1.0,
+        "correct": 49926,
+        "undertriaged": 25701,
+        "overtriaged": 40949,
+        "classification_accuracy": 0.4282699698051057,
+        "accuracy_ci95": [
+          0.4254318593622946,
+          0.4311128074452392
+        ],
+        "undertriage_rate": 0.2204656189953335,
+        "overtriage_rate": 0.3512644111995608,
+        "undertriage_ci95": [
+          0.21809510001077775,
+          0.2228545600295363
+        ],
+        "overtriage_ci95": [
+          0.3485290760744628,
+          0.3540095483904774
+        ],
+        "exact_agreement": 0.4282699698051057,
+        "quadratic_weighted_kappa": 0.3757843251474484,
+        "confusion_matrix": [
+          [
+            322,
+            119,
+            11,
+            16,
+            2
+          ],
+          [
+            7069,
+            14545,
+            3652,
+            2215,
+            235
+          ],
+          [
+            2671,
+            26519,
+            30810,
+            18032,
+            1164
+          ],
+          [
+            31,
+            639,
+            3457,
+            4223,
+            255
+          ],
+          [
+            0,
+            7,
+            150,
+            406,
+            26
+          ]
+        ],
+        "confusion_matrix_axes": {
+          "rows": "reference 1-5",
+          "columns": "prediction 1-5"
+        }
+      },
+      "ml_safety_category": {
+        "reference_cases": 116576,
+        "evaluated_cases": 116576,
+        "prediction_coverage": 1.0,
+        "correct": 42588,
+        "undertriaged": 23043,
+        "overtriaged": 50945,
+        "classification_accuracy": 0.365323908866319,
+        "accuracy_ci95": [
+          0.3625642575247971,
+          0.368092435715849
+        ],
+        "undertriage_rate": 0.1976650425473511,
+        "overtriage_rate": 0.43701104858632994,
+        "undertriage_ci95": [
+          0.19538896776531722,
+          0.19996104199688458
+        ],
+        "overtriage_ci95": [
+          0.43416582813720705,
+          0.4398604201727333
+        ],
+        "exact_agreement": 0.365323908866319,
+        "quadratic_weighted_kappa": 0.29271658851551907,
+        "confusion_matrix": [
+          [
+            347,
+            95,
+            10,
+            16,
+            2
+          ],
+          [
+            9902,
+            12525,
+            3061,
+            2024,
+            204
+          ],
+          [
+            9185,
+            26711,
+            25891,
+            16421,
+            988
+          ],
+          [
+            578,
+            1072,
+            2927,
+            3806,
+            222
+          ],
+          [
+            37,
+            39,
+            124,
+            370,
+            19
+          ]
+        ],
+        "confusion_matrix_axes": {
+          "rows": "reference 1-5",
+          "columns": "prediction 1-5"
+        }
+      },
+      "historical_category": {
+        "reference_cases": 116576,
+        "evaluated_cases": 116576,
+        "prediction_coverage": 1.0,
+        "correct": 28602,
+        "undertriaged": 1323,
+        "overtriaged": 86651,
+        "classification_accuracy": 0.24535067252264617,
+        "accuracy_ci95": [
+          0.2428890172872387,
+          0.2478291098173356
+        ],
+        "undertriage_rate": 0.01134881965413121,
+        "overtriage_rate": 0.7433005078232227,
+        "undertriage_ci95": [
+          0.010756666649424276,
+          0.011973176054613822
+        ],
+        "overtriage_ci95": [
+          0.740785034871698,
+          0.7457999466324778
+        ],
+        "exact_agreement": 0.24535067252264617,
+        "quadratic_weighted_kappa": 0.19440507653629968,
+        "confusion_matrix": [
+          [
+            398,
+            68,
+            4,
+            0,
+            0
+          ],
+          [
+            14089,
+            12509,
+            1108,
+            10,
+            0
+          ],
+          [
+            11822,
+            51646,
+            15595,
+            133,
+            0
+          ],
+          [
+            367,
+            4374,
+            3764,
+            100,
+            0
+          ],
+          [
+            12,
+            225,
+            333,
+            19,
+            0
+          ]
+        ],
+        "confusion_matrix_axes": {
+          "rows": "reference 1-5",
+          "columns": "prediction 1-5"
+        }
+      }
+    },
+    "chest_pain": {
+      "ml_category": {
+        "reference_cases": 7643,
+        "evaluated_cases": 7643,
+        "prediction_coverage": 1.0,
+        "correct": 3310,
+        "undertriaged": 1633,
+        "overtriaged": 2700,
+        "classification_accuracy": 0.4330760172707052,
+        "accuracy_ci95": [
+          0.42200374323877504,
+          0.4442155310185773
+        ],
+        "undertriage_rate": 0.21365955776527543,
+        "overtriage_rate": 0.3532644249640194,
+        "undertriage_ci95": [
+          0.2046152815910163,
+          0.22299152527548485
+        ],
+        "overtriage_ci95": [
+          0.3426246565982556,
+          0.36405162117226364
+        ],
+        "exact_agreement": 0.4330760172707052,
+        "quadratic_weighted_kappa": 0.38357736430963474,
+        "confusion_matrix": [
+          [
+            17,
+            10,
+            2,
+            1,
+            0
+          ],
+          [
+            391,
+            1074,
+            213,
+            125,
+            9
+          ],
+          [
+            124,
+            1877,
+            1935,
+            1180,
+            76
+          ],
+          [
+            2,
+            55,
+            228,
+            280,
+            17
+          ],
+          [
+            0,
+            0,
+            5,
+            18,
+            4
+          ]
+        ],
+        "confusion_matrix_axes": {
+          "rows": "reference 1-5",
+          "columns": "prediction 1-5"
+        }
+      },
+      "ml_safety_category": {
+        "reference_cases": 7643,
+        "evaluated_cases": 7643,
+        "prediction_coverage": 1.0,
+        "correct": 3034,
+        "undertriaged": 1536,
+        "overtriaged": 3073,
+        "classification_accuracy": 0.3969645427188277,
+        "accuracy_ci95": [
+          0.38605002758881246,
+          0.40798257940564486
+        ],
+        "undertriage_rate": 0.20096820620175324,
+        "overtriage_rate": 0.4020672510794191,
+        "undertriage_ci95": [
+          0.19213559102634348,
+          0.21010126393979234
+        ],
+        "overtriage_ci95": [
+          0.3911267210552873,
+          0.41310617587849213
+        ],
+        "exact_agreement": 0.3969645427188277,
+        "quadratic_weighted_kappa": 0.3446091773546983,
+        "confusion_matrix": [
+          [
+            19,
+            8,
+            2,
+            1,
+            0
+          ],
+          [
+            531,
+            957,
+            200,
+            117,
+            7
+          ],
+          [
+            335,
+            1884,
+            1788,
+            1119,
+            66
+          ],
+          [
+            18,
+            62,
+            219,
+            267,
+            16
+          ],
+          [
+            0,
+            2,
+            5,
+            17,
+            3
+          ]
+        ],
+        "confusion_matrix_axes": {
+          "rows": "reference 1-5",
+          "columns": "prediction 1-5"
+        }
+      },
+      "historical_category": {
+        "reference_cases": 7643,
+        "evaluated_cases": 7643,
+        "prediction_coverage": 1.0,
+        "correct": 2005,
+        "undertriaged": 94,
+        "overtriaged": 5544,
+        "classification_accuracy": 0.26233154520476254,
+        "accuracy_ci95": [
+          0.25259053508936263,
+          0.27231134504451876
+        ],
+        "undertriage_rate": 0.012298835535784378,
+        "overtriage_rate": 0.7253696192594531,
+        "undertriage_ci95": [
+          0.010061404795533713,
+          0.015026268311563786
+        ],
+        "overtriage_ci95": [
+          0.7152520539118727,
+          0.7352607517415208
+        ],
+        "exact_agreement": 0.26233154520476254,
+        "quadratic_weighted_kappa": 0.2133127662223323,
+        "confusion_matrix": [
+          [
+            22,
+            8,
+            0,
+            0,
+            0
+          ],
+          [
+            859,
+            887,
+            65,
+            1,
+            0
+          ],
+          [
+            621,
+            3473,
+            1078,
+            20,
+            0
+          ],
+          [
+            11,
+            293,
+            260,
+            18,
+            0
+          ],
+          [
+            0,
+            7,
+            18,
+            2,
+            0
+          ]
+        ],
+        "confusion_matrix_axes": {
+          "rows": "reference 1-5",
+          "columns": "prediction 1-5"
+        }
+      }
+    },
+    "abdominal_pain": {
+      "ml_category": {
+        "reference_cases": 10503,
+        "evaluated_cases": 10503,
+        "prediction_coverage": 1.0,
+        "correct": 4576,
+        "undertriaged": 1992,
+        "overtriaged": 3935,
+        "classification_accuracy": 0.435685042368847,
+        "accuracy_ci95": [
+          0.42622741942072173,
+          0.445189694343205
+        ],
+        "undertriage_rate": 0.18966009711510998,
+        "overtriage_rate": 0.374654860516043,
+        "undertriage_ci95": [
+          0.18227663395804192,
+          0.19727049011822603
+        ],
+        "overtriage_ci95": [
+          0.3654453374343249,
+          0.3839560397236463
+        ],
+        "exact_agreement": 0.435685042368847,
+        "quadratic_weighted_kappa": 0.3902714429107309,
+        "confusion_matrix": [
+          [
+            24,
+            17,
+            0,
+            2,
+            0
+          ],
+          [
+            735,
+            1261,
+            331,
+            113,
+            11
+          ],
+          [
+            354,
+            2438,
+            2893,
+            1440,
+            53
+          ],
+          [
+            8,
+            69,
+            297,
+            397,
+            25
+          ],
+          [
+            0,
+            1,
+            6,
+            27,
+            1
+          ]
+        ],
+        "confusion_matrix_axes": {
+          "rows": "reference 1-5",
+          "columns": "prediction 1-5"
+        }
+      },
+      "ml_safety_category": {
+        "reference_cases": 10503,
+        "evaluated_cases": 10503,
+        "prediction_coverage": 1.0,
+        "correct": 4070,
+        "undertriaged": 1858,
+        "overtriaged": 4575,
+        "classification_accuracy": 0.38750833095306103,
+        "accuracy_ci95": [
+          0.3782339450303864,
+          0.39686497415848027
+        ],
+        "undertriage_rate": 0.17690183757021805,
+        "overtriage_rate": 0.4355898314767209,
+        "undertriage_ci95": [
+          0.1697226889306447,
+          0.18431724527791962
+        ],
+        "overtriage_ci95": [
+          0.42613247956644507,
+          0.4450942820342899
+        ],
+        "exact_agreement": 0.38750833095306103,
+        "quadratic_weighted_kappa": 0.31637523025701064,
+        "confusion_matrix": [
+          [
+            27,
+            14,
+            0,
+            2,
+            0
+          ],
+          [
+            914,
+            1126,
+            293,
+            107,
+            11
+          ],
+          [
+            801,
+            2428,
+            2542,
+            1357,
+            50
+          ],
+          [
+            57,
+            104,
+            237,
+            374,
+            24
+          ],
+          [
+            2,
+            2,
+            5,
+            25,
+            1
+          ]
+        ],
+        "confusion_matrix_axes": {
+          "rows": "reference 1-5",
+          "columns": "prediction 1-5"
+        }
+      },
+      "historical_category": {
+        "reference_cases": 10503,
+        "evaluated_cases": 10503,
+        "prediction_coverage": 1.0,
+        "correct": 2195,
+        "undertriaged": 87,
+        "overtriaged": 8221,
+        "classification_accuracy": 0.2089879082167,
+        "accuracy_ci95": [
+          0.20131922760191384,
+          0.21686938560229324
+        ],
+        "undertriage_rate": 0.008283347614967152,
+        "overtriage_rate": 0.7827287441683328,
+        "undertriage_ci95": [
+          0.006720786116286975,
+          0.010205467079566934
+        ],
+        "overtriage_ci95": [
+          0.7747393866282033,
+          0.7905113619699013
+        ],
+        "exact_agreement": 0.2089879082167,
+        "quadratic_weighted_kappa": 0.17712742808251403,
+        "confusion_matrix": [
+          [
+            41,
+            1,
+            1,
+            0,
+            0
+          ],
+          [
+            1472,
+            907,
+            71,
+            1,
+            0
+          ],
+          [
+            1538,
+            4387,
+            1240,
+            13,
+            0
+          ],
+          [
+            57,
+            395,
+            337,
+            7,
+            0
+          ],
+          [
+            2,
+            13,
+            19,
+            1,
+            0
+          ]
+        ],
+        "confusion_matrix_axes": {
+          "rows": "reference 1-5",
+          "columns": "prediction 1-5"
+        }
+      }
+    },
+    "trauma": {
+      "ml_category": {
+        "reference_cases": 5641,
+        "evaluated_cases": 5641,
+        "prediction_coverage": 1.0,
+        "correct": 2195,
+        "undertriaged": 1346,
+        "overtriaged": 2100,
+        "classification_accuracy": 0.38911540507002307,
+        "accuracy_ci95": [
+          0.37647199103647777,
+          0.40190973870277424
+        ],
+        "undertriage_rate": 0.23861017550079774,
+        "overtriage_rate": 0.3722744194291792,
+        "undertriage_ci95": [
+          0.22766751994357717,
+          0.2499085959645395
+        ],
+        "overtriage_ci95": [
+          0.35975035394789867,
+          0.38497232595159137
+        ],
+        "exact_agreement": 0.38911540507002307,
+        "quadratic_weighted_kappa": 0.3334843767521799,
+        "confusion_matrix": [
+          [
+            11,
+            7,
+            1,
+            0,
+            0
+          ],
+          [
+            366,
+            650,
+            179,
+            129,
+            19
+          ],
+          [
+            168,
+            1326,
+            1346,
+            916,
+            83
+          ],
+          [
+            1,
+            40,
+            164,
+            187,
+            12
+          ],
+          [
+            0,
+            1,
+            11,
+            23,
+            1
+          ]
+        ],
+        "confusion_matrix_axes": {
+          "rows": "reference 1-5",
+          "columns": "prediction 1-5"
+        }
+      },
+      "ml_safety_category": {
+        "reference_cases": 5641,
+        "evaluated_cases": 5641,
+        "prediction_coverage": 1.0,
+        "correct": 1920,
+        "undertriaged": 1245,
+        "overtriaged": 2476,
+        "classification_accuracy": 0.34036518347810674,
+        "accuracy_ci95": [
+          0.3281125420522766,
+          0.3528350960455594
+        ],
+        "undertriage_rate": 0.22070554866158482,
+        "overtriage_rate": 0.43892926786030845,
+        "undertriage_ci95": [
+          0.2100751327277236,
+          0.23171609861390935
+        ],
+        "overtriage_ci95": [
+          0.42602497920063187,
+          0.45191667690675785
+        ],
+        "exact_agreement": 0.34036518347810674,
+        "quadratic_weighted_kappa": 0.2836653917705044,
+        "confusion_matrix": [
+          [
+            11,
+            7,
+            1,
+            0,
+            0
+          ],
+          [
+            488,
+            559,
+            158,
+            121,
+            17
+          ],
+          [
+            377,
+            1353,
+            1180,
+            857,
+            72
+          ],
+          [
+            19,
+            59,
+            145,
+            169,
+            12
+          ],
+          [
+            1,
+            4,
+            9,
+            21,
+            1
+          ]
+        ],
+        "confusion_matrix_axes": {
+          "rows": "reference 1-5",
+          "columns": "prediction 1-5"
+        }
+      },
+      "historical_category": {
+        "reference_cases": 5641,
+        "evaluated_cases": 5641,
+        "prediction_coverage": 1.0,
+        "correct": 1117,
+        "undertriaged": 57,
+        "overtriaged": 4467,
+        "classification_accuracy": 0.19801453642971104,
+        "accuracy_ci95": [
+          0.18782230783087187,
+          0.20861778267402928
+        ],
+        "undertriage_rate": 0.010104591384506293,
+        "overtriage_rate": 0.7918808721857826,
+        "undertriage_ci95": [
+          0.007807750455974225,
+          0.013068204994741525
+        ],
+        "overtriage_ci95": [
+          0.7810900801359337,
+          0.8022743994553079
+        ],
+        "exact_agreement": 0.19801453642971104,
+        "quadratic_weighted_kappa": 0.14824595138723495,
+        "confusion_matrix": [
+          [
+            15,
+            3,
+            1,
+            0,
+            0
+          ],
+          [
+            735,
+            556,
+            52,
+            0,
+            0
+          ],
+          [
+            812,
+            2480,
+            546,
+            1,
+            0
+          ],
+          [
+            27,
+            255,
+            122,
+            0,
+            0
+          ],
+          [
+            0,
+            17,
+            19,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_axes": {
+          "rows": "reference 1-5",
+          "columns": "prediction 1-5"
+        }
+      }
+    },
+    "respiratory_symptoms": {
+      "ml_category": {
+        "reference_cases": 6430,
+        "evaluated_cases": 6430,
+        "prediction_coverage": 1.0,
+        "correct": 3049,
+        "undertriaged": 1129,
+        "overtriaged": 2252,
+        "classification_accuracy": 0.47418351477449455,
+        "accuracy_ci95": [
+          0.46199769986190886,
+          0.48640015822568305
+        ],
+        "undertriage_rate": 0.17558320373250388,
+        "overtriage_rate": 0.35023328149300154,
+        "undertriage_ci95": [
+          0.16647820731181234,
+          0.18507559974069832
+        ],
+        "overtriage_ci95": [
+          0.33866580123466694,
+          0.3619796044180501
+        ],
+        "exact_agreement": 0.47418351477449455,
+        "quadratic_weighted_kappa": 0.4580013835820731,
+        "confusion_matrix": [
+          [
+            21,
+            4,
+            1,
+            0,
+            0
+          ],
+          [
+            402,
+            943,
+            151,
+            58,
+            7
+          ],
+          [
+            119,
+            1501,
+            1831,
+            839,
+            47
+          ],
+          [
+            0,
+            16,
+            179,
+            251,
+            22
+          ],
+          [
+            0,
+            0,
+            1,
+            34,
+            3
+          ]
+        ],
+        "confusion_matrix_axes": {
+          "rows": "reference 1-5",
+          "columns": "prediction 1-5"
+        }
+      },
+      "ml_safety_category": {
+        "reference_cases": 6430,
+        "evaluated_cases": 6430,
+        "prediction_coverage": 1.0,
+        "correct": 2239,
+        "undertriaged": 898,
+        "overtriaged": 3293,
+        "classification_accuracy": 0.34821150855365474,
+        "accuracy_ci95": [
+          0.3366608504916983,
+          0.35994342356546866
+        ],
+        "undertriage_rate": 0.13965785381026438,
+        "overtriage_rate": 0.5121306376360809,
+        "undertriage_ci95": [
+          0.13140031466760008,
+          0.14834569249475235
+        ],
+        "overtriage_ci95": [
+          0.49990947280057674,
+          0.5243373167727235
+        ],
+        "exact_agreement": 0.34821150855365474,
+        "quadratic_weighted_kappa": 0.29706416458176854,
+        "confusion_matrix": [
+          [
+            23,
+            3,
+            0,
+            0,
+            0
+          ],
+          [
+            696,
+            717,
+            90,
+            52,
+            6
+          ],
+          [
+            748,
+            1574,
+            1286,
+            698,
+            31
+          ],
+          [
+            51,
+            60,
+            128,
+            211,
+            18
+          ],
+          [
+            3,
+            3,
+            1,
+            29,
+            2
+          ]
+        ],
+        "confusion_matrix_axes": {
+          "rows": "reference 1-5",
+          "columns": "prediction 1-5"
+        }
+      },
+      "historical_category": {
+        "reference_cases": 6430,
+        "evaluated_cases": 6430,
+        "prediction_coverage": 1.0,
+        "correct": 2027,
+        "undertriaged": 87,
+        "overtriaged": 4316,
+        "classification_accuracy": 0.31524105754276827,
+        "accuracy_ci95": [
+          0.3039980313058337,
+          0.3267047121162098
+        ],
+        "undertriage_rate": 0.013530326594090203,
+        "overtriage_rate": 0.6712286158631415,
+        "undertriage_ci95": [
+          0.010982892942583755,
+          0.016658673912763034
+        ],
+        "overtriage_ci95": [
+          0.6596471603750411,
+          0.6826056001403884
+        ],
+        "exact_agreement": 0.31524105754276827,
+        "quadratic_weighted_kappa": 0.2885731163288171,
+        "confusion_matrix": [
+          [
+            23,
+            3,
+            0,
+            0,
+            0
+          ],
+          [
+            765,
+            750,
+            46,
+            0,
+            0
+          ],
+          [
+            423,
+            2642,
+            1234,
+            38,
+            0
+          ],
+          [
+            4,
+            142,
+            302,
+            20,
+            0
+          ],
+          [
+            0,
+            5,
+            27,
+            6,
+            0
+          ]
+        ],
+        "confusion_matrix_axes": {
+          "rows": "reference 1-5",
+          "columns": "prediction 1-5"
+        }
+      }
+    },
+    "unmapped_or_ambiguous": {
+      "ml_category": {
+        "reference_cases": 86359,
+        "evaluated_cases": 86359,
+        "prediction_coverage": 1.0,
+        "correct": 36796,
+        "undertriaged": 19601,
+        "overtriaged": 29962,
+        "classification_accuracy": 0.42608182123461363,
+        "accuracy_ci95": [
+          0.42278706595889193,
+          0.42938315233936175
+        ],
+        "undertriage_rate": 0.22697113213446196,
+        "overtriage_rate": 0.3469470466309244,
+        "undertriage_ci95": [
+          0.2241896271854113,
+          0.2297769259821883
+        ],
+        "overtriage_ci95": [
+          0.34377923686012457,
+          0.3501284721329305
+        ],
+        "exact_agreement": 0.42608182123461363,
+        "quadratic_weighted_kappa": 0.37036340425593184,
+        "confusion_matrix": [
+          [
+            249,
+            81,
+            7,
+            13,
+            2
+          ],
+          [
+            5175,
+            10617,
+            2778,
+            1790,
+            189
+          ],
+          [
+            1906,
+            19377,
+            22805,
+            13657,
+            905
+          ],
+          [
+            20,
+            459,
+            2589,
+            3108,
+            179
+          ],
+          [
+            0,
+            5,
+            127,
+            304,
+            17
+          ]
+        ],
+        "confusion_matrix_axes": {
+          "rows": "reference 1-5",
+          "columns": "prediction 1-5"
+        }
+      },
+      "ml_safety_category": {
+        "reference_cases": 86359,
+        "evaluated_cases": 86359,
+        "prediction_coverage": 1.0,
+        "correct": 31325,
+        "undertriaged": 17506,
+        "overtriaged": 37528,
+        "classification_accuracy": 0.36272999918943016,
+        "accuracy_ci95": [
+          0.3595295485578622,
+          0.3659426614862589
+        ],
+        "undertriage_rate": 0.202711935061777,
+        "overtriage_rate": 0.43455806574879285,
+        "undertriage_ci95": [
+          0.20004390923184134,
+          0.20540640791082543
+        ],
+        "overtriage_ci95": [
+          0.4312549776785402,
+          0.4378669755935803
+        ],
+        "exact_agreement": 0.36272999918943016,
+        "quadratic_weighted_kappa": 0.28603720217999606,
+        "confusion_matrix": [
+          [
+            267,
+            63,
+            7,
+            13,
+            2
+          ],
+          [
+            7273,
+            9166,
+            2320,
+            1627,
+            163
+          ],
+          [
+            6924,
+            19472,
+            19095,
+            12390,
+            769
+          ],
+          [
+            433,
+            787,
+            2198,
+            2785,
+            152
+          ],
+          [
+            31,
+            28,
+            104,
+            278,
+            12
+          ]
+        ],
+        "confusion_matrix_axes": {
+          "rows": "reference 1-5",
+          "columns": "prediction 1-5"
+        }
+      },
+      "historical_category": {
+        "reference_cases": 86359,
+        "evaluated_cases": 86359,
+        "prediction_coverage": 1.0,
+        "correct": 21258,
+        "undertriaged": 998,
+        "overtriaged": 64103,
+        "classification_accuracy": 0.24615847798144952,
+        "accuracy_ci95": [
+          0.24329677039775996,
+          0.24904276753991775
+        ],
+        "undertriage_rate": 0.011556409870424623,
+        "overtriage_rate": 0.7422851121481259,
+        "undertriage_ci95": [
+          0.010864997895445797,
+          0.0122912742354828
+        ],
+        "overtriage_ci95": [
+          0.7393572929243591,
+          0.7451913774659428
+        ],
+        "exact_agreement": 0.24615847798144952,
+        "quadratic_weighted_kappa": 0.19231203315008116,
+        "confusion_matrix": [
+          [
+            297,
+            53,
+            2,
+            0,
+            0
+          ],
+          [
+            10258,
+            9409,
+            874,
+            8,
+            0
+          ],
+          [
+            8428,
+            38664,
+            11497,
+            61,
+            0
+          ],
+          [
+            268,
+            3289,
+            2743,
+            55,
+            0
+          ],
+          [
+            10,
+            183,
+            250,
+            10,
+            0
+          ]
+        ],
+        "confusion_matrix_axes": {
+          "rows": "reference 1-5",
+          "columns": "prediction 1-5"
+        }
+      }
+    }
+  },
+  "limitations": [
+    "Estimated acuity labels and synthetic vital signs are not nurse-led reference categories.",
+    "The original row split does not establish patient-disjoint or temporal hospital validation.",
+    "The selected 100 cases are a demonstration cohort and are not used to estimate these performance rates.",
+    "Unsupported and ambiguous complaints remain separate; no inferred clinical findings were generated."
+  ]
+}

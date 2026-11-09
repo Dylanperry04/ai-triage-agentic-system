@@ -123,8 +123,27 @@ def normalise_audit_records(
     human_reviews: Iterable[Mapping[str, Any]] = (),
     workflow_reruns: Iterable[Mapping[str, Any]] = (),
     workflow_states: Iterable[Mapping[str, Any]] = (),
+    mts_records: Iterable[Mapping[str, Any]] = (),
+    review_application_states: Iterable[Mapping[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
+    from app.storage.review_outcome import reconcile_review_outcomes
+    workflow_states = list(workflow_states)
+    # Application evidence can cover a longer history than the displayed event
+    # window. Display pagination must not decide whether a decision took effect.
+    application_states = workflow_states if review_application_states is None else review_application_states
+
+    for evidence in mts_records:
+        kind = evidence.get("record_kind", "mts_research_evidence")
+        rec = _record_base(record_kind=kind, source_record=evidence,
+            timestamp=evidence.get("timestamp_utc"), case_uid=evidence.get("case_uid"),
+            source_dataset=evidence.get("source_dataset") or str(evidence.get("case_uid") or "").partition("~")[0],
+            reviewer_roles=evidence.get("reviewer_roles"), action_type=kind)
+        rec.update(workflow_run_id=evidence.get("workflow_run_id"),
+            evidence_id=evidence.get("record_id"), reference_id=evidence.get("reference_id"),
+            explanation_id=evidence.get("explanation_id"),
+            summary=kind.replace("_", " "), actor_user_id=evidence.get("reviewer_user_id"))
+        records.append(rec)
 
     for event in access_events:
         rec = _record_base(
@@ -160,6 +179,7 @@ def normalise_audit_records(
         )
         rec["summary"] = f"Workflow run: acuity {rec['triage_level'] or 'unknown'}"
         rec["workflow_run_id"] = _text(run.get("workflow_run_id"))
+        rec["mts_assessment"] = run.get("mts_assessment") or {}
         rec["actor_user_id"] = _text(run.get("performed_by_user_id"))
         rec["actor_display_name"] = _text(run.get("performed_by_display_name"))
         rec["actor_identity_verified"] = bool(run.get("performed_by_identity_verified"))
@@ -177,7 +197,7 @@ def normalise_audit_records(
         )
         records.append(rec)
 
-    for review in human_reviews:
+    for review in reconcile_review_outcomes(human_reviews, application_states):
         status = _text(review.get("review_status")).upper()
         override = bool(
             review.get("clinician_override")
@@ -249,6 +269,16 @@ def normalise_audit_records(
         )
         rec["review_comment"] = _text(review.get("review_comment"))
         rec["override_reason"] = _text(review.get("override_reason"))
+        rec["review_outcome"] = review["review_outcome"]
+        rec["applied_state_revision"] = review["applied_state_revision"]
+        if review["review_outcome"] != "applied":
+            # Keep the immutable attempt visible in history while excluding it
+            # from completed-decision, override and final-acuity statistics.
+            rec["record_kind"] = "human_review_attempt"
+            rec["summary"] = f"Review attempt ({review['review_outcome']}): {status or 'UNKNOWN'}"
+            rec["decided_acuity"] = None
+            rec["escalation_status"] = ""
+            rec["override_status"] = "no"
         records.append(rec)
 
     for rerun in workflow_reruns:

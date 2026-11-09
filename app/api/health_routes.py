@@ -45,10 +45,11 @@ def _uhl_status_payload():
         "data_hash_verified": bool(data_hash_verified),
         "model_hash_verified": bool(model_hash_verified),
         "active_case_source": DATASET_SOURCE if data_hash_verified else "not_configured",
-        "active_case_source_mode": "curated_demo_100" if settings.uhl_case_cohort == "demo_100" else "packaged_uhl",
+        "active_case_source_mode": {"demo_100": "curated_demo_100", "demo_balanced_100": "balanced_demo_100",
+                                    "full": "packaged_uhl"}[settings.uhl_case_cohort],
         "case_cohort": settings.uhl_case_cohort,
         "expected_case_count": settings.expected_case_rows,
-        "curated_demonstration": settings.uhl_case_cohort == "demo_100",
+        "curated_demonstration": settings.uses_demo_cohort,
         "serving_data_sha256": settings.expected_serving_data_sha256 if data_hash_verified else None,
         "expected_matched_cases": DEMO_COHORT_MATCHED_ROWS if settings.uhl_case_cohort == "demo_100" else None,
         "expected_acuity_counts": DEMO_COHORT_CATEGORY_COUNTS if settings.uhl_case_cohort == "demo_100" else None,
@@ -72,7 +73,10 @@ def _readiness_payload() -> dict:
     model_loadable = False
     model_error = ""
     try:
-        bundle = joblib.load(settings.uhl_model_path)
+        if not asset["model_hash_verified"]:
+            raise ValueError("Untrusted model artifact")
+        from app.ml.trusted_artifact import load_verified_model
+        bundle = load_verified_model(settings.uhl_model_path, settings.expected_model_sha256)
         validate_uhl_serving_bundle(bundle, require_deployable=True)
         model_loadable = True
     except Exception as exc:
@@ -141,6 +145,7 @@ def readiness_endpoint():
 
 @router.get("/health")
 def health():
+    from app.rules.mts_catalog import VERSION, CHARTS, SOURCE, catalog_hash
     ruleset = get_approved_ruleset()
     provisional_active = bool(ruleset) and ruleset.get(
         "validation_status"
@@ -148,6 +153,9 @@ def health():
     _uhl = _uhl_status_payload()
     return {
         "status": "ok",
+        "structured_mts": {"available": True, "version": VERSION, "catalog_sha256": catalog_hash(),
+                           "flowcharts": len(CHARTS), "minimum_age": 16,
+                           "clinical_validation": SOURCE["validation_status"]},
         "version": APP_VERSION,
         "package_checkpoint": PACKAGE_CHECKPOINT,
         "clinical_use": "not_for_clinical_use",
@@ -205,7 +213,7 @@ def llm_status_endpoint():
     from app.agents.autogen_team import load_azure_config
     from app.security.identity import (
         azure_supervisor_demo_mode,
-        cloud_egress_allowed,
+        cloud_llm_egress_allowed,
         credentialed_mimic_active_or_requested,
         local_credentialed_research_mode,
         patient_data_mode,
@@ -219,7 +227,7 @@ def llm_status_endpoint():
         "AZURE_OPENAI_API_VERSION",
     ]
     env_present = {name: bool(os.environ.get(name)) for name in required}
-    egress = cloud_egress_allowed()
+    egress = cloud_llm_egress_allowed()
     credentials_detected = all(env_present.values())
     config_present = load_azure_config() is not None
     try:
@@ -239,7 +247,9 @@ def llm_status_endpoint():
         azure_openai_client_importable = False
     credentialed_mimic_active = credentialed_mimic_active_or_requested()
     if not egress:
-        if real_mimic_azure_demo_mode():
+        if patient_data_mode():
+            reason = "cloud LLM egress is blocked without patient-data opt-in and processing approval"
+        elif real_mimic_azure_demo_mode():
             reason = (
                 "Azure OpenAI credentials are present, but cloud LLM is blocked "
                 "because credentialed MIMIC data is active and approval flags are "
@@ -293,6 +303,9 @@ def llm_status_endpoint():
             credentialed_mimic_active and not egress
         ),
         "required_enable_flags": {
+            "ALLOW_CLOUD_LLM_IN_PATIENT_DATA": bool(
+                os.environ.get("ALLOW_CLOUD_LLM_IN_PATIENT_DATA", "").lower() == "true"
+            ),
             "ALLOW_CLOUD_LLM_IN_LOCAL_RESEARCH": bool(
                 os.environ.get("ALLOW_CLOUD_LLM_IN_LOCAL_RESEARCH", "").lower() == "true"
             ),
@@ -356,7 +369,8 @@ def runtime_status_endpoint():
             import joblib
             from ml_training.uhl_synthetic.serving import validate_uhl_serving_bundle
 
-            bundle = joblib.load(settings.uhl_model_path)
+            from app.ml.trusted_artifact import load_verified_model
+            bundle = load_verified_model(settings.uhl_model_path, settings.expected_model_sha256)
             validate_uhl_serving_bundle(bundle, require_deployable=True)
             model_loadable = True
         except Exception:

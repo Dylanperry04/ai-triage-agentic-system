@@ -224,14 +224,14 @@ def _demo_notice(case: Dict[str, Any]) -> Dict[str, Any]:
         from app.constants import DEMO_COHORT_NOTICE
         return {
             "is_curated_demo": True,
-            "demo_data_notice": DEMO_COHORT_NOTICE,
+            "demo_data_notice": case.get("demo_data_notice") or DEMO_COHORT_NOTICE,
         }
     if case.get("synthetic_demo"):
         return {
             "is_synthetic_demo": True,
             "demo_data_notice": (
                 case.get("demo_data_notice")
-                or "Synthetic supervisor-demo case. Not real patient data."
+                or "Synthetic case; not a recorded patient observation."
             ),
         }
     if case.get("public_mimic_demo"):
@@ -239,7 +239,7 @@ def _demo_notice(case: Dict[str, Any]) -> Dict[str, Any]:
             "is_public_mimic_demo": True,
             "demo_data_notice": (
                 case.get("demo_data_notice")
-                or "Public MIMIC-IV-ED demo subset. View-only sample data."
+                or "Public MIMIC-IV-ED sample. View-only data."
             ),
         }
     return {}
@@ -315,6 +315,7 @@ def safe_assessment_response(case_uid: str, source_dataset: str,
             ml_prediction.get("prediction_available") and ml_acuity is not None and not ml_error
         ),
         "ml_predicted_acuity": ml_acuity,
+        "mts_assessment": workflow_result.get("mts_assessment") or {},
         "ml_prediction_error": ml_error,
         "model_note": ml_prediction.get("model_note"),
         "rules_category": decision.get("category"),
@@ -416,7 +417,12 @@ def safe_multiagent_evidence(case_uid: str, source_dataset: str,
     }
     primary_drivers: List[str] = []
     if faa.get("override_applied"):
-        primary_drivers.extend([f"Applied safety override: {flag}" for flag in override_flags])
+        primary_drivers.extend(
+            f"Contributing assessed MTS rule: {flag[4:]}" if flag.startswith("MTS:")
+            else f"Applied vital safeguard: {flag}"
+            for flag in override_flags
+        )
+    pathway = (workflow_result.get("discriminator_evidence") or {}).get("pathway") or {}
     if ml_prediction.get("prediction_available"):
         primary_drivers.append(
             "UHL ML research estimate predicted acuity "
@@ -437,8 +443,8 @@ def safe_multiagent_evidence(case_uid: str, source_dataset: str,
             "Explain why the already-computed research estimate / provisional "
             "Manchester-style display category was shown. Do not re-list every "
             "vital sign; mention only decision-driving, abnormal, missing, or "
-            "explicitly non-driving normal findings. The separate heuristic "
-            "pathway and safety-review context do not determine the ML output. "
+            "explicitly non-driving normal findings. Use the recorded contribution "
+            "to distinguish the structured MTS stage, vital safeguards and legacy pathway. "
             "No model feature attribution has been computed: do not claim that "
             "an input feature caused the model prediction."
         ),
@@ -461,6 +467,7 @@ def safe_multiagent_evidence(case_uid: str, source_dataset: str,
             "category": decision.get("category"),
             "priority": decision.get("priority"),
             "reason_codes": reason_codes,
+            "contribution": pathway,
         },
         "safety_summary": {
             "safety_flags": safety_flags,
@@ -474,6 +481,7 @@ def safe_multiagent_evidence(case_uid: str, source_dataset: str,
     evidence = {
         "case_uid": case_uid,
         "source_dataset": source_dataset,
+        "mts_assessment": workflow_result.get("mts_assessment") or {},
         "chief_complaint": triage_input.get("chiefcomplaint"),
         "age": triage_input.get("age"),
         "gender": triage_input.get("gender"),
@@ -529,7 +537,7 @@ def safe_multiagent_evidence(case_uid: str, source_dataset: str,
         },
         "category_reasoning": category_reasoning,
         "policy": (
-            "Research prototype. Not for clinical use. The LLM/AutoGen layer "
+            "Clinical validation pending. Not for clinical use. The LLM/AutoGen layer "
             "only explains already-computed evidence and cannot assign, change, "
             "or approve triage. Human clinical review is required before any "
             "action."
@@ -676,6 +684,7 @@ def safe_multiagent_explanation_response(case_uid: str, source_dataset: str,
         **_traceability(),
         "multiagent": True,
         "status": status,
+        "explanation_source": "model_generated_review_required",
         # Only the final Explanation Agent synthesis crosses the API boundary.
         # Intake/validation/safety turns are internal coordination, not four
         # separate clinician-facing answers.
@@ -688,6 +697,30 @@ def safe_multiagent_explanation_response(case_uid: str, source_dataset: str,
         "not_for_clinical_use": True,
     }
     return strip_identifiers(out)
+
+
+def safe_recorded_explanation_response(case_uid: str, source_dataset: str,
+                                       evidence: Dict[str, Any]) -> Dict[str, Any]:
+    from app.agents.recorded_explanation import explain_recorded_decision
+
+    explanation, links = explain_recorded_decision(evidence)
+    return {
+        "case_uid": case_uid,
+        "source_dataset": source_dataset,
+        **_traceability(),
+        "multiagent": False,
+        "status": "PASS",
+        "explanation_source": "recorded_evidence",
+        "explanation_policy": "recorded_decision_v1",
+        "final_explanation": explanation,
+        "evidence_links": links,
+        "safety_failures": [],
+        "explanation_agent_only": False,
+        "explanation_only": True,
+        "clinician_review_required": True,
+        "research_only": True,
+        "not_for_clinical_use": True,
+    }
 
 
 def safe_followup_response(

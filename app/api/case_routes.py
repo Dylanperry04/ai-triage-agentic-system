@@ -95,19 +95,18 @@ def _case_state_path():
 
 
 def _latest_workflow_state(case_uid: str) -> Dict[str, Any]:
+    from app.storage.jsonl_io import EvidenceIntegrityError
+
     try:
         from app.storage.case_state_repository import latest_case_state
         return latest_case_state(_case_state_path(), case_uid)
+    except EvidenceIntegrityError:
+        raise
     except Exception as exc:
-        if _patient_data_mode():
-            raise HTTPException(
-                status_code=503,
-                detail=(
-                    "Workflow state could not be read from the durable state/audit "
-                    "sink in patient-data mode."
-                ),
-            ) from exc
-        return {}
+        raise HTTPException(
+            status_code=503,
+            detail="Workflow state could not be read from the configured state store.",
+        ) from exc
 
 
 def _append_workflow_state(state: Dict[str, Any]) -> Dict[str, Any]:
@@ -152,9 +151,10 @@ def _parse_utc_dt(value: Any) -> datetime | None:
         return None
 
 
-def _primary_role(ctx: AuthContext) -> Optional[str]:
-    roles = list(getattr(ctx, "roles", []) or [])
-    return roles[0] if roles else None
+def _primary_role(ctx: AuthContext, permission: str | None = None) -> Optional[str]:
+    from app.security.identity import clinical_attribution_role
+
+    return clinical_attribution_role(ctx, permission)
 
 
 def _actor_identity(ctx: AuthContext) -> Dict[str, Any]:
@@ -294,6 +294,8 @@ def _require_review_action_authorised(
         )
     _require_action_permission(ctx, permission, status.lower(), case_uid=case_uid)
     roles = _ctx_role_set(ctx)
+    if not authz.is_demo_admin(ctx):
+        roles.discard(authz.ROLE_SECURITY_ADMIN)
     if status in (_ESCALATION_CONFIRM_STATUSES | _ESCALATION_CLOSE_STATUSES):
         if roles.isdisjoint(_ESCALATION_RESOLUTION_ROLES):
             raise HTTPException(
@@ -320,6 +322,13 @@ def _require_review_action_authorised(
                 status_code=409,
                 detail="ED Doctor final acuity actions require an active escalation.",
             )
+
+
+def _state_revision(state: Dict[str, Any]) -> int:
+    try:
+        return int(state.get("state_revision") or 0)
+    except (TypeError, ValueError):
+        return 0
 
 
 def _merge_workflow_state(
@@ -436,11 +445,7 @@ def _merge_workflow_state(
             "overdue_vitals_alert_active": False,
             "notifications_suppressed": True,
         })
-    try:
-        prior_revision = int((previous or {}).get("state_revision") or 0)
-    except (TypeError, ValueError):
-        prior_revision = 0
-    merged["state_revision"] = prior_revision + 1
+    merged["state_revision"] = _state_revision(previous or {}) + 1
     return merged
 
 
@@ -449,24 +454,35 @@ def _case_dict_with_workflow_updates(
     workflow_state: Dict[str, Any] | None,
 ) -> Dict[str, Any]:
     case_dict = dict(case or {})
+    from app.schemas.mts import current_checklist
+    checklist = current_checklist(workflow_state)
+    if checklist:
+        case_dict["mts_checklist"] = checklist
+        case_dict["mts_checklist_revision"] = workflow_state.get("mts_checklist_revision")
+        case_dict["mts_observation_provenance"] = workflow_state.get("observation_provenance") or {}
+        case_dict["mts_recording_metadata"] = {"recorded_at": workflow_state.get("mts_checklist_recorded_at"),
+                                              "recorded_by": workflow_state.get("mts_checklist_recorded_by")}
     updates = dict((workflow_state or {}).get("latest_triage_updates") or {})
     if not updates:
         return case_dict
     triage = dict(case_dict.get("triage") or {})
-    for key in set(_ALLOWED_FOLLOWUP_VITALS) | {"chiefcomplaint"}:
-        if key in updates and updates[key] not in (None, ""):
+    for key in set(_ALLOWED_FOLLOWUP_VITALS) | {"chiefcomplaint", "temperature_unit"}:
+        if key in updates and updates[key] != "":
             value = updates[key]
             # EDTriageCase follows the source UHL/MIMIC contract where pain is
             # a string. Observation forms deliberately normalise numeric input,
             # so convert at the schema boundary whenever persisted updates are
             # reapplied for previews, logged assessments, follow-ups or views.
-            if key == "pain":
+            if key == "pain" and value is not None:
                 try:
                     numeric = float(value)
                     value = str(int(numeric)) if numeric.is_integer() else str(numeric)
                 except (TypeError, ValueError):
                     value = str(value)
             triage[key] = value
+    if "temperature" in updates and "temperature_unit" not in updates:
+        # Legacy follow-up measurements use the Fahrenheit API contract.
+        triage["temperature_unit"] = "F"
     case_dict["triage"] = triage
     return case_dict
 
@@ -592,16 +608,11 @@ def _sweep_overdue_vitals_once_locked(*, limit: int = 50000) -> Dict[str, Any]:
     Azure Timer/worker against the durable workflow-state table.
     """
     from collections import Counter
-    from app.storage.case_state_repository import read_case_states
+    from app.storage.case_state_repository import read_latest_case_states
 
     limit = max(1, min(int(limit or 50000), 50000))
     now_dt = datetime.now(timezone.utc)
-    states = read_case_states(_case_state_path(), limit=limit)
-    latest: Dict[str, Dict[str, Any]] = {}
-    for state in states:
-        case_uid = str(state.get("case_uid") or "").strip()
-        if case_uid:
-            latest[case_uid] = state
+    latest = read_latest_case_states(_case_state_path(), limit=limit)
 
     reasons: Counter[str] = Counter()
     created: list[str] = []
@@ -687,6 +698,7 @@ def _require_patient_explanation_route_enabled(ctx: AuthContext) -> None:
     import os
 
     if os.environ.get("ALLOW_PATIENT_EXPLANATION_DEBUG_ROUTE", "").lower() == "true":
+        _require_action_permission(ctx, authz.PERM_VIEW_CLINICAL_CONTENT, "debug_clinical_explanation")
         return
     raise HTTPException(
         status_code=403,
@@ -744,7 +756,7 @@ def _public_case_view(
                 "is_synthetic_demo": True,
                 "demo_data_notice": (
                     rc.case.get("demo_data_notice")
-                    or "Synthetic supervisor-demo case. Not real patient data."
+                    or "Synthetic case; not a recorded patient observation."
                 ),
             })
         if rc.case.get("public_mimic_demo"):
@@ -752,7 +764,7 @@ def _public_case_view(
                 "is_public_mimic_demo": True,
                 "demo_data_notice": (
                     rc.case.get("demo_data_notice")
-                    or "Public MIMIC-IV-ED demo subset. View-only sample data."
+                    or "Public MIMIC-IV-ED sample. View-only data."
                 ),
             })
         return out
@@ -887,7 +899,7 @@ def workflow_queue(
     accepted, discharged, and overdue states come from persisted backend state.
     """
     from collections import Counter
-    from app.storage.case_state_repository import read_case_states
+    from app.storage.case_state_repository import read_case_states, read_latest_case_states
 
     can_review_ai = authz.has_permission(ctx, authz.PERM_REVIEW_AI_PREDICTION)
 
@@ -899,22 +911,23 @@ def workflow_queue(
     offset = max(0, int(offset or 0))
     wanted = str(status or "").strip().lower()
     state_read_limit = 50000
-    states = read_case_states(_case_state_path(), limit=state_read_limit)
-    state_read_may_be_truncated = len(states) >= state_read_limit
-    if _patient_data_mode() and state_read_may_be_truncated:
-        raise HTTPException(
-            status_code=503,
-            detail=(
-                "Workflow queue state read reached the safety cap. Configure an "
-                "indexed durable workflow-state query before presenting the "
-                "patient-data worklist as authoritative."
-            ),
-        )
-    latest: Dict[str, Dict[str, Any]] = {}
-    for state in states:
-        case_uid = str(state.get("case_uid") or "").strip()
-        if case_uid:
-            latest[case_uid] = state
+    state_read_may_be_truncated = False
+    if _patient_data_mode():
+        states = read_case_states(_case_state_path(), limit=state_read_limit)
+        if len(states) >= state_read_limit:
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "Workflow queue state read reached the safety cap. Configure an "
+                    "indexed durable workflow-state query before presenting the "
+                    "patient-data worklist as authoritative."
+                ),
+            )
+        latest = {
+            str(state["case_uid"]): state for state in states if state.get("case_uid")
+        }
+    else:
+        latest = read_latest_case_states(_case_state_path())
 
     rows: list[Dict[str, Any]] = []
     from app.api import safe_dto
@@ -1019,6 +1032,40 @@ def get_case(case_uid: str,
     return _public_case_view(rc, clinical=clinical, ctx=ctx)
 
 
+@router.get("/cases/{case_uid}/assessments/current")
+@_serialized_case_transition
+def current_assessment(case_uid: str,
+                       ctx: AuthContext = Depends(requires(authz.PERM_REVIEW_AI_PREDICTION, "view_current_assessment"))):
+    """Read the exact current saved result; never manufacture a run on page load."""
+    from app.config import settings
+    from app.schemas.workflow_run import triage_input_fingerprint
+    from app.storage.workflow_run_repository import read_workflow_run
+    from app.rules.decision_policy import system_identity
+    from app.api import safe_dto
+
+    rc = _resolve_or_404(case_uid)
+    state = _latest_workflow_state(rc.case_uid)
+    empty = {"case_uid": rc.case_uid, "assessment": None}
+    run_id = state.get("latest_workflow_run_id")
+    if not run_id or state.get("mts_checklist_requires_assessment"):
+        return empty
+    run = read_workflow_run(settings.processed_dir / "workflow_runs.jsonl", run_id, rc.case_uid, strict=True)
+    if not run or not run.get("assessment_response"):
+        return empty
+    case = EDTriageCase(**_case_dict_with_workflow_updates(rc.case, state))
+    if (run.get("triage_input_sha256") != triage_input_fingerprint(case.to_triage_time_input())
+            or (run.get("mts_assessment") or {}).get("checklist_revision") != case.mts_checklist_revision
+            or (run.get("system_identity") or {}).get("system_policy_sha256") != system_identity()["system_policy_sha256"]):
+        return empty
+    saved = dict(run["assessment_response"])
+    if saved.get("case_uid") != rc.case_uid or saved.get("source_dataset") != rc.source_dataset:
+        raise HTTPException(503, "Saved assessment identity does not match this case")
+    saved.update(workflow_run_id=run_id, assessment_timestamp_utc=run["timestamp_utc"],
+                 workflow_state=state, saved_assessment=True)
+    safe_dto.assert_no_raw_identifiers(saved)
+    return {"case_uid": rc.case_uid, "assessment": saved}
+
+
 @router.post("/cases/{case_uid}/assessments")
 @_serialized_case_transition
 def run_assessment(case_uid: str,
@@ -1072,6 +1119,7 @@ def run_assessment(case_uid: str,
             "case_status": previous_state.get("case_status") or "new_unreviewed",
             "review_status": previous_state.get("review_status") or "assessment_complete",
             "latest_workflow_run_id": _rec.workflow_run_id,
+            "mts_checklist_requires_assessment": False,
             "latest_assessment_at": _rec.timestamp_utc,
             "latest_system_acuity": system_acuity,
             "latest_system_prediction": system_prediction,
@@ -1139,15 +1187,12 @@ async def multiagent_explain_case(
     body: ExplanationRequest = ExplanationRequest(),
     ctx: AuthContext = Depends(requires(authz.PERM_EXPLAIN_CASE_ACUITY, "multiagent_explain_case")),
 ):
-    _require_multiagent_acuity_explanation_enabled(ctx)
+    screened_question = (body.question or "").strip() or None
+    use_recorded_evidence = bool(body.workflow_run_id and not screened_question)
+    if not use_recorded_evidence:
+        _require_multiagent_acuity_explanation_enabled(ctx)
     rc = _resolve_or_404(case_uid)
-    workflow_state = _latest_workflow_state(rc.case_uid)
-    case = EDTriageCase(**_case_dict_with_workflow_updates(rc.case, workflow_state))
     from app.api import safe_dto
-
-    screened_question: Optional[str] = None
-    if body.question:
-        screened_question = body.question.strip()
 
     if body.workflow_run_id:
         from app.config import settings
@@ -1165,6 +1210,8 @@ async def multiagent_explain_case(
     else:
         # Compatibility for existing API clients that request a current-case
         # explanation without displaying a particular recorded assessment.
+        workflow_state = _latest_workflow_state(rc.case_uid)
+        case = EDTriageCase(**_case_dict_with_workflow_updates(rc.case, workflow_state))
         result = run_workflow(case, include_llm_explanation=False)
         evidence = safe_dto.safe_multiagent_evidence(
             rc.case_uid, rc.source_dataset, result.model_dump(mode="json"))
@@ -1186,35 +1233,37 @@ async def multiagent_explain_case(
             raise HTTPException(status_code=413, detail="question too long")
         raise HTTPException(status_code=400, detail=f"question blocked: {gate.reason}")
 
-    from app.agents.autogen_multi_agent_team import run_case_uid_team_explanation
-    team_result = await run_case_uid_team_explanation(
-        rc.case_uid,
-        gate.minimised_evidence or evidence,
-        screened_question,
-    )
-    status = str(team_result.get("status") or "")
-    if status == "SAFETY_FAIL":
-        raise HTTPException(
-            status_code=502,
-            detail={
-                "reason": "multiagent_safety_filter_failed",
-                "safety_failures": team_result.get("safety_failures") or [],
-            },
+    if use_recorded_evidence:
+        try:
+            out = safe_dto.safe_recorded_explanation_response(rc.case_uid, rc.source_dataset, evidence)
+        except (TypeError, ValueError, AttributeError) as exc:
+            raise HTTPException(status_code=409, detail="Saved decision evidence is inconsistent or incomplete.") from exc
+    else:
+        from app.agents.autogen_multi_agent_team import run_case_uid_team_explanation
+        team_result = await run_case_uid_team_explanation(
+            rc.case_uid,
+            gate.minimised_evidence or evidence,
+            screened_question,
         )
-    if status == "ERROR":
-        raise HTTPException(
-            status_code=502,
-            detail={
-                "reason": "multiagent_team_failed",
-                "safety_failures": team_result.get("safety_failures") or [],
-            },
-        )
-
-    out = safe_dto.safe_multiagent_explanation_response(
-        rc.case_uid, rc.source_dataset, team_result)
+        status = str(team_result.get("status") or "")
+        if status in ("SAFETY_FAIL", "ERROR"):
+            reason = "multiagent_safety_filter_failed" if status == "SAFETY_FAIL" else "multiagent_team_failed"
+            raise HTTPException(
+                status_code=502,
+                detail={"reason": reason, "safety_failures": team_result.get("safety_failures") or []},
+            )
+        out = safe_dto.safe_multiagent_explanation_response(rc.case_uid, rc.source_dataset, team_result)
     if body.workflow_run_id:
         out["workflow_run_id"] = body.workflow_run_id
     safe_dto.assert_no_raw_identifiers(out)
+    if body.workflow_run_id and not _sensitive_audit_mode():
+        from app.constants import DATASET_SOURCE
+        if rc.source_dataset == DATASET_SOURCE:
+            from app.storage.mts_repository import save_explanation
+            try:
+                out["explanation_id"] = save_explanation(rc.case_uid, body.workflow_run_id, out)
+            except Exception as exc:
+                raise HTTPException(503, "Explanation could not be saved for audit/review") from exc
     return out
 
 
@@ -1230,6 +1279,13 @@ class ReviewBody(BaseModel):
     requested_fields: list[str] = Field(default_factory=list)
     escalation_target_role: Optional[str] = None
     final_clinician_acuity: Optional[int] = Field(default=None, ge=1, le=5)
+    assessment_exception_reason: Optional[str] = Field(default=None, max_length=1000)
+
+    @field_validator("assessment_exception_reason")
+    @classmethod
+    def _check_assessment_exception(cls, value):
+        from app.security.redaction import redact_text
+        return redact_text(value.strip()) if value else None
 
     @field_validator("review_status")
     @classmethod
@@ -1332,7 +1388,7 @@ def _review_workflow_state(
 ) -> Dict[str, Any]:
     status = (body.review_status or "").upper()
     now = _timestamp_utc()
-    role = _primary_role(ctx)
+    role = _primary_role(ctx, _REVIEW_STATUS_PERMISSION[status])
     state: Dict[str, Any] = {
         "case_uid": rc.case_uid,
         "source_dataset": rc.source_dataset,
@@ -1508,6 +1564,42 @@ def _review_workflow_state(
     return state
 
 
+def _review_retry(case_uid, body, ctx, current, review, payload_hash, actor_hash):
+    """Reapply an authorized, persisted review only to its original revision."""
+    from app.storage.case_state_repository import has_applied_review
+
+    if review.case_uid != case_uid or review.action_actor_sha256 != actor_hash:
+        raise HTTPException(409, "action_id was already used for another clinical action")
+    if review.action_payload_sha256 != payload_hash:
+        raise HTTPException(409, "action_id was already used with a different clinical action")
+    _require_action_permission(
+        ctx, _REVIEW_STATUS_PERMISSION[body.review_status], body.review_status.lower(), case_uid=case_uid,
+    )
+    if review.base_state_revision is None or not review.workflow_state_update:
+        raise HTTPException(503, "The recorded review lacks recovery evidence.")
+    base = review.base_state_revision
+    revision = _state_revision(current)
+    if current.get("last_review_id") == review.review_id and revision >= base + 1:
+        if _patient_data_mode() and revision == base + 1 and not has_applied_review(
+            _case_state_path(), case_uid=case_uid, review_id=review.review_id, revision=revision,
+        ):
+            # The durable point update may have committed before its audit row.
+            # Both writes are keyed, so replaying this exact revision is safe.
+            current = _append_workflow_state(current)
+    elif revision == base and current.get("latest_workflow_run_id") == review.workflow_run_id:
+        current = _append_workflow_state(_merge_workflow_state(current, dict(review.workflow_state_update)))
+    elif not has_applied_review(
+        _case_state_path(), case_uid=case_uid, review_id=review.review_id, revision=base + 1,
+    ):
+        raise HTTPException(409, "The recorded review could not be applied because the workflow has advanced.")
+    return {
+        "review_id": review.review_id,
+        "case_uid": case_uid,
+        "status": "already_recorded",
+        "workflow_state": current,
+    }
+
+
 @router.post("/cases/{case_uid}/reviews")
 @_serialized_case_transition
 def submit_review(case_uid: str, body: ReviewBody,
@@ -1515,7 +1607,7 @@ def submit_review(case_uid: str, body: ReviewBody,
     rc = _resolve_or_404(case_uid)
     # Reviewer identity comes from the AUTHENTICATED context, never the client.
     from app.schemas.review import HumanReviewRecord
-    from app.storage.human_review_repository import append_human_review
+    from app.storage.human_review_repository import append_human_review, read_review_for_action
     from app.config import settings
     from datetime import datetime, timezone
     from uuid import uuid4
@@ -1537,7 +1629,37 @@ def submit_review(case_uid: str, body: ReviewBody,
     action_payload_hash = hashlib.sha256(
         json.dumps(action_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
+    review_path = settings.processed_dir / "human_reviews.jsonl"
+    review_id = str(uuid4())
+    action_actor_hash = None
+    if action_id:
+        # Case-scoped deterministic identity also gives durable storage a point
+        # lookup after a request fails between evidence and state writes.
+        review_id = "review-" + hashlib.sha256(f"{rc.case_uid}/{action_id}".encode("utf-8")).hexdigest()
+        actor = [getattr(ctx, "source", None), getattr(ctx, "user_id", None)]
+        if getattr(ctx, "is_demo_stub", False):
+            actor.append(sorted(_ctx_role_set(ctx)))
+        action_actor_hash = hashlib.sha256(json.dumps(actor).encode("utf-8")).hexdigest()
+        persisted_review = read_review_for_action(
+            review_path, review_id=review_id, case_uid=rc.case_uid, action_id=action_id,
+        )
+        if persisted_review and persisted_review.action_payload_sha256:
+            return _review_retry(
+                rc.case_uid, body, ctx, previous_state, persisted_review, action_payload_hash, action_actor_hash,
+            )
+        if persisted_review and (
+            persisted_review.review_id != previous_state.get("last_review_id")
+            or action_id != previous_state.get("last_action_id")
+        ):
+            raise HTTPException(409, "This legacy action_id is already recorded against an earlier case state.")
     if action_id and action_id == str(previous_state.get("last_action_id") or ""):
+        # Legacy records predate the review journal fields. Verify stored actor
+        # and action permission before returning their existing response.
+        _require_action_permission(
+            ctx, _REVIEW_STATUS_PERMISSION[status], status.lower(), case_uid=rc.case_uid,
+        )
+        if not previous_state.get("actor_user_id") or previous_state["actor_user_id"] != getattr(ctx, "user_id", None):
+            raise HTTPException(409, "action_id was already used for another clinical action")
         if action_payload_hash != str(previous_state.get("last_action_payload_hash") or ""):
             raise HTTPException(
                 status_code=409,
@@ -1587,7 +1709,19 @@ def submit_review(case_uid: str, body: ReviewBody,
     system_acuity = _acuity_from_text(previous_state.get("latest_system_acuity"))
     trusted_system_prediction = previous_state.get("latest_system_prediction")
     final_acuity = body.final_clinician_acuity
+    completion_status = None
     if status == "ACCEPTED_AS_PRESENTED":
+        from app.constants import DATASET_SOURCE
+        if rc.source_dataset == DATASET_SOURCE:
+            from app.storage.workflow_run_repository import read_workflow_run
+            linked = read_workflow_run(settings.processed_dir / "workflow_runs.jsonl", supplied_run_id, rc.case_uid)
+            if not linked:
+                raise HTTPException(409, "The exact assessment evidence is unavailable")
+            mts_trace = linked.get("mts_assessment") or {}
+            completion_status = mts_trace.get("status", "awaiting_nurse_checklist")
+            complete = mts_trace.get("assessment_complete", completion_status == "research_category_requires_clinician_review")
+            if not complete and len((body.assessment_exception_reason or "").strip()) < 5:
+                raise HTTPException(422, "MTS assessment is incomplete or conflicting. Complete it or record a deliberate assessment exception reason (at least 5 characters). Urgent escalation remains available.")
         if system_acuity is None:
             raise HTTPException(status_code=409, detail="the linked assessment has no usable system acuity")
         final_acuity = system_acuity
@@ -1652,8 +1786,11 @@ def submit_review(case_uid: str, body: ReviewBody,
         effective_override_reason = body.review_comment
 
     rec = HumanReviewRecord(
-        review_id=str(uuid4()),
+        review_id=review_id,
         action_id=action_id or None,
+        action_payload_sha256=action_payload_hash if action_id else None,
+        action_actor_sha256=action_actor_hash,
+        base_state_revision=_state_revision(previous_state),
         workflow_run_id=supplied_run_id,
         stay_id=rc.stay_id,                       # redacted before persistence
         source_dataset=rc.source_dataset,
@@ -1669,7 +1806,7 @@ def submit_review(case_uid: str, body: ReviewBody,
         reviewer_email_or_pseudonym=getattr(ctx, "email", None) or getattr(ctx, "user_id", None),
         reviewer_roles=list(getattr(ctx, "roles", []) or []),
         auth_source=getattr(ctx, "source", None),
-        reviewer_role=(list(getattr(ctx, "roles", []) or []) or [None])[0],
+        reviewer_role=_primary_role(ctx, _REVIEW_STATUS_PERMISSION[status]),
         review_status=body.review_status,
         review_comment=body.review_comment,
         system_prediction=(
@@ -1680,6 +1817,8 @@ def submit_review(case_uid: str, body: ReviewBody,
         clinician_override=body.clinician_override,
         override_reason=effective_override_reason,
         previous_acuity=system_acuity,
+        assessment_exception_reason=body.assessment_exception_reason,
+        assessment_completion_status=completion_status,
         final_clinician_acuity=final_acuity,
         action_type=status.lower(),
         created_at_utc=datetime.now(timezone.utc).isoformat(),
@@ -1689,18 +1828,20 @@ def submit_review(case_uid: str, body: ReviewBody,
         "final_clinician_acuity": final_acuity,
         "override_reason": effective_override_reason,
     })
-    # The append-only human action is the durable source event. Write it before
-    # updating the current-state projection so an accepted HTTP action can never
-    # exist without its actor, role, reason and exact workflow-run audit record.
-    append_human_review(settings.processed_dir / "human_reviews.jsonl", rec)
     state_update = _review_workflow_state(rc, trusted_body, ctx)
     state_update.update({
         "last_action_id": action_id,
         "last_action_payload_hash": action_payload_hash,
         "last_review_id": rec.review_id,
+        "assessment_exception_reason": body.assessment_exception_reason,
+        "assessment_completion_status": completion_status,
     })
     if status in {"ACCEPTED_AS_PRESENTED", "OVERRIDDEN", "ESCALATION_RESOLVED"}:
         state_update["decision_finalized_workflow_run_id"] = supplied_run_id
+    rec.workflow_state_update = dict(state_update)
+    # Save the authorized transition with the review first. A retry can finish
+    # projecting this exact event instead of creating a second review.
+    append_human_review(review_path, rec)
     workflow_state = _append_workflow_state(
         _merge_workflow_state(previous_state, state_update)
     )
@@ -1791,6 +1932,8 @@ class FollowupBody(BaseModel):
             if key not in _ALLOWED_FOLLOWUP_VITALS:
                 raise ValueError(
                     f"Unknown vital '{key}'. Allowed: {sorted(_ALLOWED_FOLLOWUP_VITALS)}")
+            if isinstance(value, bool):
+                raise ValueError(f"Vital '{key}' must be a measurement, not a Boolean")
             try:
                 num = float(value)
             except (TypeError, ValueError):
@@ -1860,10 +2003,19 @@ class FollowupExplanationBody(FollowupBody):
 def _changed_vital_summary(case_dict: Dict[str, Any],
                            updated_vitals: Dict[str, Any]) -> list[dict[str, Any]]:
     triage = case_dict.get("triage") or {}
-    return [
-        {"field": key, "previous": triage.get(key), "new": value}
-        for key, value in updated_vitals.items()
-    ]
+    changes = []
+    for key, value in updated_vitals.items():
+        previous = triage.get(key)
+        change = {"field": key, "previous": previous, "new": value}
+        if key == "temperature":
+            # Trends and the UHL model snapshot use Fahrenheit. Preserve the
+            # original reading too; never subtract raw Celsius from Fahrenheit.
+            change.update(unit="F", previous_source_value=previous,
+                          previous_source_unit=triage.get("temperature_unit") or "F")
+            if previous is not None and triage.get("temperature_unit") == "C":
+                change["previous"] = float(previous) * 9 / 5 + 32
+        changes.append(change)
+    return changes
 
 
 def _run_followup_workflows(
@@ -1887,6 +2039,8 @@ def _run_followup_workflows(
             pain_val = merged_vitals["pain"]
             merged_vitals["pain"] = str(int(pain_val)) if float(pain_val).is_integer() else str(pain_val)
         triage.update(merged_vitals)
+        if "temperature" in merged_vitals:
+            triage["temperature_unit"] = "F"
     if updated_complaint:
         triage["chiefcomplaint"] = updated_complaint
     new_case_dict["triage"] = triage
@@ -1976,10 +2130,11 @@ async def upload_supporting_scan(
 def followup_case(case_uid: str, body: FollowupBody,
                   ctx: AuthContext = Depends(requires(authz.PERM_VIEW_CASE, "followup_case_identity"))):
     if body.updated_vitals:
-        _require_action_permission(
-            ctx, authz.PERM_UPDATE_VITALS, "update_vitals", case_uid=case_uid,
-        )
-    if body.updated_complaint or body.updated_context or body.scan_uploads:
+        if not authz.has_permission(ctx, authz.PERM_RECORD_MTS_CHECKLIST):
+            _require_action_permission(
+                ctx, authz.PERM_UPDATE_VITALS, "update_vitals", case_uid=case_uid,
+            )
+    if body.scan_uploads or ((body.updated_complaint or body.updated_context) and not authz.has_permission(ctx, authz.PERM_RECORD_MTS_CHECKLIST)):
         _require_action_permission(
             ctx,
             authz.PERM_PROVIDE_REQUESTED_INFORMATION,
@@ -2184,16 +2339,11 @@ def followup_case(case_uid: str, body: FollowupBody,
                 "case_status": "reopened",
                 "_reopen_for_reassessment": True,
             })
-    if body.updated_vitals:
-        workflow_state_payload.update({
-            "last_vitals_checked_at": now,
-            "last_vitals_updated_at": now,
-            "overdue_vitals_alert_active": False,
-            "overdue_vitals_acknowledged_at": None,
-        })
     latest_triage_updates = dict(previous_state.get("latest_triage_updates") or {})
     if body.updated_vitals:
         latest_triage_updates.update(body.updated_vitals)
+        if "temperature" in body.updated_vitals:
+            latest_triage_updates["temperature_unit"] = "F"
     if body.updated_complaint:
         latest_triage_updates["chiefcomplaint"] = body.updated_complaint
     if latest_triage_updates:
@@ -2203,6 +2353,9 @@ def followup_case(case_uid: str, body: FollowupBody,
         })
     if body.scan_uploads:
         workflow_state_payload["scan_uploads"] = body.scan_uploads
+    from app.services.observation_update import observation_transition
+    workflow_state_payload.update(observation_transition(previous_state, ctx=ctx, now=now,
+        assessed_measurements=body.updated_vitals.keys()))
     workflow_state = _append_workflow_state(
         _merge_workflow_state(previous_state, workflow_state_payload)
     )

@@ -1003,10 +1003,21 @@ def _execute_one(records: list[Mapping[str, Any]], query: Mapping[str, Any]) -> 
     elif operation == "time_histogram":
         interval = _text(query.get("interval") or "day")
         field = {"hour": "hour_of_day", "day": "day", "week": "week", "month": "month"}[interval]
-        counts = Counter(_value(row, field) for row in rows if _value(row, field) not in (None, ""))
-        groups = [{"label": _display_group(field, key), "value": key, "count": count} for key, count in counts.items()]
+        buckets: dict[Any, list[Mapping[str, Any]]] = defaultdict(list)
+        for row in rows:
+            key = _value(row, field)
+            if key not in (None, ""):
+                buckets[key].append(row)
+        groups = [
+            {"label": _display_group(field, key), "value": key, "count": _count_rows(values, distinct)}
+            for key, values in buckets.items()
+        ]
         groups.sort(key=lambda item: item["value"])
-        result.update({"interval": interval, "groups": groups[-int(query["limit"]):]})
+        result.update({
+            "interval": interval,
+            "distinct_field": distinct,
+            "groups": groups[-int(query["limit"]):],
+        })
     elif operation == "average":
         field = _text(query.get("value_field"))
         values = []
@@ -1120,7 +1131,9 @@ def _render_one(query: Mapping[str, Any], result: Mapping[str, Any]) -> str:
         if not groups:
             return f"No matching {subject} was recorded for the requested trend."
         detail = ", ".join(f"{item['label']} ({item['count']})" for item in groups)
-        return f"Recorded {subject} counts by {result['interval']}: {detail}."
+        distinct = result.get("distinct_field")
+        unit = f"unique {distinct.replace('_', ' ')} values" if distinct else subject
+        return f"Recorded {unit} counts by {result['interval']}: {detail}."
     if operation == "average":
         if result.get("average") is None:
             return "No numeric audit values were recorded for that calculation."

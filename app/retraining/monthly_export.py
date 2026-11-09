@@ -25,6 +25,7 @@ from zoneinfo import ZoneInfo
 from app.config import settings
 from app.constants import DATASET_SOURCE, MODEL_INPUT_COLUMNS
 from app.rules.acuity_mts_mapping import acuity_from_text
+from app.storage.review_outcome import reconcile_review_outcomes
 
 
 DUBLIN = ZoneInfo("Europe/Dublin")
@@ -130,7 +131,7 @@ def _safe_records(records: Iterable[Any]) -> list[dict[str, Any]]:
 
 def _load_source_records(
     reporting_month: str,
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     """Read the same append-only evidence used by audit views."""
     if os.environ.get("PATIENT_DATA_MODE", "").lower() == "true":
         from app.api.status_routes import _read_patient_durable_records
@@ -156,16 +157,23 @@ def _load_source_records(
             limit=limit,
             since_utc=since_utc,
         )
-        if len(runs) >= limit or len(reviews) >= limit:
+        states = _read_patient_durable_records(
+            record_kind="case_workflow_state", limit=limit, since_utc=since_utc,
+        )
+        current_states = _read_patient_durable_records(
+            record_kind="case_workflow_state_current", limit=limit, since_utc=since_utc,
+        )
+        if any(len(stream) >= limit for stream in (runs, reviews, states, current_states)):
             raise MonthlyExportError(
                 "monthly source read reached its configured durable-audit cap; "
                 "refusing to create a potentially incomplete export"
             )
-        return runs, reviews
+        return runs, reviews, states + current_states
 
     from app.security.local_paths import credentialed_artifact_path
     from app.storage.human_review_repository import read_human_reviews
     from app.storage.workflow_run_repository import read_workflow_runs
+    from app.storage.jsonl_io import iter_jsonl_dicts
 
     run_path = credentialed_artifact_path(
         settings.processed_dir / "workflow_runs.jsonl",
@@ -176,8 +184,12 @@ def _load_source_records(
         purpose="monthly retraining clinician-review read",
     )
     return (
-        _safe_records(read_workflow_runs(run_path)),
-        _safe_records(read_human_reviews(review_path)),
+        _safe_records(read_workflow_runs(run_path, strict=True)),
+        _safe_records(read_human_reviews(review_path, strict=True)),
+        _safe_records(iter_jsonl_dicts(credentialed_artifact_path(
+            settings.processed_dir / "case_workflow_state.jsonl",
+            purpose="monthly retraining applied-decision evidence",
+        ), strict=True)),
     )
 
 
@@ -208,6 +220,7 @@ def build_export_dataset(
     reporting_month: str,
     workflow_runs: Iterable[Any],
     human_reviews: Iterable[Any],
+    workflow_states: Iterable[Mapping[str, Any]] = (),
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Return clean rows and reconciliation metadata without performing I/O."""
     start_local, end_local = _month_bounds(reporting_month)
@@ -229,7 +242,8 @@ def build_export_dataset(
         runs_by_id[run_id] = run
 
     reviews_by_run: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for raw in human_reviews:
+    reconciled = reconcile_review_outcomes(human_reviews, workflow_states)
+    for raw in reconciled:
         review = _as_dict(raw)
         run_id = str(review.get("workflow_run_id") or "").strip()
         if run_id in runs_by_id:
@@ -259,7 +273,13 @@ def build_export_dataset(
         if not label_reviews:
             excluded["no_clinical_label_review"] += 1
             continue
-        latest = label_reviews[-1]
+        applied_reviews = [review for review in label_reviews if review["review_outcome"] == "applied"]
+        if not applied_reviews:
+            excluded["review_" + label_reviews[-1]["review_outcome"]] += 1
+            continue
+        # An unsuccessful later attempt cannot replace an earlier applied
+        # decision. An applied request/escalation still makes the run unresolved.
+        latest = applied_reviews[-1]
         if str(latest.get("case_uid") or "") != str(run.get("case_uid") or ""):
             excluded["case_link_mismatch"] += 1
             continue
@@ -344,6 +364,8 @@ def build_export_dataset(
     deduped = {row["workflow_run_id"]: row for row in clean_rows}
     rows = [deduped[key] for key in sorted(deduped, key=lambda key: deduped[key]["assessment_date"])]
     metadata = {
+        "review_outcome_counts": dict(Counter(r["review_outcome"] for r in reconciled
+                                              if r.get("workflow_run_id") in runs_by_id)),
         "reporting_month": reporting_month,
         "assessment_count": len(runs_by_id),
         "eligible_cases": len(rows),
@@ -517,6 +539,7 @@ def generate_monthly_export(
     now: datetime | None = None,
     workflow_runs: Iterable[Any] | None = None,
     human_reviews: Iterable[Any] | None = None,
+    workflow_states: Iterable[Mapping[str, Any]] | None = None,
     directory: Path | None = None,
 ) -> dict[str, Any]:
     """Create or reconcile one completed-month artifact.
@@ -533,10 +556,11 @@ def generate_monthly_export(
     with _generation_lock(root, reporting_month):
         existing = read_manifest(reporting_month, root)
         if workflow_runs is None or human_reviews is None:
-            loaded_runs, loaded_reviews = _load_source_records(reporting_month)
+            loaded_runs, loaded_reviews, loaded_states = _load_source_records(reporting_month)
             workflow_runs = loaded_runs if workflow_runs is None else workflow_runs
             human_reviews = loaded_reviews if human_reviews is None else human_reviews
-        rows, counts = build_export_dataset(reporting_month, workflow_runs, human_reviews)
+            workflow_states = loaded_states if workflow_states is None else workflow_states
+        rows, counts = build_export_dataset(reporting_month, workflow_runs, human_reviews, workflow_states or ())
         csv_content = _csv_bytes(rows)
         csv_sha256 = hashlib.sha256(csv_content).hexdigest()
         generated = now or datetime.now(timezone.utc)
@@ -679,6 +703,7 @@ def build_current_month_demo_preview(
     now: datetime | None = None,
     workflow_runs: Iterable[Any] | None = None,
     human_reviews: Iterable[Any] | None = None,
+    workflow_states: Iterable[Mapping[str, Any]] | None = None,
 ) -> tuple[dict[str, Any], bytes]:
     """Build a non-persisted current-month preview for the role-switcher demo.
 
@@ -689,16 +714,17 @@ def build_current_month_demo_preview(
     current = now or datetime.now(timezone.utc)
     month = current_reporting_month(current)
     if workflow_runs is None or human_reviews is None:
-        loaded_runs, loaded_reviews = _load_source_records(month)
+        loaded_runs, loaded_reviews, loaded_states = _load_source_records(month)
         workflow_runs = loaded_runs if workflow_runs is None else workflow_runs
         human_reviews = loaded_reviews if human_reviews is None else human_reviews
-    rows, counts = build_export_dataset(month, workflow_runs, human_reviews)
+        workflow_states = loaded_states if workflow_states is None else workflow_states
+    rows, counts = build_export_dataset(month, workflow_runs, human_reviews, workflow_states or ())
     content = _csv_bytes(rows)
     stamp = current if current.tzinfo else current.replace(tzinfo=timezone.utc)
     manifest = {
         **counts,
         "generated_at_utc": stamp.astimezone(timezone.utc).isoformat(),
-        "filename": f"demo_preview_retraining_{month.replace('-', '_')}.csv",
+        "filename": f"current_month_retraining_{month.replace('-', '_')}.csv",
         "download_status": "demo_preview_ready",
         "sha256": hashlib.sha256(content).hexdigest(),
         "columns": EXPORT_COLUMNS,

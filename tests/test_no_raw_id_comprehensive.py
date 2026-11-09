@@ -81,10 +81,19 @@ class TestNoRawIdAcrossEndpoints:
 
     
     def test_list_cases_no_raw_ids(self):
-        for role in (["ed-nurses"], ["ed-doctors"], ["researchers"], ["security-admins"]):
+        for role in (["ed-nurses"], ["ed-doctors"], ["researchers"], ["triage-nurses"]):
             r = client.get("/cases", headers=self._h(role))
             assert r.status_code == 200
             _assert_no_raw_ids(r.json(), "/cases")
+
+    def test_trusted_itd_cannot_read_cases_or_submit_clinical_review(self):
+        headers = self._h(["security-admins"])
+        assert client.get("/cases", headers=headers).status_code == 403
+        response = client.post(
+            "/cases/test~not-resolved/reviews", headers=headers,
+            json={"review_status": "ACCEPTED_AS_PRESENTED", "workflow_run_id": "run-test"},
+        )
+        assert response.status_code == 403
 
     
     def test_get_case_no_raw_ids(self):
@@ -125,11 +134,11 @@ class TestNoRawIdAcrossEndpoints:
             "app.agents.autogen_multi_agent_team.run_case_uid_team_explanation",
             _fake_team,
         )
-        cuid = client.get("/cases",
-                          headers=self._h(["security-admins"])).json()["cases"][0]["case_uid"]
+        headers = self._h(["triage-nurses"])
+        cuid = client.get("/cases", headers=headers).json()["cases"][0]["case_uid"]
         r = client.post(
             f"/cases/{cuid}/followups/multiagent-explanations",
-            headers=self._h(["security-admins"]),
+            headers=headers,
             json={"updated_vitals": {"heartrate": 180}, "question": "Why changed?"},
         )
         assert r.status_code == 200
@@ -152,11 +161,11 @@ class TestNoRawIdAcrossEndpoints:
             "app.agents.llm_explanation_agent.run_llm_explanation",
             _fake_llm,
         )
-        cuid = client.get("/cases",
-                          headers=self._h(["security-admins"])).json()["cases"][0]["case_uid"]
+        headers = self._h(["security-admins", "triage-nurses"])
+        cuid = client.get("/cases", headers=headers).json()["cases"][0]["case_uid"]
         r = client.post(
             f"/cases/{cuid}/followups/explanations",
-            headers=self._h(["security-admins"]),
+            headers=headers,
             json={"updated_vitals": {"heartrate": 180}, "question": "Why changed?"},
         )
         assert r.status_code == 200
@@ -174,6 +183,7 @@ class TestNoRawIdAcrossEndpoints:
         ]
         r = client.post(f"/cases/{cuid}/reviews", headers=headers,
                         json={"review_status": "ACCEPTED_AS_PRESENTED",
+            "assessment_exception_reason": "Test fixture: incomplete observations acknowledged",
                               "workflow_run_id": run_id,
                               "review_comment": "x"})
         assert r.status_code == 200

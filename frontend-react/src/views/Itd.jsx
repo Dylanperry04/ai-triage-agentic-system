@@ -79,7 +79,7 @@ export default function Itd({ identity, onDemoReset }) {
     try {
       const r = await api.demoReset(resetPhrase);
       setResetDone(r);
-      setMsgs((m) => [...m, { from: "sys", text: `Demo state reset. ${r.records_archived} record(s) archived to ${r.archive_directory}. Nothing was deleted — the previous state can be restored by moving those files back.` }]);
+      setMsgs((m) => [...m, { from: "sys", text: `Workflow state reset. ${r.records_archived} record(s) archived to ${r.archive_directory}. Nothing was deleted — the previous state can be restored by moving those files back.` }]);
       setResetOpen(false); setResetPhrase("");
       onDemoReset?.();   // backend is empty; drop the now-stale client state
     } catch (e) {
@@ -96,7 +96,7 @@ export default function Itd({ identity, onDemoReset }) {
           <div style={{ fontSize: 12.5, color: T.slate }}>System · security · governance · audit evidence</div>
         </div>
         <Btn kind="quiet" style={{ marginLeft: "auto" }} onClick={() => { setResetOpen(true); setResetErr(null); }}>
-          <RotateCcw size={14} style={{ verticalAlign: -2, marginRight: 6 }} />Reset demo data
+          <RotateCcw size={14} style={{ verticalAlign: -2, marginRight: 6 }} />Reset local workflow
         </Btn>
       </div>
       <Card style={{ marginTop: 14, padding: 14 }}>
@@ -108,8 +108,8 @@ export default function Itd({ identity, onDemoReset }) {
         {exportErr && <div style={{ marginTop: 8 }}><ErrorNote>{String(exportErr)}</ErrorNote></div>}
         {exports === null && !exportErr && <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: T.slate, marginTop: 10 }}><Spinner size={12} /> Checking prepared exports…</div>}
         {preview && <div style={{ borderTop: `1px solid ${T.borderSoft}`, marginTop: 10, paddingTop: 10, display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "center", background: T.yellow50, borderRadius: 8, padding: 10 }}>
-          <div style={{ fontSize: 11.5, color: T.slate, lineHeight: 1.45 }}><b>Demo preview — {preview.reporting_month}</b><br />{preview.eligible_cases || 0} eligible record(s) from actions performed so far this month. This is not the official completed-month artifact and is not persisted or notified.</div>
-          <Btn kind="quiet" onClick={downloadPreview}><Download size={13} style={{ verticalAlign: -2, marginRight: 5 }} />Download demo preview</Btn>
+          <div style={{ fontSize: 11.5, color: T.slate, lineHeight: 1.45 }}><b>Current-month preview — {preview.reporting_month}</b><br />{preview.eligible_cases || 0} eligible record(s) from actions performed so far this month. This is not the official completed-month artifact and is not persisted or notified.</div>
+          <Btn kind="quiet" onClick={downloadPreview}><Download size={13} style={{ verticalAlign: -2, marginRight: 5 }} />Download current-month preview</Btn>
         </div>}
         {(exports?.exports || []).slice(0, 4).map((row) => <div key={row.reporting_month} style={{ display: "grid", gridTemplateColumns: "90px 1fr auto", alignItems: "center", gap: 10, borderTop: `1px solid ${T.borderSoft}`, marginTop: 10, paddingTop: 10 }}>
           <div><div style={{ fontFamily: T.mono, fontSize: 12.5, fontWeight: 800 }}>{row.reporting_month}</div><div style={{ fontSize: 10.5, color: T.grey500 }}>{String(row.generated_at_utc || "").slice(0, 10)} · rev {row.revision || 1}</div></div>
@@ -135,7 +135,7 @@ export default function Itd({ identity, onDemoReset }) {
         <button onClick={() => ask()} disabled={busy || !input.trim()} style={{ width: 46, borderRadius: 10, border: "none", background: T.green700, color: "#fff", cursor: "pointer", opacity: busy || !input.trim() ? 0.5 : 1, display: "flex", alignItems: "center", justifyContent: "center" }}><SendHorizonal size={16} /></button>
       </div>
       {resetOpen && (
-        <Modal title="Reset demo data" onClose={() => { setResetOpen(false); setResetErr(null); }} width={540}>
+        <Modal title="Reset local workflow" onClose={() => { setResetOpen(false); setResetErr(null); }} width={540}>
           <div style={{ fontSize: 13.5, color: T.ink, lineHeight: 1.6 }}>
             This returns the app to an empty starting state: triage decisions, reviews,
             model-assessment runs, reassessments and the access-audit log are cleared
@@ -148,16 +148,16 @@ export default function Itd({ identity, onDemoReset }) {
             outright in patient-data mode.
           </div>
           <div style={{ fontSize: 12.5, color: T.slate, marginTop: 12, marginBottom: 6 }}>
-            Type <b>RESET DEMO DATA</b> to confirm.
+            Type <b>RESET LOCAL WORKFLOW</b> to confirm.
           </div>
           <input value={resetPhrase} onChange={(e) => setResetPhrase(e.target.value)}
-            placeholder="RESET DEMO DATA"
+            placeholder="RESET LOCAL WORKFLOW"
             style={{ width: "100%", boxSizing: "border-box", fontFamily: T.mono, fontSize: 13.5, padding: "10px 12px", borderRadius: 9, border: `1px solid ${T.border}` }} />
           {resetErr && <div style={{ marginTop: 10 }}><ErrorNote>{String(resetErr)}</ErrorNote></div>}
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
             <Btn kind="quiet" onClick={() => { setResetOpen(false); setResetErr(null); }}>Cancel</Btn>
-            <Btn kind="danger" disabled={resetBusy || resetPhrase.trim().toUpperCase() !== "RESET DEMO DATA"} onClick={runReset}>
-              {resetBusy ? "Resetting…" : "Reset demo data"}
+            <Btn kind="danger" disabled={resetBusy || resetPhrase.trim().toUpperCase() !== "RESET LOCAL WORKFLOW"} onClick={runReset}>
+              {resetBusy ? "Resetting…" : "Reset local workflow"}
             </Btn>
           </div>
         </Modal>

@@ -436,12 +436,9 @@ def _resolve_from_bounded_page(dataset: str, case_uid: str) -> Optional[Resolved
 
 
 def _latest_workflow_state_for_search(case_uid: str) -> Dict[str, Any]:
-    try:
-        from app.config import settings as _settings
-        from app.storage.case_state_repository import latest_case_state
-        return latest_case_state(_settings.processed_dir / "case_workflow_state.jsonl", case_uid)
-    except Exception:
-        return {}
+    from app.config import settings as _settings
+    from app.storage.case_state_repository import latest_case_state
+    return latest_case_state(_settings.processed_dir / "case_workflow_state.jsonl", case_uid)
 
 
 def _matches_search(rc: ResolvedCase, search: Optional[str]) -> bool:

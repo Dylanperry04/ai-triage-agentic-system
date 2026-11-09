@@ -9,6 +9,7 @@ from datetime import datetime
 from copy import deepcopy
 
 from app.constants import (
+    BALANCED_DEMO_COHORT_ID, BALANCED_DEMO_COHORT_NOTICE, BALANCED_DEMO_CORRECTED_CSV_SHA256,
     DATASET_SHA256, DATASET_SOURCE, DEMO_COHORT_ROWS, DEMO_COHORT_CATEGORY_COUNTS,
     DEMO_COHORT_MATCHED_ROWS, DEMO_COHORT_NOTICE, MODEL_SHA256,
     MODEL_FEATURE_RANGES, MEASUREMENT_UNITS,
@@ -18,6 +19,25 @@ from app.security.redaction import pseudonymous_case_uid
 from app.schemas.internal import EDTriageCase
 from app.rules.acuity_override import apply_acuity_override
 from ml_training.uhl_synthetic.serving import UHL_PRESENTING_COMPLAINTS
+
+
+def _legacy_selection(case: dict, selection: dict, number: int) -> tuple[int, bool]:
+    acuity = _integer(selection["ml_acuity_before_override"], "selected acuity", number)
+    if acuity not in range(1, 6):
+        raise UhlDatasetContractError("Invalid demonstration model result")
+    _between(_finite_float(selection["assigned_class_probability"], "selected probability", number),
+             "selected probability", 0, 1, number)
+    override = apply_acuity_override(acuity, EDTriageCase(**case).to_triage_time_input())
+    floor = min((rule["priority"] for rule in override["evaluated_discriminators"]
+                 if rule["status"] == "matched"), default=None)
+    matched = floor is not None
+    if (selection["final_acuity"] != override["final_acuity"]
+            or selection["source_estimated_acuity"] != override["final_acuity"]
+            or selection["has_matched_discriminator"] is not matched
+            or selection["safety_floor_acuity"] != floor
+            or selection["override_applied"] is not override["override_applied"]):
+        raise UhlDatasetContractError("Invalid demonstration safety evidence")
+    return override["final_acuity"], matched
 
 
 class UhlDemoCaseRepository:
@@ -41,61 +61,53 @@ class UhlDemoCaseRepository:
                 if hashlib.sha256(payload).hexdigest() != self.settings.expected_serving_data_sha256:
                     raise UhlDatasetContractError("Curated demo cohort hash mismatch")
                 manifest = json.loads(payload)
-                if (not isinstance(manifest, dict) or manifest.get("schema_version") != 1 or manifest.get("dataset_source") != DATASET_SOURCE
-                        or manifest.get("training_dataset_sha256") != DATASET_SHA256
-                        or manifest.get("model_sha256") != MODEL_SHA256):
+                balanced = self.settings.uhl_case_cohort == "demo_balanced_100"
+                if (not isinstance(manifest, dict) or manifest.get("schema_version") != (2 if balanced else 1)
+                        or manifest.get("dataset_source") != DATASET_SOURCE
+                        or manifest.get("training_dataset_sha256") != DATASET_SHA256):
                     raise UhlDatasetContractError("Curated demo provenance is incompatible")
+                if balanced:
+                    if (manifest.get("cohort_id") != BALANCED_DEMO_COHORT_ID
+                            or manifest.get("verified_corrected_attachment_sha256") != BALANCED_DEMO_CORRECTED_CSV_SHA256):
+                        raise UhlDatasetContractError("Balanced demo provenance is incompatible")
+                elif manifest.get("model_sha256") != MODEL_SHA256:
+                    raise UhlDatasetContractError("Legacy demo model provenance is incompatible")
                 rows = manifest.get("cases")
                 if not isinstance(rows, list) or len(rows) != DEMO_COHORT_ROWS:
                     raise UhlDatasetContractError("Curated demo must contain exactly 100 cases")
                 cases, index, selections, matched_count = [], {}, Counter(), 0
+                maximum_age = MODEL_FEATURE_RANGES["age"][1] if balanced else 74
                 for row in rows:
                     number = _integer(row["row_number"], "row_number", 0)
                     if number < 1:
                         raise UhlDatasetContractError("Invalid demo source-row identity")
                     age = _integer(row["age"], "age", number)
-                    if not 16 <= age < 75:
+                    if not 16 <= age <= maximum_age:
                         raise UhlDatasetContractError("Case is outside the curated adult demo scope")
                     datetime.fromisoformat(row["arrival_time"])
                     if row["presenting_complaint"] not in UHL_PRESENTING_COMPLAINTS:
                         raise UhlDatasetContractError("Unknown demo presenting complaint")
                     for field in ("temperature", "heartrate", "resprate", "o2sat", "sbp", "dbp", "pain"):
                         _between(_finite_float(row[field], field, number), field, *MODEL_FEATURE_RANGES[field], number)
-                    selection = row["selection_evidence"]
-                    acuity = _integer(selection["ml_acuity_before_override"], "selected acuity", number)
-                    if acuity not in range(1, 6):
-                        raise UhlDatasetContractError("Invalid demonstration model result")
-                    _between(_finite_float(selection["assigned_class_probability"], "selected probability", number),
-                             "selected probability", 0, 1, number)
                     # Keep source row numbers so existing pseudonyms/review links
                     # never get reassigned to a different patient during the swap.
                     adapted = {**row, "case_uid": pseudonymous_case_uid(DATASET_SOURCE, number),
                                "patient_display_label": f"UHL Case {number:06d}",
                                "model_eligible": True, "pathway": "ML_RESEARCH_ASSESSMENT"}
                     case = UhlCaseRepository._case_payload(adapted)
-                    # Verify matched/override metadata from the actual source
-                    # observations using the same serving rule evaluator.
-                    override = apply_acuity_override(acuity, EDTriageCase(**case).to_triage_time_input())
-                    matched = any(rule["status"] == "matched" for rule in override["evaluated_discriminators"])
-                    floor = min((rule["priority"] for rule in override["evaluated_discriminators"]
-                                 if rule["status"] == "matched"), default=None)
-                    if (selection["final_acuity"] != override["final_acuity"]
-                            or selection["source_estimated_acuity"] != override["final_acuity"]
-                            or selection["has_matched_discriminator"] is not matched
-                            or selection["safety_floor_acuity"] != floor
-                            or selection["override_applied"] is not override["override_applied"]):
-                        raise UhlDatasetContractError("Invalid demonstration safety evidence")
-                    selections[override["final_acuity"]] += 1
-                    matched_count += int(matched)
+                    if not balanced:
+                        final_acuity, matched = _legacy_selection(case, row["selection_evidence"], number)
+                        selections[final_acuity] += 1
+                        matched_count += matched
                     case["curated_demo"] = True
-                    case["demo_data_notice"] = DEMO_COHORT_NOTICE
+                    case["demo_data_notice"] = BALANCED_DEMO_COHORT_NOTICE if balanced else DEMO_COHORT_NOTICE
                     if case["case_uid"] in index:
                         raise UhlDatasetContractError("Duplicate curated case identity")
                     cases.append(case)
                     index[case["case_uid"]] = case
-                if selections != Counter(DEMO_COHORT_CATEGORY_COUNTS):
+                if not balanced and selections != Counter(DEMO_COHORT_CATEGORY_COUNTS):
                     raise UhlDatasetContractError("Curated category distribution is incompatible")
-                if matched_count != DEMO_COHORT_MATCHED_ROWS:
+                if not balanced and matched_count != DEMO_COHORT_MATCHED_ROWS:
                     raise UhlDatasetContractError("Curated matched-check count is incompatible")
                 self._cases, self._index, self._manifest, self._signature = cases, index, manifest, signature
             except UhlDatasetContractError:
@@ -116,7 +128,7 @@ class UhlDemoCaseRepository:
                     "dataset_sha256": self.settings.expected_serving_data_sha256,
                     "training_dataset_sha256": DATASET_SHA256, "source_rows": DEMO_COHORT_ROWS,
                     "model_scope_rows": DEMO_COHORT_ROWS, "deterministic_path_rows": 0,
-                    "target_counts": {}, "case_cohort": "demo_100", "cache_schema_version": 0,
+                    "target_counts": {}, "case_cohort": self.settings.uhl_case_cohort, "cache_schema_version": 0,
                     "measurement_units": dict(MEASUREMENT_UNITS),
                     "cohort_selection": deepcopy(self._manifest["selection"])}
 

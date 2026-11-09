@@ -8,6 +8,7 @@ escalation.
 from __future__ import annotations
 
 import os
+from collections import deque
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -19,7 +20,7 @@ _MAX_WORKFLOW_READ_LIMIT = 100000
 def append_case_state(path: Path, state: Dict[str, Any]) -> None:
     from app.storage.guarded_writer import write_record
     case_uid = str(state.get("case_uid") or "").strip()
-    if case_uid:
+    if case_uid and _patient_data_mode():
         current = dict(state)
         current["record_kind"] = "case_workflow_state_current"
         current["state_id"] = case_uid
@@ -29,6 +30,19 @@ def append_case_state(path: Path, state: Dict[str, Any]) -> None:
         # looking active.
         write_record(path, current, record_kind="case_workflow_state_current")
     write_record(path, state, record_kind="case_workflow_state")
+
+
+def has_applied_review(path: Path, *, case_uid: str, review_id: str, revision: int) -> bool:
+    if _patient_data_mode():
+        rows = _read_patient_records(path, record_kind="case_workflow_state", limit=_MAX_WORKFLOW_READ_LIMIT)
+    else:
+        rows = _iter_local_case_states(path, strict=True)
+    return any(
+        row.get("case_uid") == case_uid
+        and row.get("last_review_id") == review_id
+        and row.get("state_revision") == revision
+        for row in rows
+    )
 
 
 def _patient_data_mode() -> bool:
@@ -98,15 +112,52 @@ def read_case_states(path: Path, *, limit: int = _DEFAULT_WORKFLOW_READ_LIMIT) -
 
 
 def latest_case_state(path: Path, case_uid: str) -> Dict[str, Any]:
-    if _patient_data_mode():
-        current = read_current_case_state(path, case_uid)
-        if current:
-            return current
+    current = read_current_case_state(path, case_uid)
+    if current or not _patient_data_mode():
+        return current
     latest: Dict[str, Any] = {}
     for record in read_case_states(path):
         if record.get("case_uid") == case_uid:
             latest = record
     return latest
+
+
+def read_local_case_state_history(
+    path: Path, *, limit: int, strict: bool = False,
+) -> List[Dict[str, Any]]:
+    """Read audit events without spending the limit on old projection rows."""
+    events = (
+        row for row in _iter_local_case_states(path, strict=strict)
+        if row.get("record_kind") != "case_workflow_state_current"
+    )
+    return list(deque(events, maxlen=limit))
+
+
+def read_latest_case_states(
+    path: Path, *, limit: int | None = None,
+) -> Dict[str, Dict[str, Any]]:
+    """Project one current snapshot per case before applying any work limit."""
+    if _patient_data_mode():
+        records = read_case_states(path, limit=limit or _DEFAULT_WORKFLOW_READ_LIMIT)
+    else:
+        records = _iter_local_case_states(path, strict=True)
+    latest: Dict[str, Dict[str, Any]] = {}
+    for record in records:
+        case_uid = str(record.get("case_uid") or "").strip()
+        if case_uid:
+            latest.pop(case_uid, None)
+            latest[case_uid] = _current_record_from_state(record)
+    if limit is not None and len(latest) > limit:
+        return dict(list(latest.items())[-limit:])
+    return latest
+
+
+def _iter_local_case_states(path: Path, *, strict: bool = False):
+    from app.security.local_paths import credentialed_artifact_path
+    from app.storage.jsonl_io import iter_jsonl_dicts
+
+    safe_path = credentialed_artifact_path(path, purpose="current case_workflow_state read")
+    return iter_jsonl_dicts(safe_path, strict=strict)
 
 
 def read_current_case_state(path: Path, case_uid: str) -> Dict[str, Any]:
@@ -150,14 +201,8 @@ def read_current_case_state(path: Path, case_uid: str) -> Dict[str, Any]:
                 return _current_record_from_state(record)
         return {}
 
-    from app.security.local_paths import credentialed_artifact_path
-    path = credentialed_artifact_path(path, purpose="current case_workflow_state read")
-    if not path.exists():
-        return {}
     latest: Dict[str, Any] = {}
-    from app.storage.jsonl_io import read_jsonl_dicts
-
-    for record in read_jsonl_dicts(path):
+    for record in _iter_local_case_states(path, strict=True):
         if record.get("case_uid") == case_uid:
             latest = record
     return _current_record_from_state(latest) if latest else {}

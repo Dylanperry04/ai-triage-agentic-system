@@ -193,6 +193,12 @@ class EDTriageCase(BaseModel):
     source_dataset: str = "UHL_SYNTHETIC_TRIAGE_VITALS_ACUITY_FINAL_20260402"
     stay_id: int
     subject_id: int
+    # Structured clinical findings remain separate from the trained ML input
+    # contract; unrecorded MTS observations are never invented from the CSV.
+    mts_checklist: Optional[Dict[str, Any]] = None
+    mts_checklist_revision: Optional[str] = None
+    mts_observation_provenance: Dict[str, Any] = Field(default_factory=dict)
+    mts_recording_metadata: Dict[str, Any] = Field(default_factory=dict)
 
     edstay: EDStaySource
     triage: Optional[TriageSource] = None

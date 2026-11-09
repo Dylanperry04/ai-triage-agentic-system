@@ -36,6 +36,7 @@ and the clinician is informed. The flags themselves are logged for audit.
 """
 from __future__ import annotations
 
+import asyncio
 import os
 from pathlib import Path
 from typing import Any
@@ -44,6 +45,9 @@ from dotenv import load_dotenv
 
 from app.schemas.workflow import ExplanationResult
 from app.rules.llm_safety_filter import check_forbidden_phrases
+
+EXPLANATION_CALL_TIMEOUT_SECONDS = 15
+EXPLANATION_DEADLINE_SECONDS = 30
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -85,6 +89,15 @@ If a clinician question is present, answer that question first. Do not dump all
 available patient facts. Mention a vital sign, demographic, or field only when
 it directly answers the question, was missing/abnormal, contributed to a rule or
 model estimate, or explains why it did not drive the estimate.
+
+If mts_assessment is supplied, distinguish its source-versioned nursing chart
+trace from the legacy provisional heuristic. Only matched executed rules are
+positive findings. Source-recorded values do not assert nursing assessment;
+unavailable and not_assessed findings are unknown, not absent. A candidate
+priority on an incomplete chart is an urgency floor, not a completed MTS
+classification. Claim a chart-related change only when escalation_applied is
+true and use the recorded before/displayed priorities. Do not invent definitions
+or identify any research implementation as clinically validated.
 
 For a clinician question, your response must have exactly these five sections:
 1. Direct Answer
@@ -173,8 +186,7 @@ def _redact_evidence_for_prompt(case_evidence: dict[str, Any]) -> dict[str, Any]
 
       - replace any raw top-level case_id/stay_id with a PSEUDONYMOUS case_ref;
       - drop raw identifier keys at every depth;
-      - run every string through redact_text so names/dates/long identifiers are
-        scrubbed before they leave the box;
+      - omit display identity fields and apply best-effort free-text redaction;
       - fail closed on unsupported object types instead of stringifying arbitrary
         Python objects into a prompt.
 
@@ -191,7 +203,10 @@ def _redact_evidence_for_prompt(case_evidence: dict[str, Any]) -> dict[str, Any]
             out: dict[str, Any] = {}
             for key, value in obj.items():
                 key_s = str(key)
-                if key_s.lower() in IDENTIFIER_KEYS or key_s in {"case_id"}:
+                if key_s.lower() in IDENTIFIER_KEYS or key_s.lower() in {
+                    "case_id", "display_identifier", "patient_display_name",
+                    "patient_display_label", "encounter_display_label",
+                }:
                     continue
                 out[key_s] = _clean(value)
             return out
@@ -280,8 +295,13 @@ def _load_azure_config() -> dict:
     """Load Azure OpenAI config from environment. Raises if missing OR if cloud
     egress is disabled for the active profile (e.g. LOCAL_CREDENTIALED_RESEARCH,
     where credentialed evidence must not be sent to a cloud LLM by default)."""
-    from app.security.identity import cloud_egress_allowed
-    if not cloud_egress_allowed():
+    from app.security.identity import cloud_llm_egress_allowed, patient_data_mode
+    if not cloud_llm_egress_allowed():
+        if patient_data_mode():
+            raise RuntimeError(
+                "Cloud LLM egress is disabled in patient-data mode without separate "
+                "processing approval and an explicit patient-data opt-in."
+            )
         raise RuntimeError(
             "Cloud LLM egress is disabled for the active profile "
             "(LOCAL_CREDENTIALED_RESEARCH). Credentialed evidence is not sent to a "
@@ -313,6 +333,28 @@ def result_to_dict(result: ExplanationResult) -> dict:
     return result.model_dump(mode="json")
 
 
+async def _request_azure_completion(config: dict, prompt: str):
+    from openai import AsyncAzureOpenAI
+
+    async with asyncio.timeout(EXPLANATION_DEADLINE_SECONDS):
+        async with AsyncAzureOpenAI(
+            azure_endpoint=config["endpoint"],
+            api_key=config["api_key"],
+            api_version=config["api_version"],
+            timeout=EXPLANATION_CALL_TIMEOUT_SECONDS,
+            max_retries=0,
+        ) as client:
+            return await client.chat.completions.create(
+                model=config["deployment"],
+                messages=[
+                    {"role": "system", "content": SYSTEM_INSTRUCTIONS},
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=0,
+                max_tokens=900,
+            )
+
+
 def run_llm_explanation(case_evidence: dict[str, Any],
                         clinician_question: str | None = None) -> ExplanationResult:
     """
@@ -340,25 +382,15 @@ def run_llm_explanation(case_evidence: dict[str, Any],
         )
 
     try:
-        from openai import AzureOpenAI
-
-        client = AzureOpenAI(
-            azure_endpoint=config["endpoint"],
-            api_key=config["api_key"],
-            api_version=config["api_version"],
-        )
-
         prompt = _build_prompt(case_evidence, clinician_question)
-
-        completion = client.chat.completions.create(
-            model=config["deployment"],
-            messages=[
-                {"role": "system", "content": SYSTEM_INSTRUCTIONS},
-                {"role": "user",   "content": prompt},
-            ],
-            temperature=0,      # Deterministic — no creative freedom on clinical content
-            max_tokens=900,
-        )
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            pass
+        else:
+            raise RuntimeError("Use this synchronous explanation helper from a worker thread.")
+        with asyncio.Runner() as runner:
+            completion = runner.run(_request_azure_completion(config, prompt))
 
         explanation_text = completion.choices[0].message.content or ""
         safety_failures = _validate_explanation_safety(explanation_text)

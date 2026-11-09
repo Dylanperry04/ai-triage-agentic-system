@@ -37,6 +37,12 @@ export default function App() {
   const [sweepError, setSweepError] = useState(null);
   const [pollError, setPollError] = useState(null);
   const [selectedUid, setSelectedUid] = useState(null);
+  const triageNavigation = useRef(null);
+  const notificationNavigation = useRef(0);
+  const selectTriageCase = useCallback(uid => {
+    notificationNavigation.current += 1;
+    setSelectedUid(uid);
+  }, []);
   const [toasts, setToasts] = useState([]);
   const [notifs, setNotifs] = useState([]);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -122,10 +128,13 @@ export default function App() {
     setEntered(true);
   };
   const signOut = () => {
+    notificationNavigation.current += 1;
+    const platformLogout = session?.logout_url === "/.auth/logout?post_logout_redirect_uri=%2F";
     setDemoIdentity(null, null); setEntered(false); setPersona(null); setTab(null);
     setCases(null); setDecisionMap({}); setNotifs([]); announcedNotifs.current = new Set();
     notificationBaselineLoaded.current = false; setSelectedUid(null);
-    api.authSession().then(setSession).catch(() => {});
+    if (platformLogout) window.location.assign("/.auth/logout?post_logout_redirect_uri=%2F");
+    else api.authSession().then(setSession).catch(() => {});
   };
 
   const navItems = useMemo(() => navForSession(session), [session]);
@@ -230,46 +239,52 @@ export default function App() {
     return () => { stop = true; clearInterval(t1); if (t2) clearInterval(t2); };
   }, [entered, session, reconcileNotifications]);
 
+  const navigate = (action, sameViewCaseUid = null) => {
+    if (triageNavigation.current) triageNavigation.current(action, undefined, sameViewCaseUid);
+    else action();
+  };
   const onOpenCase = async (n) => {
     setNotifOpen(false);
-    setNotifs((xs) => xs.map((x) => x.id === n.id ? { ...x, read: true } : x));
-
+    const request = ++notificationNavigation.current;
     const destination = notificationDestination(n, session?.roles || [], navItems);
-    if (n.kind === "monthly_retraining") {
-      setTab(destination.tab);
-    } else {
+    let current;
+    if (n.kind !== "monthly_retraining") {
       if (!n.caseUid) return;
-      setQuery("");
       // Notification cases may sit outside the currently loaded 200-row page.
       // Fetch and pin the exact case before selecting it; otherwise a valid
       // notification can open an apparently empty queue.
       try {
-        const current = await api.getCase(n.caseUid);
+        current = await api.getCase(n.caseUid);
+      } catch (e) {
+        if (request === notificationNavigation.current) toast("Could not open case", e.detail || e.message, "err");
+        return;
+      }
+    }
+    if (request !== notificationNavigation.current) return;
+    navigate(async () => {
+      if (request !== notificationNavigation.current) return;
+      if (current) {
+        setQuery("");
         setCases((prev) => {
           const rows = prev || [];
           const index = rows.findIndex((row) => row.case_uid === n.caseUid);
           if (index < 0) return [current, ...rows];
           const next = rows.slice(); next[index] = current; return next;
         });
-      } catch (e) {
-        toast("Could not open case", e.detail || e.message, "err");
-        return;
       }
-
       setTab(destination.tab);
       if (destination.selection === "selected") {
         setSelectedUid(n.caseUid);
       } else if (destination.selection === "focus") {
         setFocusUid(n.caseUid);
       }
-    }
-
-    // Opening is not acknowledgement: an overdue-observations warning remains
-    // active until observations are actually recorded (or explicitly dismissed).
-    if (n.durable) {
-      try { await api.markNotificationRead(n.id); }
-      catch (e) { toast("Could not mark notification read", e.detail || e.message, "err"); }
-    }
+      setNotifs((xs) => xs.map((x) => x.id === n.id ? { ...x, read: true } : x));
+      // Opening does not acknowledge an overdue-observations warning.
+      if (n.durable) {
+        try { await api.markNotificationRead(n.id); }
+        catch (e) { toast("Could not mark notification read", e.detail || e.message, "err"); }
+      }
+    }, destination.tab === "triage" && destination.selection === "selected" ? n.caseUid : null);
   };
 
   /* Optimistic in-session colour for a decision whose queue reload has not
@@ -315,7 +330,7 @@ export default function App() {
 
   const view = (() => {
     switch (tab) {
-      case "triage": return <Triage cases={searchActive ? (searchResults || []) : (cases || [])} casesError={searchActive ? (searchError || casesError) : casesError} casesLoading={!searchActive && cases === null} refresh={refreshCases} selectedUid={selectedUid} setSelectedUid={setSelectedUid} query={query} searchActive={searchActive} searchBusy={searchBusy} toast={toast} onDecision={recordDecision} permissions={session.permissions || []} canExplainAcuity={canExplainAcuity} presentation={presentation} serverTotal={casesMeta?.total ?? (cases || []).length} hasMore={Boolean(casesMeta?.has_more)} onLoadMore={loadMoreCases} loadingMore={loadingMore} />;
+      case "triage": return <Triage cases={searchActive ? (searchResults || []) : (cases || [])} casesError={searchActive ? (searchError || casesError) : casesError} casesLoading={!searchActive && cases === null} refresh={refreshCases} selectedUid={selectedUid} setSelectedUid={selectTriageCase} query={query} searchActive={searchActive} searchBusy={searchBusy} toast={toast} onDecision={recordDecision} permissions={session.permissions || []} canExplainAcuity={canExplainAcuity} presentation={presentation} serverTotal={casesMeta?.total ?? (cases || []).length} hasMore={Boolean(casesMeta?.has_more)} onLoadMore={loadMoreCases} loadingMore={loadingMore} navigationGuard={triageNavigation} />;
       case "review": return <ReviewQueue cases={cases || []} casesError={casesError} refresh={refreshCases} decisionMap={decisionMap} toast={toast} session={session} focusUid={focusUid} onFocusHandled={() => setFocusUid(null)} />;
       case "escalations": return <ReviewQueue cases={cases || []} casesError={casesError} refresh={refreshCases} decisionMap={decisionMap} toast={toast} session={session} escalationsOnly focusUid={focusUid} onFocusHandled={() => setFocusUid(null)} />;
       case "analytics": return <Analytics toast={toast} />;
@@ -330,17 +345,19 @@ export default function App() {
   return (
     <>
       <GlobalStyle />
-      <div className="alter" style={{ display: "flex", height: "100vh", fontFamily: T.font, color: T.ink, background: T.canvas }}>
-        <Sidebar session={session} tab={tab} setTab={(k) => { setTab(k); setNotifOpen(false); }} collapsed={collapsed} setCollapsed={setCollapsed} presentation={presentation} />
+      <div className="alter app-shell" style={{ display: "flex", height: "100vh", fontFamily: T.font, color: T.ink, background: T.canvas }}>
+        <Sidebar session={session} tab={tab} setTab={(k) => {
+          if (k !== tab) navigate(() => { notificationNavigation.current += 1; setTab(k); setNotifOpen(false); });
+        }} collapsed={collapsed} setCollapsed={setCollapsed} presentation={presentation} />
         <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-          <Header identity={identity} roleLabel={roleLabel} onSignOut={signOut} notifs={notifs} notifOpen={notifOpen} onToggleNotifs={() => setNotifOpen((o) => !o)}
+          <Header identity={identity} roleLabel={roleLabel} onSignOut={() => navigate(signOut)} notifs={notifs} notifOpen={notifOpen} onToggleNotifs={() => setNotifOpen((o) => !o)}
             onDismissNotif={(id) => {
               const target = notifs.find((n) => n.id === id);
               setNotifs((xs) => xs.map((x) => x.id === id ? { ...x, read: true } : x));
               if (target?.durable) api.markNotificationRead(id).catch((e) => toast("Could not dismiss notification", e.detail || e.message, "err"));
             }} onOpenCase={onOpenCase}
             query={query} setQuery={setQuery} ringKey={ringKey} canSearch={canSearch && tab === "triage"} />
-          <main style={{ flex: 1, overflowY: "auto", padding: 18, minHeight: 0 }} onClick={() => notifOpen && setNotifOpen(false)}>
+          <main className="app-main" style={{ flex: 1, overflowY: "auto", padding: 18, minHeight: 0 }} onClick={() => notifOpen && setNotifOpen(false)}>
             {(sweepError || pollError) && (
               /* Without this the notification state was unobservable: a failing
                  sweep looked identical to "nothing is overdue". */

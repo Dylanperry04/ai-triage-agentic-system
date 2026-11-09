@@ -3,12 +3,14 @@ import { it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import ModelPerformance from "../views/ModelPerformance.jsx";
 import { api } from "../api.js";
+import { emptyEvaluation } from "./mts-fixtures.js";
 
-vi.mock("../api.js", () => ({ api: { modelPerformance: vi.fn() } }));
+vi.mock("../api.js", () => ({ api: { modelPerformance: vi.fn(), mtsEvaluation: vi.fn() } }));
 vi.mock("recharts", async (original) => ({ ...await original(), ResponsiveContainer: () => null }));
 afterEach(cleanup);
 
 it("identifies metric scope and never invents zero patient overlap", async () => {
+  api.mtsEvaluation.mockResolvedValue(emptyEvaluation);
   api.modelPerformance.mockResolvedValue({ artefacts: {
     model_card: { model_name: "UHL model", headline_metrics: {} },
     metric_scope_note: "The current deployment policy was not evaluated by these metrics.",

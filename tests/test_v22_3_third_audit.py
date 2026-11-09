@@ -5,6 +5,7 @@ tests because three of them were regressions introduced by the previous round
 of fixes, which passing suites did not catch.
 """
 from __future__ import annotations
+from tests.applied_review_fixtures import applied_review_states, normalise_applied_review_fixtures
 
 import pytest
 
@@ -95,23 +96,23 @@ class TestTruncationPreservesMandatoryReviewStatement:
 
 class TestOverridesKpiCountsOnlyRealOverrides:
     def test_rules_only_adjustment_is_not_a_clinician_override(self):
-        recs = normalise_audit_records(workflow_runs=[{
+        recs = normalise_applied_review_fixtures(workflow_runs=[{
             "workflow_run_id": "r1", "timestamp_utc": "2026-08-07T10:00:00+00:00",
             "case_uid": "c1", "final_acuity": 2, "override_applied": True}])
         assert aggregate_audit_dashboard(recs)["summary"]["overrides"] == 0
 
     def test_uncertain_with_a_reason_is_not_an_override(self):
-        recs = normalise_audit_records(human_reviews=[
+        recs = normalise_applied_review_fixtures(human_reviews=[
             _review("h1", "UNCERTAIN", override_reason="unsure")])
         assert aggregate_audit_dashboard(recs)["summary"]["overrides"] == 0
 
     def test_genuine_override_still_counts(self):
-        recs = normalise_audit_records(human_reviews=[
+        recs = normalise_applied_review_fixtures(human_reviews=[
             _review("h1", "OVERRIDDEN", clinician_override="Very Urgent (Orange)")])
         assert aggregate_audit_dashboard(recs)["summary"]["overrides"] == 1
 
     def test_ed_doctor_final_change_counts_as_an_override(self):
-        recs = normalise_audit_records(human_reviews=[_review(
+        recs = normalise_applied_review_fixtures(human_reviews=[_review(
             "h1", "ESCALATION_RESOLVED", reviewer_role="ed_doctor",
             system_prediction="Urgent (Yellow)", final_clinician_acuity=2,
             override_reason="Persistent hypoxia after repeat observations.",
@@ -124,7 +125,7 @@ class TestOverridesKpiCountsOnlyRealOverrides:
         ]
 
     def test_ed_doctor_confirmation_is_not_an_override(self):
-        recs = normalise_audit_records(human_reviews=[_review(
+        recs = normalise_applied_review_fixtures(human_reviews=[_review(
             "h1", "ESCALATION_RESOLVED", reviewer_role="ed_doctor",
             system_prediction="Urgent (Yellow)", final_clinician_acuity=3,
             review_comment="Confirmed after full clinical review.",
@@ -139,7 +140,7 @@ class TestOverridesKpiCountsOnlyRealOverrides:
 
 class TestKpiPopulationsAreDistinguishable:
     def test_submitted_actions_and_acuity_decisions_are_separate_numbers(self):
-        recs = normalise_audit_records(human_reviews=[
+        recs = normalise_applied_review_fixtures(human_reviews=[
             _review("h1", "ACCEPTED_AS_PRESENTED"),
             _review("h2", "REQUEST_MORE_INFORMATION"),
         ])
@@ -150,7 +151,7 @@ class TestKpiPopulationsAreDistinguishable:
         assert summary["acuity_decisions"] == donut_total, "KPI must match the donut"
 
     def test_two_exact_assessments_for_one_patient_count_as_two_decisions(self):
-        recs = normalise_audit_records(human_reviews=[
+        recs = normalise_applied_review_fixtures(human_reviews=[
             _review("h1", "ACCEPTED_AS_PRESENTED", case_uid="same-case",
                     workflow_run_id="run-1"),
             _review("h2", "ESCALATION_RESOLVED", case_uid="same-case",
@@ -165,7 +166,7 @@ class TestKpiPopulationsAreDistinguishable:
 
 class TestRoleBarAndRoleFilterAgree:
     def test_secondary_role_does_not_return_records_the_bar_never_counted(self):
-        recs = normalise_audit_records(human_reviews=[_review(
+        recs = normalise_applied_review_fixtures(human_reviews=[_review(
             "h1", "ACCEPTED_AS_PRESENTED",
             reviewer_roles=["triage_nurse", "ed_doctor"])])
         bar = {r["label"]: r["count"]

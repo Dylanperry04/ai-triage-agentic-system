@@ -236,7 +236,7 @@ class TestResetArchivesRatherThanDeletes:
 class TestResetRouteContract:
     def test_confirmation_phrase_is_required(self):
         # The phrase is what makes this a deliberate act rather than a stray POST.
-        assert CONFIRMATION_PHRASE == "RESET DEMO DATA"
+        assert CONFIRMATION_PHRASE == "RESET LOCAL WORKFLOW"
 
     def test_audit_log_is_archived_not_exempted(self):
         """The access audit is cleared for a clean demo, but never destroyed."""

@@ -93,7 +93,11 @@ class EncryptedDurableAuditSink:
             if hasattr(self.client, "upsert"):
                 self.client.upsert(safe)  # simple deployment-provided contract
             elif hasattr(self.client, "upsert_entity"):
-                self.client.upsert_entity(_as_table_entity(safe))
+                entity = _as_table_entity(safe)
+                if safe.get("record_kind") == "case_workflow_state_current":
+                    self.client.upsert_entity(entity, mode="replace")
+                else:
+                    self.client.upsert_entity(entity)
             else:
                 return False
             return True
@@ -254,8 +258,16 @@ def _as_table_entity(record: Dict[str, Any]) -> Dict[str, Any]:
             entity[key] = value
     partition = str(record.get("record_kind") or record.get("action") or "audit")
     seed = orjson.dumps(record, option=orjson.OPT_SORT_KEYS)
+    state_history_key = (
+        f"{record['case_uid']}|{record['updated_at_utc']}"
+        if partition == "case_workflow_state" and record.get("case_uid") and record.get("updated_at_utc")
+        else None
+    )
     row_key = str(
-        record.get("workflow_run_id")
+        (record.get("state_id") if partition == "case_workflow_state_current" else None)
+        or (record.get("review_id") if partition == "human_review" else None)
+        or state_history_key
+        or record.get("workflow_run_id")
         or record.get("review_id")
         or record.get("rerun_id")
         or record.get("state_id")

@@ -48,9 +48,13 @@ def run_policy_checks(run_workflow_fn: Callable, settings=None,
     # layer (independent of any ML model).
     try:
         wf = run_workflow_fn(_synth(hr=195.0, o2=80.0, sbp=70.0, cc="COLLAPSE / FAINT"))
-        dec = wf.decision.model_dump()
-        flagged = ("CRITICAL" in str(dec.get("classification_status", ""))
-                   or "CRITICAL" in " ".join(str(r) for r in (dec.get("reason_codes") or [])))
+        # Check the active safety layer and actionable output, rather than the
+        # retired heuristic Manchester decision's status string.
+        flags = wf.safety_review.data_quality_flags
+        final = wf.final_acuity_assessment.final_acuity
+        flagged = (any("CRITICAL" in flag for flag in flags)
+                   and final is not None and final <= 2
+                   and wf.workflow_action == "ESCALATION_REQUIRED")
         checks.append(_check(
             "critical_physiology_always_flagged", flagged,
             "Critical physiology was flagged by the safety layer." if flagged

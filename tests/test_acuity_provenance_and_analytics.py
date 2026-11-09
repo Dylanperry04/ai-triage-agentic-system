@@ -4,6 +4,7 @@ Each test pins a defect that was live in the deployed app, so a future change
 that reintroduces it fails here rather than in front of a clinician.
 """
 from __future__ import annotations
+from tests.applied_review_fixtures import applied_review_states, normalise_applied_review_fixtures
 
 import numpy as np
 import pytest
@@ -97,7 +98,7 @@ class TestCanonicalAcuity:
 
     def test_one_acuity_is_one_bucket_across_record_kinds(self):
         """The duplicated donut slices: int 2 and 'Very Urgent (Orange)' are one acuity."""
-        records = normalise_audit_records(
+        records = normalise_applied_review_fixtures(
             workflow_runs=[{
                 "timestamp_utc": "2026-08-01T10:00:00+00:00",
                 "case_uid": "c1", "final_acuity": 2,
@@ -121,7 +122,7 @@ class TestCanonicalAcuity:
 class TestRoleCountsAreDecisionsNotAuditRows:
     def test_access_events_do_not_inflate_role_workload(self):
         """1,916 'submissions' for security admin were per-request access events."""
-        records = normalise_audit_records(
+        records = normalise_applied_review_fixtures(
             access_events=[
                 {"timestamp_utc": "2026-08-01T10:00:00+00:00",
                  "roles": ["security_admin"], "action": "view_audit_dashboard",
@@ -152,7 +153,7 @@ class TestAggregationsCoverAllMatchedRecords:
             "case_uid": f"c{i}", "reviewer_role": "triage_nurse",
             "review_status": "ACCEPTED_AS_PRESENTED", "system_prediction": "3",
         } for i in range(50)]
-        records = normalise_audit_records(human_reviews=reviews)
+        records = normalise_applied_review_fixtures(human_reviews=reviews)
 
         payload = dashboard_payload(records, limit=10)
         assert len(payload["entries"]) == 10      # page of row detail
@@ -227,7 +228,7 @@ class TestAcuityDrilldownFilter:
     def test_acuity_filter_matches_every_record_shape(self):
         """triage_level filtering silently dropped records stored as category text."""
         from app.analytics.audit_dashboard import AuditFilters, filter_audit_records
-        records = normalise_audit_records(
+        records = normalise_applied_review_fixtures(
             workflow_runs=[{
                 "timestamp_utc": "2026-08-01T10:00:00+00:00",
                 "case_uid": "c1", "final_acuity": 2,
@@ -247,7 +248,7 @@ class TestAcuityDrilldownFilter:
 
     def test_acuity_filter_excludes_other_acuities(self):
         from app.analytics.audit_dashboard import AuditFilters, filter_audit_records
-        records = normalise_audit_records(
+        records = normalise_applied_review_fixtures(
             workflow_runs=[
                 {"timestamp_utc": "2026-08-01T10:00:00+00:00", "case_uid": "a", "final_acuity": 2},
                 {"timestamp_utc": "2026-08-01T10:01:00+00:00", "case_uid": "b", "final_acuity": 4},
@@ -259,7 +260,7 @@ class TestAcuityDrilldownFilter:
 
     def test_no_acuity_filter_returns_everything(self):
         from app.analytics.audit_dashboard import AuditFilters, filter_audit_records
-        records = normalise_audit_records(
+        records = normalise_applied_review_fixtures(
             workflow_runs=[{"timestamp_utc": "2026-08-01T10:00:00+00:00",
                             "case_uid": "a", "final_acuity": 2}],
         )

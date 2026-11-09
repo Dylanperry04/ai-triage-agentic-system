@@ -68,16 +68,16 @@ class TestGatewayIntegration:
     def test_gateway_blocks_too_long(self, monkeypatch):
         monkeypatch.setenv("CHATBOT_MAX_PROMPT_CHARS", "10")
         d = authorise_agent_call(self._itd(), action="ask_chatbot",
-                                 case_uid="MIMIC#1", user_text="x" * 50)
+                                 case_uid=None, user_text="x" * 50)
         assert d.allowed is False and d.too_long is True
 
     def test_gateway_rate_limits(self, monkeypatch):
         monkeypatch.setenv("CHATBOT_RATE_MAX_REQUESTS", "2")
         monkeypatch.setenv("CHATBOT_RATE_WINDOW_SECONDS", "60")
         itd = self._itd()
-        a = authorise_agent_call(itd, action="ask_chatbot", case_uid="MIMIC#1", user_text="q1")
-        b = authorise_agent_call(itd, action="ask_chatbot", case_uid="MIMIC#1", user_text="q2")
-        c = authorise_agent_call(itd, action="ask_chatbot", case_uid="MIMIC#1", user_text="q3")
+        a = authorise_agent_call(itd, action="ask_chatbot", case_uid=None, user_text="q1")
+        b = authorise_agent_call(itd, action="ask_chatbot", case_uid=None, user_text="q2")
+        c = authorise_agent_call(itd, action="ask_chatbot", case_uid=None, user_text="q3")
         assert a.allowed and b.allowed
         assert c.allowed is False and c.rate_limited is True
         assert c.retry_after_seconds > 0
@@ -86,5 +86,5 @@ class TestGatewayIntegration:
         monkeypatch.setenv("CHATBOT_RATE_MAX_REQUESTS", "20")
         monkeypatch.setenv("CHATBOT_MAX_PROMPT_CHARS", "2000")
         d = authorise_agent_call(self._itd(), action="ask_chatbot",
-                                 case_uid="MIMIC#1", user_text="Why was this Red?")
+                                 case_uid=None, user_text="What is the running version?")
         assert d.allowed is True
